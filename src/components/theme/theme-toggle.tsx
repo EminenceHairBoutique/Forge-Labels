@@ -4,26 +4,30 @@ import * as React from "react";
 import { Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-function currentIsDark(): boolean {
-  return document.documentElement.classList.contains("dark");
+function subscribeToThemeClass(callback: () => void): () => void {
+  const observer = new MutationObserver(callback);
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["class"],
+  });
+  return () => observer.disconnect();
 }
 
 export function ThemeToggle() {
-  const [isDark, setIsDark] = React.useState<boolean | null>(null);
-
-  React.useEffect(() => {
-    setIsDark(currentIsDark());
-  }, []);
+  const isDark = React.useSyncExternalStore(
+    subscribeToThemeClass,
+    () => document.documentElement.classList.contains("dark"),
+    () => false,
+  );
 
   function toggle() {
-    const next = !currentIsDark();
+    const next = !document.documentElement.classList.contains("dark");
     document.documentElement.classList.toggle("dark", next);
     try {
       localStorage.setItem("fl-theme", next ? "dark" : "light");
     } catch {
       // Storage may be unavailable (private browsing); the toggle still works.
     }
-    setIsDark(next);
   }
 
   return (
@@ -33,13 +37,7 @@ export function ThemeToggle() {
       onClick={toggle}
       aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
     >
-      {isDark === null ? (
-        <Sun className="size-4 opacity-0" aria-hidden />
-      ) : isDark ? (
-        <Sun className="size-4" aria-hidden />
-      ) : (
-        <Moon className="size-4" aria-hidden />
-      )}
+      {isDark ? <Sun className="size-4" aria-hidden /> : <Moon className="size-4" aria-hidden />}
     </Button>
   );
 }
