@@ -3,6 +3,7 @@
 import * as React from "react";
 import { create } from "zustand";
 import { CheckCircle2, Info, OctagonAlert, X } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type ToastVariant = "default" | "success" | "error";
@@ -44,7 +45,7 @@ export const toast = {
     useToastStore.getState().push({ title, description, variant: "error" }),
 };
 
-const ICONS: Record<ToastVariant, React.ElementType> = {
+const ICONS: Record<ToastVariant, LucideIcon> = {
   default: Info,
   success: CheckCircle2,
   error: OctagonAlert,

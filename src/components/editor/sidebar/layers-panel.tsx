@@ -20,6 +20,7 @@ import {
   Trash2,
   Type,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import type { LabelDocument, LabelObject } from "@/lib/document/schema";
 import {
   removeObjects,
@@ -31,7 +32,7 @@ import { Input } from "@/components/ui/input";
 import { useEditorUiStore } from "@/stores/editor-ui-store";
 import { cn } from "@/lib/utils";
 
-const TYPE_ICONS: Record<LabelObject["type"], React.ElementType> = {
+const TYPE_ICONS: Record<LabelObject["type"], LucideIcon> = {
   text: Type,
   rect: Square,
   ellipse: CircleIcon,

@@ -127,6 +127,8 @@ export async function exportRaster(
   doc: LabelDocument,
   options: RasterExportOptions,
 ): Promise<RasterResult> {
+  const { ensureFinishesRegistered } = await import("@/lib/finishes");
+  ensureFinishesRegistered();
   await loadFontsForDocument(doc);
   const { images, release } = await resolveDocumentImages(doc);
 
@@ -199,6 +201,8 @@ export async function renderThumbnail(
   doc: LabelDocument,
   maxPx = 480,
 ): Promise<string> {
+  const { ensureFinishesRegistered } = await import("@/lib/finishes");
+  ensureFinishesRegistered();
   await loadFontsForDocument(doc);
   const { images, release } = await resolveDocumentImages(doc);
   const container = document.createElement("div");

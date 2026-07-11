@@ -2,13 +2,16 @@
 
 import * as React from "react";
 import type { Fill, Shadow, Stroke } from "@/lib/document/schema";
+import { FINISHES } from "@/lib/finishes/types";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
 } from "@/components/ui/select";
 import { ColorField } from "../fields/color-field";
@@ -16,7 +19,14 @@ import { NumberField } from "../fields/dimension-field";
 
 /** Shared appearance controls used by text and shape property panels. */
 
-type FillKind = "solid" | "linear-gradient" | "none";
+type FillKind = "solid" | "linear-gradient" | "finish" | "none";
+
+const FINISH_CATEGORY_LABELS: Record<string, string> = {
+  holographic: "Holographic",
+  foil: "Foils",
+  metal: "Metals",
+  texture: "Textures",
+};
 
 interface FillSectionProps {
   id: string;
@@ -31,7 +41,9 @@ export function FillSection({ id, fill, onChange, allowNone }: FillSectionProps)
       ? "linear-gradient"
       : fill.type === "none"
         ? "none"
-        : "solid";
+        : fill.type === "finish"
+          ? "finish"
+          : "solid";
 
   const solidColor = fill.type === "solid" ? fill.color : "#4c3d8f";
   const stops =
@@ -46,9 +58,27 @@ export function FillSection({ id, fill, onChange, allowNone }: FillSectionProps)
   function setKind(next: FillKind) {
     if (next === kind) return;
     if (next === "none") onChange({ type: "none" });
-    else if (next === "solid") onChange({ type: "solid", color: stops[0]?.color ?? "#4c3d8f" });
+    else if (next === "solid")
+      onChange({ type: "solid", color: stops[0]?.color ?? "#4c3d8f" });
+    else if (next === "finish")
+      onChange({
+        type: "finish",
+        finishId: "foil-gold",
+        intensity: 0.8,
+        scale: 1,
+        angleDeg: 0,
+      });
     else onChange({ type: "linear-gradient", angleDeg: angle, stops });
   }
+
+  const kindLabel =
+    kind === "solid"
+      ? "Solid"
+      : kind === "linear-gradient"
+        ? "Gradient"
+        : kind === "finish"
+          ? "Finish"
+          : "None";
 
   return (
     <div className="space-y-2">
@@ -58,11 +88,12 @@ export function FillSection({ id, fill, onChange, allowNone }: FillSectionProps)
         </Label>
         <Select value={kind} onValueChange={(v) => setKind(v as FillKind)}>
           <SelectTrigger id={`${id}-kind`} className="h-7 w-36 text-xs">
-            {kind === "solid" ? "Solid" : kind === "linear-gradient" ? "Gradient" : "None"}
+            {kindLabel}
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="solid">Solid</SelectItem>
             <SelectItem value="linear-gradient">Gradient</SelectItem>
+            <SelectItem value="finish">Finish (foil, holo…)</SelectItem>
             {allowNone && <SelectItem value="none">None</SelectItem>}
           </SelectContent>
         </Select>
@@ -74,6 +105,72 @@ export function FillSection({ id, fill, onChange, allowNone }: FillSectionProps)
           color={solidColor}
           onCommit={(color) => onChange({ type: "solid", color })}
         />
+      )}
+
+      {kind === "finish" && fill.type === "finish" && (
+        <div className="space-y-2">
+          <Select
+            value={fill.finishId}
+            onValueChange={(finishId) => onChange({ ...fill, finishId })}
+          >
+            <SelectTrigger className="h-8 text-xs" aria-label="Finish material">
+              {FINISHES.find((f) => f.id === fill.finishId)?.name ?? "Choose finish"}
+            </SelectTrigger>
+            <SelectContent>
+              {(["holographic", "foil", "metal", "texture"] as const).map((cat) => (
+                <SelectGroup key={cat}>
+                  <SelectLabel>{FINISH_CATEGORY_LABELS[cat]}</SelectLabel>
+                  {FINISHES.filter((f) => f.category === cat).map((f) => (
+                    <SelectItem key={f.id} value={f.id}>
+                      {f.name}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs text-muted-foreground">Intensity</Label>
+              <span className="text-xs tabular-nums text-muted-foreground">
+                {Math.round(fill.intensity * 100)}%
+              </span>
+            </div>
+            <Slider
+              min={0}
+              max={100}
+              step={5}
+              value={[Math.round(fill.intensity * 100)]}
+              onValueChange={([v]) => onChange({ ...fill, intensity: (v ?? 80) / 100 })}
+              aria-label="Finish intensity"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <NumberField
+              id={`${id}-finish-scale`}
+              label="Pattern scale"
+              value={fill.scale}
+              min={0.25}
+              max={4}
+              step={0.25}
+              onCommit={(scale) => onChange({ ...fill, scale })}
+            />
+            <NumberField
+              id={`${id}-finish-angle`}
+              label="Angle"
+              value={fill.angleDeg}
+              min={0}
+              max={360}
+              step={15}
+              suffix="deg"
+              onCommit={(angleDeg) => onChange({ ...fill, angleDeg })}
+            />
+          </div>
+          <p className="text-[11px] leading-snug text-muted-foreground">
+            On-screen simulation — physical results depend on the material and
+            printing method. See the materials guide.
+          </p>
+        </div>
       )}
 
       {kind === "linear-gradient" && (

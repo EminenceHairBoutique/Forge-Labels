@@ -13,6 +13,7 @@ import {
   LockOpen,
 } from "lucide-react";
 import type {
+  Fill,
   LabelDocument,
   LabelObject,
   LineObject,
@@ -25,11 +26,13 @@ import {
   findObject,
   reorderObjects,
   setBackground,
+  setSubstrate,
   updateLabelGeometry,
   updateObject,
   updateObjects,
   withGesture,
 } from "@/lib/document/commands";
+import { getSubstrate, SUBSTRATES } from "@/lib/finishes/types";
 import {
   alignObjects,
   distributeObjects,
@@ -138,37 +141,53 @@ function DocumentProps({ doc }: { doc: LabelDocument }) {
       </Section>
       <Separator />
       <Section title="Background">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="bg-transparent" className="text-sm">
-            Transparent
-          </Label>
-          <Switch
-            id="bg-transparent"
-            checked={bg.type === "none"}
-            onCheckedChange={(checked) =>
-              setBackground(
-                checked ? { type: "none" } : { type: "solid", color: "#ffffff" },
-              )
-            }
-          />
-        </div>
-        {bg.type === "solid" && (
-          <ColorField
-            id="bg-color"
-            label="Color"
-            color={bg.color}
-            onCommit={(color) => setBackground({ type: "solid", color })}
-          />
-        )}
+        <FillSection
+          id="bg"
+          allowNone
+          fill={backgroundToFill(bg)}
+          onChange={(fill) => setBackground(fillToBackground(fill))}
+        />
         {bg.type === "none" && (
           <p className="text-xs text-muted-foreground">
-            The checkerboard preview stands in for clear or metallic stock —
-            exports keep true transparency.
+            Transparent background — the substrate below previews what shows
+            through; exports keep true transparency.
           </p>
         )}
       </Section>
+      <Separator />
+      <Section title="Substrate (label stock)">
+        <Select value={doc.substrateId} onValueChange={(id) => setSubstrate(id)}>
+          <SelectTrigger className="h-8" aria-label="Substrate">
+            {getSubstrate(doc.substrateId)?.name ?? "White polypropylene"}
+          </SelectTrigger>
+          <SelectContent>
+            {SUBSTRATES.map((s) => (
+              <SelectItem key={s.id} value={s.id}>
+                {s.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">
+          {getSubstrate(doc.substrateId)?.description}{" "}
+          Previews are simulations; the substrate itself is never printed.
+        </p>
+      </Section>
     </>
   );
+}
+
+/** Background ↔ Fill mapping (Background is the Fill union minus radial). */
+function backgroundToFill(bg: LabelDocument["background"]): Fill {
+  return bg as Fill;
+}
+
+function fillToBackground(fill: Fill): LabelDocument["background"] {
+  if (fill.type === "radial-gradient") {
+    // The background UI never offers radial; guard for type-safety.
+    return { type: "solid", color: fill.stops[0]?.color ?? "#ffffff" };
+  }
+  return fill;
 }
 
 // ---------------------------------------------------------------------------

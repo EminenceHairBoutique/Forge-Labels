@@ -12,6 +12,7 @@ import {
   Star as StarIcon,
   Type,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { addObject } from "@/lib/document/commands";
 import {
   createBarcodeObject,
@@ -31,7 +32,7 @@ import { toast } from "@/components/ui/toaster";
 
 interface ToolButton {
   label: string;
-  icon: React.ElementType;
+  icon: LucideIcon;
   action: () => void | Promise<void>;
 }
 

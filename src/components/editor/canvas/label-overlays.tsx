@@ -3,7 +3,8 @@
 import * as React from "react";
 import { Circle, Group, Line, Rect } from "react-konva";
 import type { LabelDocument } from "@/lib/document/schema";
-import { fillToKonvaProps } from "@/lib/render/fills";
+import { getSubstrate } from "@/lib/finishes/types";
+import { fillToKonvaProps, type KonvaFillProps } from "@/lib/render/fills";
 
 /** Checkerboard tile signaling a transparent background (editor only). */
 let checkerboardTile: HTMLCanvasElement | null = null;
@@ -35,34 +36,54 @@ export function LabelBase({ doc, zoom }: { doc: LabelDocument; zoom: number }) {
   const h = doc.label.heightMm + 2 * b;
   const isCircle = doc.label.shape === "circle";
 
-  const bgProps =
-    doc.background.type === "none"
-      ? checker
-        ? {
-            fillPatternImage: checker as unknown as HTMLImageElement,
-            fillPatternRepeat: "repeat",
-            fillPatternScaleX: 1 / zoom,
-            fillPatternScaleY: 1 / zoom,
-          }
-        : { fill: "#ffffff" }
-      : fillToKonvaProps(
-          doc.background.type === "solid"
-            ? { type: "solid", color: doc.background.color }
-            : doc.background.type === "linear-gradient"
-              ? {
-                  type: "linear-gradient",
-                  angleDeg: doc.background.angleDeg,
-                  stops: doc.background.stops,
-                }
-              : {
-                  type: "finish",
-                  finishId: doc.background.finishId,
-                  intensity: doc.background.intensity,
-                  scale: doc.background.scale,
-                  angleDeg: doc.background.angleDeg,
-                },
-          { width: w, height: h },
-        );
+  // Transparent backgrounds preview the physical substrate: a stock color,
+  // a simulated material tile, or (for clear film) a checkerboard.
+  let bgProps: KonvaFillProps | Record<string, unknown>;
+  if (doc.background.type === "none") {
+    const substrate = getSubstrate(doc.substrateId);
+    if (substrate?.previewFinishId) {
+      bgProps = fillToKonvaProps(
+        {
+          type: "finish",
+          finishId: substrate.previewFinishId,
+          intensity: 0.85,
+          scale: 1,
+          angleDeg: 0,
+        },
+        { width: w, height: h },
+      );
+    } else if (substrate?.previewColor) {
+      bgProps = { fill: substrate.previewColor };
+    } else if (checker) {
+      bgProps = {
+        fillPatternImage: checker as unknown as HTMLImageElement,
+        fillPatternRepeat: "repeat",
+        fillPatternScaleX: 1 / zoom,
+        fillPatternScaleY: 1 / zoom,
+      };
+    } else {
+      bgProps = { fill: "#ffffff" };
+    }
+  } else {
+    bgProps = fillToKonvaProps(
+      doc.background.type === "solid"
+        ? { type: "solid", color: doc.background.color }
+        : doc.background.type === "linear-gradient"
+          ? {
+              type: "linear-gradient",
+              angleDeg: doc.background.angleDeg,
+              stops: doc.background.stops,
+            }
+          : {
+              type: "finish",
+              finishId: doc.background.finishId,
+              intensity: doc.background.intensity,
+              scale: doc.background.scale,
+              angleDeg: doc.background.angleDeg,
+            },
+      { width: w, height: h },
+    );
+  }
 
   if (isCircle) {
     const r = Math.max(w, h) / 2;

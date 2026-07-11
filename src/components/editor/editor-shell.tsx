@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { loadDocument } from "@/lib/document/commands";
+import { ensureFinishesRegistered } from "@/lib/finishes";
 import { loadFontsForDocument } from "@/lib/fonts/registry";
 import { getStorageAdapter } from "@/lib/storage";
 import { useDoc } from "@/stores/document-store";
@@ -17,6 +18,8 @@ import { EditorContextMenu } from "./editor-context-menu";
 import { EditorTopBar } from "./editor-top-bar";
 import { EditorToolbar } from "./editor-toolbar";
 import { ExportDialog } from "./export-dialog";
+import { PrintDialog } from "./print-dialog";
+import { MockupDialog } from "@/components/mockup/mockup-dialog";
 import { PropertiesPanel } from "./sidebar/properties-panel";
 import { LayersPanel } from "./sidebar/layers-panel";
 import { saveNow, useAutosave } from "./hooks/use-autosave";
@@ -27,7 +30,14 @@ type LoadState = "loading" | "ready" | "not-found" | "error";
 export function EditorShell({ projectId }: { projectId: string }) {
   const [loadState, setLoadState] = React.useState<LoadState>("loading");
   const [exportOpen, setExportOpen] = React.useState(false);
+  const [printOpen, setPrintOpen] = React.useState(false);
+  const [previewOpen, setPreviewOpen] = React.useState(false);
   const doc = useDoc();
+
+  // Simulated-finish patterns feed the shared fill resolver.
+  React.useEffect(() => {
+    ensureFinishesRegistered();
+  }, []);
 
   // Load the project once.
   React.useEffect(() => {
@@ -156,6 +166,8 @@ export function EditorShell({ projectId }: { projectId: string }) {
         onZoomIn={() => zoomBy(1.25)}
         onZoomOut={() => zoomBy(1 / 1.25)}
         onExport={() => setExportOpen(true)}
+        onPrint={() => setPrintOpen(true)}
+        onPreview={() => setPreviewOpen(true)}
       />
       <div className="flex min-h-0 flex-1">
         <EditorToolbar />
@@ -186,6 +198,8 @@ export function EditorShell({ projectId }: { projectId: string }) {
         Advanced editing works best on desktop or tablet.
       </p>
       <ExportDialog doc={doc} open={exportOpen} onOpenChange={setExportOpen} />
+      <PrintDialog doc={doc} open={printOpen} onOpenChange={setPrintOpen} />
+      <MockupDialog doc={doc} open={previewOpen} onOpenChange={setPreviewOpen} />
     </div>
   );
 }

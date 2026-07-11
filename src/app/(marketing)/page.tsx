@@ -20,8 +20,8 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { VialGraphic } from "@/components/marketing/vial-graphic";
 import { FinishShowcase } from "@/components/marketing/finish-showcase";
+import { HeroVial } from "@/components/marketing/hero-vial";
 import { PLAN_SEED, formatPlanPrice } from "@/lib/billing/plan-seed";
 import { VIAL_PRESETS } from "@/lib/vials/presets";
 import { circumference } from "@/lib/geometry/label-calculator";
@@ -158,10 +158,8 @@ export default function LandingPage() {
               Free to try — no account needed to open the editor.
             </p>
           </div>
-          <div className="flex items-end justify-center gap-6 md:justify-end">
-            <VialGraphic size="10ml" variant="gold" brand="NOIR" product="Formula 01" className="w-24 sm:w-28" />
-            <VialGraphic size="30ml" variant="violet" brand="AURELIS" product="Serum No. 4" className="w-36 sm:w-44" />
-            <VialGraphic size="20ml" variant="teal" brand="ORIGIN" product="Renew Drops" className="w-28 sm:w-32" />
+          <div className="flex items-center justify-center md:justify-end">
+            <HeroVial />
           </div>
         </div>
       </section>

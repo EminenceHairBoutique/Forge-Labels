@@ -125,6 +125,31 @@ test.describe("editor", () => {
     await expect(page.getByText(/below the 0\.4 mm scanning guideline/i)).toBeVisible();
   });
 
+  test("exports a true-vector SVG with outlined text", async ({ page }) => {
+    await createProject(page);
+    await page.getByRole("button", { name: /add text/i }).click();
+    await expect(page.getByLabel(/text content/i)).toBeVisible();
+
+    await page.getByRole("button", { name: /^export$/i }).click();
+    await page.getByLabel(/format/i).click();
+    await page.getByRole("option", { name: /svg — vector/i }).click();
+
+    const downloadPromise = page.waitForEvent("download");
+    await page.getByRole("dialog").getByRole("button", { name: /^export$/i }).click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toMatch(/\.svg$/);
+
+    const stream = await download.createReadStream();
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) chunks.push(chunk as Buffer);
+    const svg = Buffer.concat(chunks).toString("utf8");
+
+    // Physical size + vector text (outlined to paths, no <text> element).
+    expect(svg).toContain('width="77.969mm"');
+    expect(svg).toContain("<path");
+    expect(svg).not.toContain("<text");
+  });
+
   test("exports a print-ready PDF", async ({ page }) => {
     await createProject(page);
 

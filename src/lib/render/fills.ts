@@ -27,9 +27,15 @@ export interface KonvaFillProps {
   fillPriority?: string;
 }
 
+export interface FinishPattern {
+  image: CanvasImageSource;
+  /** Pattern raster density so fills can map pixels back to millimeters. */
+  pxPerMm: number;
+}
+
 export interface FinishPatternResolver {
   (fill: Extract<Fill, { type: "finish" }>, size: { width: number; height: number }):
-    | CanvasImageSource
+    | FinishPattern
     | null;
 }
 
@@ -84,9 +90,14 @@ export function fillToKonvaProps(
         // Finishes engine not loaded (or unknown finish) — neutral fallback.
         return { fill: "#c8c8cc" };
       }
+      // Map the tile's pixels onto millimeters; `scale` stretches the motif.
+      const patternScale = fill.scale / pattern.pxPerMm;
       return {
-        fillPatternImage: pattern as HTMLImageElement,
+        fillPatternImage: pattern.image as HTMLImageElement,
         fillPatternRepeat: "repeat",
+        fillPatternScaleX: patternScale,
+        fillPatternScaleY: patternScale,
+        fillPatternRotation: fill.angleDeg,
         fillPriority: "pattern",
       };
     }

@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
+  Box,
   Check,
   CloudOff,
   Download,
@@ -11,6 +12,7 @@ import {
   Maximize,
   Minus,
   Plus,
+  Printer,
   Redo2,
   Undo2,
 } from "lucide-react";
@@ -39,6 +41,8 @@ interface EditorTopBarProps {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onExport: () => void;
+  onPrint: () => void;
+  onPreview: () => void;
 }
 
 function SaveStatus() {
@@ -78,6 +82,8 @@ export function EditorTopBar({
   onZoomIn,
   onZoomOut,
   onExport,
+  onPrint,
+  onPreview,
 }: EditorTopBarProps) {
   const { canUndo, canRedo } = useCanUndoRedo();
   const zoom = useEditorUiStore((s) => s.zoom);
@@ -219,6 +225,14 @@ export function EditorTopBar({
 
       <Button variant="outline" size="sm" onClick={onSave}>
         Save
+      </Button>
+      <Button variant="outline" size="sm" onClick={onPreview}>
+        <Box className="size-4" aria-hidden />
+        Preview
+      </Button>
+      <Button variant="outline" size="sm" onClick={onPrint}>
+        <Printer className="size-4" aria-hidden />
+        Print sheet
       </Button>
       <Button size="sm" onClick={onExport}>
         <Download className="size-4" aria-hidden />
