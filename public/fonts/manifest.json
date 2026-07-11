@@ -1,0 +1,185 @@
+[
+  {
+    "id": "inter",
+    "name": "Inter",
+    "category": "sans",
+    "files": [
+      {
+        "weight": 400,
+        "file": "inter-400.ttf",
+        "bytes": 324820
+      },
+      {
+        "weight": 500,
+        "file": "inter-500.ttf",
+        "bytes": 325304
+      },
+      {
+        "weight": 600,
+        "file": "inter-600.ttf",
+        "bytes": 326048
+      },
+      {
+        "weight": 700,
+        "file": "inter-700.ttf",
+        "bytes": 326468
+      }
+    ]
+  },
+  {
+    "id": "space-grotesk",
+    "name": "Space Grotesk",
+    "category": "sans",
+    "files": [
+      {
+        "weight": 400,
+        "file": "space-grotesk-400.ttf",
+        "bytes": 69360
+      },
+      {
+        "weight": 500,
+        "file": "space-grotesk-500.ttf",
+        "bytes": 69416
+      },
+      {
+        "weight": 700,
+        "file": "space-grotesk-700.ttf",
+        "bytes": 69308
+      }
+    ]
+  },
+  {
+    "id": "montserrat",
+    "name": "Montserrat",
+    "category": "sans",
+    "files": [
+      {
+        "weight": 400,
+        "file": "montserrat-400.ttf",
+        "bytes": 180068
+      },
+      {
+        "weight": 600,
+        "file": "montserrat-600.ttf",
+        "bytes": 180584
+      },
+      {
+        "weight": 800,
+        "file": "montserrat-800.ttf",
+        "bytes": 183604
+      }
+    ]
+  },
+  {
+    "id": "playfair-display",
+    "name": "Playfair Display",
+    "category": "serif",
+    "files": [
+      {
+        "weight": 400,
+        "file": "playfair-display-400.ttf",
+        "bytes": 123240
+      },
+      {
+        "weight": 600,
+        "file": "playfair-display-600.ttf",
+        "bytes": 123672
+      },
+      {
+        "weight": 700,
+        "file": "playfair-display-700.ttf",
+        "bytes": 123536
+      }
+    ]
+  },
+  {
+    "id": "cormorant-garamond",
+    "name": "Cormorant Garamond",
+    "category": "serif",
+    "files": [
+      {
+        "weight": 400,
+        "file": "cormorant-garamond-400.ttf",
+        "bytes": 290236
+      },
+      {
+        "weight": 500,
+        "file": "cormorant-garamond-500.ttf",
+        "bytes": 290496
+      },
+      {
+        "weight": 600,
+        "file": "cormorant-garamond-600.ttf",
+        "bytes": 290392
+      }
+    ]
+  },
+  {
+    "id": "cinzel",
+    "name": "Cinzel",
+    "category": "display",
+    "files": [
+      {
+        "weight": 400,
+        "file": "cinzel-400.ttf",
+        "bytes": 45884
+      },
+      {
+        "weight": 700,
+        "file": "cinzel-700.ttf",
+        "bytes": 46124
+      }
+    ]
+  },
+  {
+    "id": "orbitron",
+    "name": "Orbitron",
+    "category": "display",
+    "files": [
+      {
+        "weight": 400,
+        "file": "orbitron-400.ttf",
+        "bytes": 17752
+      },
+      {
+        "weight": 700,
+        "file": "orbitron-700.ttf",
+        "bytes": 17708
+      },
+      {
+        "weight": 900,
+        "file": "orbitron-900.ttf",
+        "bytes": 16884
+      }
+    ]
+  },
+  {
+    "id": "bebas-neue",
+    "name": "Bebas Neue",
+    "category": "display",
+    "files": [
+      {
+        "weight": 400,
+        "file": "bebas-neue-400.ttf",
+        "bytes": 56136
+      }
+    ]
+  },
+  {
+    "id": "jetbrains-mono",
+    "name": "JetBrains Mono",
+    "category": "mono",
+    "files": [
+      {
+        "weight": 400,
+        "file": "jetbrains-mono-400.ttf",
+        "bytes": 112172
+      },
+      {
+        "weight": 700,
+        "file": "jetbrains-mono-700.ttf",
+        "bytes": 112092
+      }
+    ]
+  }
+]
