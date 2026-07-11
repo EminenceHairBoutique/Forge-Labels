@@ -73,7 +73,7 @@ export const ShadowSchema = z.object({
 });
 export type Shadow = z.infer<typeof ShadowSchema>;
 
-/** Special print-production layer assignment (Phase 3 UI; stored from v1). */
+/** Special print-production layer assignment (UI deferred — see docs/deferred.md; stored from v1). */
 export const PrintLayerSchema = z.enum([
   "artwork",
   "white-ink",

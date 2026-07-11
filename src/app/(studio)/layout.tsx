@@ -6,6 +6,7 @@ import { ImportLocalDialog } from "@/components/auth/import-local-dialog";
 import { UserMenu } from "@/components/auth/user-menu";
 import { LocalModeBanner } from "@/components/studio/local-mode-banner";
 import { Button } from "@/components/ui/button";
+import { SkipLink } from "@/components/ui/skip-link";
 
 const STUDIO_NAV = [
   { href: "/dashboard", label: "Projects", icon: FolderOpen },
@@ -20,6 +21,7 @@ export default function StudioLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <div className="flex min-h-dvh flex-col">
+      <SkipLink />
       <LocalModeBanner />
       <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
@@ -62,7 +64,7 @@ export default function StudioLayout({
           ))}
         </nav>
       </header>
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6">{children}</main>
+      <main id="main" className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6">{children}</main>
       <ImportLocalDialog />
     </div>
   );

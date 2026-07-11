@@ -1,7 +1,7 @@
 -- Forge Labels — seed data: plans (pricing lives in the DB, not in code)
--- and template categories. Label templates are seeded by the app's
--- `npm run seed:templates` script (service role) so the JSON documents stay
--- single-sourced from src/lib/templates.
+-- and template categories. Label templates are seeded from the admin
+-- dashboard (/admin → Templates → "Seed from code registry") so the JSON
+-- documents stay single-sourced from src/lib/templates.
 
 insert into public.plans
   (id, name, blurb, price_monthly_cents, price_yearly_cents, highlights, entitlements, highlighted, sort)
@@ -19,8 +19,8 @@ values
     true, 1
   ),
   (
-    'business', 'Business', 'For teams and batch production.', 3900, 3200,
-    '["Everything in Pro", "5 team members with shared brand assets", "CSV batch label generation", "Dynamic data fields (lots, serials, QR)", "Special production layers (white ink, foil, spot UV)", "Priority support"]',
+    'business', 'Business', 'For studios producing at volume.', 3900, 3200,
+    '["Everything in Pro", "25 GB asset storage", "Priority support", "First access: team workspaces, 5 seats (in development)", "First access: CSV batch + dynamic data fields (in development)", "First access: production layers — white ink, foil (in development)"]',
     '{"maxProjects": null, "maxStorageMb": 25000, "maxTeamMembers": 5, "hiResExport": true, "printReadyPdf": true, "svgExport": true, "premiumTemplates": true, "finishes": true, "brandKits": true, "qrAndBarcodes": true, "watermarkedMockups": false, "versionHistory": true, "csvBatch": true, "productionLayers": true, "commercialTemplateUse": true, "prioritySupport": true}',
     false, 2
   ),

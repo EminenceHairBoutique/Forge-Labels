@@ -114,17 +114,17 @@ export const PLAN_SEED: readonly PlanDef[] = [
   {
     id: "business",
     name: "Business",
-    blurb: "For teams and batch production.",
+    blurb: "For studios producing at volume.",
     priceMonthlyCents: 3900,
     priceYearlyCents: 3200,
     cta: "Start Business",
     highlights: [
       "Everything in Pro",
-      "5 team members with shared brand assets",
-      "CSV batch label generation",
-      "Dynamic data fields (lots, serials, QR)",
-      "Special production layers (white ink, foil, spot UV)",
+      "25 GB asset storage",
       "Priority support",
+      "First access: team workspaces, 5 seats (in development)",
+      "First access: CSV batch + dynamic data fields (in development)",
+      "First access: production layers — white ink, foil (in development)",
     ],
     entitlements: {
       maxProjects: null,
