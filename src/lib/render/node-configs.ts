@@ -57,6 +57,51 @@ export function textNodeConfig(obj: TextObject) {
   };
 }
 
+/**
+ * Curved text renders as a Konva.TextPath along a semicircular arc whose
+ * center is the object's (xMm, yMm). Direction "up" bows over the top.
+ */
+export function curvedTextPathData(radiusMm: number, direction: "up" | "down"): string {
+  const r = radiusMm;
+  return direction === "up"
+    ? `M ${-r} 0 A ${r} ${r} 0 0 1 ${r} 0`
+    : `M ${-r} 0 A ${r} ${r} 0 0 0 ${r} 0`;
+}
+
+/** Approximate stored box for a curved text object (drives AABB/snapping). */
+export function curvedTextBox(radiusMm: number, fontSizePt: number): {
+  widthMm: number;
+  heightMm: number;
+} {
+  const fontMm = fontPtToMm(fontSizePt);
+  return { widthMm: 2 * (radiusMm + fontMm), heightMm: radiusMm + fontMm * 1.4 };
+}
+
+export function textPathNodeConfig(obj: TextObject) {
+  const curve = obj.curve!;
+  const fontSizeMm = fontPtToMm(obj.fontSizePt);
+  const size = { width: obj.widthMm, height: obj.heightMm };
+  return {
+    id: obj.id,
+    x: obj.xMm,
+    y: obj.yMm,
+    rotation: obj.rotationDeg,
+    opacity: obj.opacity,
+    visible: obj.visible,
+    data: curvedTextPathData(curve.radiusMm, curve.direction),
+    text: applyTextTransform(obj.text, obj.textTransform),
+    fontFamily: fontCssFamily(obj.fontFamilyId),
+    fontStyle: String(obj.fontWeight),
+    fontSize: fontSizeMm,
+    letterSpacing: obj.letterSpacingEm * fontSizeMm,
+    align: "center" as const,
+    ...fillToKonvaProps(obj.fill, size),
+    ...strokeToKonvaProps(obj.stroke),
+    fillAfterStrokeEnabled: true,
+    ...shadowToKonvaProps(obj.shadow),
+  };
+}
+
 export function rectNodeConfig(obj: RectObject) {
   const size = { width: obj.widthMm, height: obj.heightMm };
   return {

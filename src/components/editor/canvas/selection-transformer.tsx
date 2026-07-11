@@ -35,6 +35,12 @@ export function SelectionTransformer({ stageRef }: SelectionTransformerProps) {
   let keepRatio = false;
   if (single) {
     switch (single.type) {
+      case "text":
+        if (single.curve) {
+          enabledAnchors = ["top-left", "top-right", "bottom-left", "bottom-right"];
+          keepRatio = true;
+        }
+        break;
       case "line":
         enabledAnchors = ["middle-left", "middle-right"];
         break;

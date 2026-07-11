@@ -13,7 +13,6 @@ import {
   LockOpen,
 } from "lucide-react";
 import type {
-  Fill,
   LabelDocument,
   LabelObject,
   LineObject,
@@ -31,6 +30,14 @@ import {
   updateObjects,
   withGesture,
 } from "@/lib/document/commands";
+import {
+  alignObjects,
+  distributeObjects,
+  groupObjects,
+  ungroupObjects,
+  type AlignEdge,
+} from "@/lib/document/structure-commands";
+import { curvedTextBox } from "@/lib/render/node-configs";
 import { loadFont, FONT_FAMILIES, availableWeights } from "@/lib/fonts/registry";
 import { measureTextHeightMm } from "@/lib/render/text-measure";
 import { Button } from "@/components/ui/button";
@@ -50,6 +57,8 @@ import {
 import { useEditorUiStore } from "@/stores/editor-ui-store";
 import { DimensionField, NumberField } from "../fields/dimension-field";
 import { ColorField } from "../fields/color-field";
+import { FillSection, ShadowSection, StrokeSection } from "./properties-effects";
+import { BarcodeProps, ImageProps, QrProps } from "./properties-media";
 
 function Section({
   title,
@@ -313,17 +322,128 @@ function CommonProps({ objects }: { objects: LabelObject[] }) {
           )}
         </Button>
       </div>
+
+      <AlignControls ids={ids} />
+
+      {(objects.length >= 2 || objects.some((o) => o.type === "group")) && (
+        <div className="flex gap-2">
+          {objects.length >= 2 && (
+            <Button variant="outline" size="sm" onClick={() => groupObjects(ids)}>
+              Group
+            </Button>
+          )}
+          {objects.some((o) => o.type === "group") && (
+            <Button variant="outline" size="sm" onClick={() => ungroupObjects(ids)}>
+              Ungroup
+            </Button>
+          )}
+        </div>
+      )}
     </Section>
+  );
+}
+
+const ALIGN_BUTTONS: { edge: AlignEdge; label: string }[] = [
+  { edge: "left", label: "Align left" },
+  { edge: "center-h", label: "Align horizontal center" },
+  { edge: "right", label: "Align right" },
+  { edge: "top", label: "Align top" },
+  { edge: "middle-v", label: "Align vertical middle" },
+  { edge: "bottom", label: "Align bottom" },
+];
+
+function AlignControls({ ids }: { ids: string[] }) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs text-muted-foreground">
+        Align {ids.length === 1 ? "to label" : "selection"}
+      </Label>
+      <div className="flex flex-wrap items-center gap-1">
+        {ALIGN_BUTTONS.map(({ edge, label }) => (
+          <Button
+            key={edge}
+            variant="outline"
+            size="icon-sm"
+            aria-label={label}
+            title={label}
+            onClick={() => alignObjects(ids, edge)}
+          >
+            <AlignGlyph edge={edge} />
+          </Button>
+        ))}
+        {ids.length >= 3 && (
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => distributeObjects(ids, "horizontal")}
+            >
+              Distribute H
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => distributeObjects(ids, "vertical")}
+            >
+              Distribute V
+            </Button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Minimal inline glyphs for the six align buttons. */
+function AlignGlyph({ edge }: { edge: AlignEdge }) {
+  const bar =
+    edge === "left" || edge === "right" || edge === "center-h" ? "v" : "h";
+  const pos = edge.includes("left")
+    ? "start"
+    : edge.includes("right")
+      ? "end"
+      : edge.includes("top")
+        ? "start"
+        : edge.includes("bottom")
+          ? "end"
+          : "center";
+  return (
+    <svg viewBox="0 0 16 16" className="size-3.5" aria-hidden>
+      {bar === "v" ? (
+        <>
+          <rect
+            x={pos === "start" ? 1 : pos === "end" ? 13.5 : 7.25}
+            y="1"
+            width="1.5"
+            height="14"
+            fill="currentColor"
+          />
+          <rect x="4" y="3" width="8" height="3.5" rx="0.75" fill="currentColor" opacity="0.55" />
+          <rect x="4" y="9.5" width="6" height="3.5" rx="0.75" fill="currentColor" opacity="0.55"
+            transform={pos === "end" ? "translate(2 0)" : pos === "center" ? "translate(1 0)" : undefined}
+          />
+        </>
+      ) : (
+        <>
+          <rect
+            x="1"
+            y={pos === "start" ? 1 : pos === "end" ? 13.5 : 7.25}
+            width="14"
+            height="1.5"
+            fill="currentColor"
+          />
+          <rect x="3" y="4" width="3.5" height="8" rx="0.75" fill="currentColor" opacity="0.55" />
+          <rect x="9.5" y="4" width="3.5" height="6" rx="0.75" fill="currentColor" opacity="0.55"
+            transform={pos === "end" ? "translate(0 2)" : pos === "center" ? "translate(0 1)" : undefined}
+          />
+        </>
+      )}
+    </svg>
   );
 }
 
 // ---------------------------------------------------------------------------
 // Type-specific properties
-// ---------------------------------------------------------------------------
-
-function solidColor(fill: Fill): string {
-  return fill.type === "solid" ? fill.color : "#1a1a1a";
-}
 
 function TextProps({ obj }: { obj: TextObject }) {
   const remeasure = (patch: Partial<TextObject>) => {
@@ -467,14 +587,92 @@ function TextProps({ obj }: { obj: TextObject }) {
         </ToggleGroup>
       </div>
 
-      <ColorField
-        id="text-color"
-        label="Color"
-        color={solidColor(obj.fill)}
-        onCommit={(color) =>
-          updateObject<TextObject>(obj.id, { fill: { type: "solid", color } })
-        }
+      <FillSection
+        id="text-fill"
+        fill={obj.fill}
+        onChange={(fill) => updateObject<TextObject>(obj.id, { fill })}
       />
+      <StrokeSection
+        id="text"
+        stroke={obj.stroke}
+        onChange={(stroke) => updateObject<TextObject>(obj.id, { stroke })}
+      />
+      <ShadowSection
+        id="text"
+        shadow={obj.shadow}
+        onChange={(shadow) => updateObject<TextObject>(obj.id, { shadow })}
+      />
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label htmlFor="text-curve" className="text-xs text-muted-foreground">
+            Curved text
+          </Label>
+          <Switch
+            id="text-curve"
+            checked={obj.curve !== undefined}
+            onCheckedChange={(on) => {
+              if (on) {
+                const radiusMm = Math.max(obj.widthMm / 2, 8);
+                withGesture(() => {
+                  updateObject<TextObject>(obj.id, {
+                    curve: { radiusMm, direction: "up" },
+                    ...curvedTextBox(radiusMm, obj.fontSizePt),
+                  });
+                });
+              } else {
+                const next = { ...obj, curve: undefined } as TextObject;
+                withGesture(() => {
+                  updateObject<TextObject>(obj.id, {
+                    curve: undefined,
+                    heightMm: measureTextHeightMm(next),
+                  });
+                });
+              }
+            }}
+          />
+        </div>
+        {obj.curve && (
+          <div className="grid grid-cols-2 gap-2">
+            <DimensionField
+              id="text-curve-radius"
+              label="Radius"
+              mm={obj.curve.radiusMm}
+              min={2}
+              max={300}
+              onCommit={(radiusMm) =>
+                withGesture(() => {
+                  updateObject<TextObject>(obj.id, {
+                    curve: { ...obj.curve!, radiusMm },
+                    ...curvedTextBox(radiusMm, obj.fontSizePt),
+                  });
+                })
+              }
+            />
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Direction</Label>
+              <ToggleGroup
+                type="single"
+                value={obj.curve.direction}
+                aria-label="Curve direction"
+                onValueChange={(v) =>
+                  v &&
+                  updateObject<TextObject>(obj.id, {
+                    curve: { ...obj.curve!, direction: v as "up" | "down" },
+                  })
+                }
+              >
+                <ToggleGroupItem value="up" aria-label="Curve upward">
+                  ⌒
+                </ToggleGroupItem>
+                <ToggleGroupItem value="down" aria-label="Curve downward">
+                  ⌄
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
+          </div>
+        )}
+      </div>
     </Section>
   );
 }
@@ -482,11 +680,11 @@ function TextProps({ obj }: { obj: TextObject }) {
 function ShapeProps({ obj }: { obj: RectObject | PolygonObject | StarObject | Extract<LabelObject, { type: "ellipse" }> }) {
   return (
     <Section title="Shape">
-      <ColorField
+      <FillSection
         id="shape-fill"
-        label="Fill"
-        color={solidColor(obj.fill)}
-        onCommit={(color) => updateObject(obj.id, { fill: { type: "solid", color } })}
+        fill={obj.fill}
+        allowNone
+        onChange={(fill) => updateObject(obj.id, { fill })}
       />
       {obj.type === "rect" && (
         <DimensionField
@@ -535,38 +733,16 @@ function ShapeProps({ obj }: { obj: RectObject | PolygonObject | StarObject | Ex
           />
         </div>
       )}
-      <div className="space-y-1">
-        <Label className="text-xs text-muted-foreground">Stroke</Label>
-        <div className="grid grid-cols-[1fr_auto] items-end gap-2">
-          <ColorField
-            id="shape-stroke-color"
-            color={obj.stroke?.color ?? "#1a1a1a"}
-            onCommit={(color) =>
-              updateObject(obj.id, {
-                stroke: { color, widthPt: obj.stroke?.widthPt ?? 1 },
-              })
-            }
-          />
-          <NumberField
-            id="shape-stroke-width"
-            label="Width"
-            value={obj.stroke?.widthPt ?? 0}
-            min={0}
-            max={40}
-            step={0.25}
-            suffix="pt"
-            className="w-24"
-            onCommit={(widthPt) =>
-              updateObject(obj.id, {
-                stroke:
-                  widthPt <= 0
-                    ? undefined
-                    : { color: obj.stroke?.color ?? "#1a1a1a", widthPt },
-              })
-            }
-          />
-        </div>
-      </div>
+      <StrokeSection
+        id="shape"
+        stroke={obj.stroke}
+        onChange={(stroke) => updateObject(obj.id, { stroke })}
+      />
+      <ShadowSection
+        id="shape"
+        shadow={obj.shadow}
+        onChange={(shadow) => updateObject(obj.id, { shadow })}
+      />
     </Section>
   );
 }
@@ -644,6 +820,9 @@ export function PropertiesPanel({ doc }: { doc: LabelDocument }) {
             single.type === "polygon" ||
             single.type === "star") && <ShapeProps obj={single} />}
           {single.type === "line" && <LineProps obj={single} />}
+          {single.type === "image" && <ImageProps obj={single} />}
+          {single.type === "qrcode" && <QrProps obj={single} />}
+          {single.type === "barcode" && <BarcodeProps obj={single} />}
         </>
       )}
     </>

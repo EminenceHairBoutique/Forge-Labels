@@ -29,6 +29,9 @@ interface EditorUiState {
   showGrid: boolean;
   sidebarTab: "properties" | "layers";
   spacePanning: boolean;
+  /** Active smart-guide lines while dragging (mm), null when idle. */
+  snapGuideX: number | null;
+  snapGuideY: number | null;
 
   setSelection: (ids: string[]) => void;
   toggleSelected: (id: string) => void;
@@ -45,6 +48,7 @@ interface EditorUiState {
   setShowGrid: (v: boolean) => void;
   setSidebarTab: (tab: "properties" | "layers") => void;
   setSpacePanning: (v: boolean) => void;
+  setSnapGuides: (x: number | null, y: number | null) => void;
 }
 
 export const MIN_ZOOM = 0.1;
@@ -64,6 +68,8 @@ export const useEditorUiStore = create<EditorUiState>()((set) => ({
   showGrid: false,
   sidebarTab: "properties",
   spacePanning: false,
+  snapGuideX: null,
+  snapGuideY: null,
 
   setSelection: (ids) => set({ selection: ids }),
   toggleSelected: (id) =>
@@ -87,4 +93,10 @@ export const useEditorUiStore = create<EditorUiState>()((set) => ({
   setShowGrid: (showGrid) => set({ showGrid }),
   setSidebarTab: (sidebarTab) => set({ sidebarTab }),
   setSpacePanning: (spacePanning) => set({ spacePanning }),
+  setSnapGuides: (snapGuideX, snapGuideY) =>
+    set((s) =>
+      s.snapGuideX === snapGuideX && s.snapGuideY === snapGuideY
+        ? s
+        : { snapGuideX, snapGuideY },
+    ),
 }));

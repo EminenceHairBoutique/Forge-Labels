@@ -10,6 +10,7 @@ import {
   withGesture,
   addObject,
 } from "@/lib/document/commands";
+import { groupObjects, ungroupObjects } from "@/lib/document/structure-commands";
 import type { LabelObject } from "@/lib/document/schema";
 import { newObjectId } from "@/lib/document/ids";
 import { useDocumentStore } from "@/stores/document-store";
@@ -106,6 +107,14 @@ export function useEditorShortcuts(handlers: ShortcutHandlers): void {
         case mod && e.key.toLowerCase() === "d":
           e.preventDefault();
           duplicateObjects(ui.selection);
+          return;
+        case mod && e.key.toLowerCase() === "g" && !e.shiftKey:
+          e.preventDefault();
+          groupObjects(ui.selection);
+          return;
+        case mod && e.key.toLowerCase() === "g" && e.shiftKey:
+          e.preventDefault();
+          ungroupObjects(ui.selection);
           return;
         case mod && e.key.toLowerCase() === "c":
           copySelection();

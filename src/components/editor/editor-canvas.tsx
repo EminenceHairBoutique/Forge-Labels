@@ -2,13 +2,15 @@
 
 import * as React from "react";
 import Konva from "konva";
-import { Group, Layer, Stage } from "react-konva";
+import { Group, Layer, Line, Rect, Stage } from "react-konva";
 import type { KonvaEventObject } from "konva/lib/Node";
 import type { LabelDocument, TextObject } from "@/lib/document/schema";
 import { findObject } from "@/lib/document/commands";
+import { objectAabb } from "@/lib/render/geometry";
 import { MAX_ZOOM, MIN_ZOOM, useEditorUiStore } from "@/stores/editor-ui-store";
 import { ObjectNode } from "./canvas/object-node";
 import { LabelBase, LabelGuides } from "./canvas/label-overlays";
+import { CanvasRulers } from "./canvas/rulers";
 import { SelectionTransformer } from "./canvas/selection-transformer";
 import { TextEditOverlay } from "./canvas/text-edit-overlay";
 
@@ -42,6 +44,35 @@ export function computeFitViewport(
   };
 }
 
+/** Magenta smart-guide lines shown while a drag snaps to something. */
+function SnapGuideLines({ doc, zoom }: { doc: LabelDocument; zoom: number }) {
+  const guideX = useEditorUiStore((s) => s.snapGuideX);
+  const guideY = useEditorUiStore((s) => s.snapGuideY);
+  const b = doc.label.bleedMm + 6;
+  return (
+    <>
+      {guideX !== null && (
+        <Line
+          points={[guideX, -b, guideX, doc.label.heightMm + b]}
+          stroke="#e11d8f"
+          strokeWidth={1 / zoom}
+          dash={[3 / zoom, 2 / zoom]}
+          listening={false}
+        />
+      )}
+      {guideY !== null && (
+        <Line
+          points={[-b, guideY, doc.label.widthMm + b, guideY]}
+          stroke="#e11d8f"
+          strokeWidth={1 / zoom}
+          dash={[3 / zoom, 2 / zoom]}
+          listening={false}
+        />
+      )}
+    </>
+  );
+}
+
 export function EditorCanvas({ doc }: EditorCanvasProps) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const stageRef = React.useRef<Konva.Stage>(null);
@@ -51,6 +82,8 @@ export function EditorCanvas({ doc }: EditorCanvasProps) {
   const panX = useEditorUiStore((s) => s.panX);
   const panY = useEditorUiStore((s) => s.panY);
   const showGuides = useEditorUiStore((s) => s.showGuides);
+  const showRulers = useEditorUiStore((s) => s.showRulers);
+  const displayUnit = useEditorUiStore((s) => s.displayUnit);
   const spacePanning = useEditorUiStore((s) => s.spacePanning);
   const editingTextId = useEditorUiStore((s) => s.editingTextId);
   const setViewport = useEditorUiStore((s) => s.setViewport);
@@ -104,16 +137,76 @@ export function EditorCanvas({ doc }: EditorCanvasProps) {
     [setPan, setViewport],
   );
 
+  // Marquee selection (mm coordinates in label space).
+  const [marquee, setMarquee] = React.useState<{
+    x0: number;
+    y0: number;
+    x1: number;
+    y1: number;
+  } | null>(null);
+
+  const toWorld = React.useCallback(
+    (pointer: { x: number; y: number }) => {
+      const ui = useEditorUiStore.getState();
+      return {
+        x: (pointer.x - ui.panX) / ui.zoom,
+        y: (pointer.y - ui.panY) / ui.zoom,
+      };
+    },
+    [],
+  );
+
   const onStagePointerDown = React.useCallback(
     (e: KonvaEventObject<MouseEvent | TouchEvent>) => {
-      // Click on empty space (the stage itself) clears the selection.
-      if (e.target === e.target.getStage()) {
-        clearSelection();
-        useEditorUiStore.getState().setEditingTextId(null);
-      }
+      // Interactions with empty space (the stage itself).
+      if (e.target !== e.target.getStage()) return;
+      clearSelection();
+      useEditorUiStore.getState().setEditingTextId(null);
+      if (useEditorUiStore.getState().spacePanning) return;
+      const pointer = e.target.getStage()?.getPointerPosition();
+      if (!pointer) return;
+      const world = toWorld(pointer);
+      setMarquee({ x0: world.x, y0: world.y, x1: world.x, y1: world.y });
     },
-    [clearSelection],
+    [clearSelection, toWorld],
   );
+
+  const onStagePointerMove = React.useCallback(
+    (e: KonvaEventObject<MouseEvent | TouchEvent>) => {
+      if (!marquee) return;
+      const pointer = e.target.getStage()?.getPointerPosition();
+      if (!pointer) return;
+      const world = toWorld(pointer);
+      setMarquee((m) => (m ? { ...m, x1: world.x, y1: world.y } : m));
+    },
+    [marquee, toWorld],
+  );
+
+  const onStagePointerUp = React.useCallback(() => {
+    if (!marquee) return;
+    const rect = {
+      x: Math.min(marquee.x0, marquee.x1),
+      y: Math.min(marquee.y0, marquee.y1),
+      width: Math.abs(marquee.x1 - marquee.x0),
+      height: Math.abs(marquee.y1 - marquee.y0),
+    };
+    setMarquee(null);
+    // Tiny drags are just clicks — the mousedown already cleared selection.
+    if (rect.width < 0.5 && rect.height < 0.5) return;
+    const hits = doc.objects
+      .filter((o) => o.visible && !o.locked)
+      .filter((o) => {
+        const box = objectAabb(o);
+        return (
+          box.x < rect.x + rect.width &&
+          box.x + box.width > rect.x &&
+          box.y < rect.y + rect.height &&
+          box.y + box.height > rect.y
+        );
+      })
+      .map((o) => o.id);
+    if (hits.length > 0) useEditorUiStore.getState().setSelection(hits);
+  }, [marquee, doc]);
 
   const onStageDragEnd = React.useCallback(
     (e: KonvaEventObject<DragEvent>) => {
@@ -145,6 +238,8 @@ export function EditorCanvas({ doc }: EditorCanvasProps) {
           onWheel={onWheel}
           onMouseDown={onStagePointerDown}
           onTouchStart={onStagePointerDown}
+          onMouseMove={onStagePointerMove}
+          onMouseUp={onStagePointerUp}
           draggable={spacePanning}
           onDragEnd={onStageDragEnd}
         >
@@ -166,14 +261,36 @@ export function EditorCanvas({ doc }: EditorCanvasProps) {
 
           {/* Overlay: guides (scaled group) + transformer (unscaled layer). */}
           <Layer>
-            {showGuides && (
-              <Group x={panX} y={panY} scaleX={zoom} scaleY={zoom} listening={false}>
-                <LabelGuides doc={doc} zoom={zoom} />
-              </Group>
-            )}
+            <Group x={panX} y={panY} scaleX={zoom} scaleY={zoom} listening={false}>
+              {showGuides && <LabelGuides doc={doc} zoom={zoom} />}
+              <SnapGuideLines doc={doc} zoom={zoom} />
+              {marquee && (
+                <Rect
+                  x={Math.min(marquee.x0, marquee.x1)}
+                  y={Math.min(marquee.y0, marquee.y1)}
+                  width={Math.abs(marquee.x1 - marquee.x0)}
+                  height={Math.abs(marquee.y1 - marquee.y0)}
+                  fill="#6d5ce022"
+                  stroke="#6d5ce0"
+                  strokeWidth={1 / zoom}
+                  dash={[4 / zoom, 3 / zoom]}
+                />
+              )}
+            </Group>
             <SelectionTransformer stageRef={stageRef} />
           </Layer>
         </Stage>
+      )}
+
+      {showRulers && size.width > 0 && (
+        <CanvasRulers
+          zoom={zoom}
+          panX={panX}
+          panY={panY}
+          unit={displayUnit}
+          width={size.width}
+          height={size.height}
+        />
       )}
 
       {editingObj && (

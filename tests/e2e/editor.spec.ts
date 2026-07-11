@@ -92,6 +92,39 @@ test.describe("editor", () => {
     expect(ppmX).toBe(Math.round(300 / 0.0254));
   });
 
+  test("creates a project from a template with rescaled objects", async ({ page }) => {
+    await page.goto("/templates");
+    await expect(
+      page.getByRole("heading", { name: /template library/i }),
+    ).toBeVisible();
+
+    // Filter by category, then use a template.
+    await page.getByRole("button", { name: /^luxury$/i }).click();
+    await page
+      .getByRole("link", { name: /use this template/i })
+      .first()
+      .click();
+    await page.waitForURL(/\/editor\/[\w-]+/);
+    await expect(page.locator('[data-testid="editor-canvas"] canvas').first()).toBeVisible();
+
+    // Template objects arrived: the layers panel is populated.
+    await page.getByRole("tab", { name: /layers/i }).click();
+    const rows = page.getByRole("list", { name: /layers/i }).getByRole("listitem");
+    await expect(rows.first()).toBeVisible();
+    expect(await rows.count()).toBeGreaterThanOrEqual(4);
+  });
+
+  test("adds a QR code and warns when it gets too small", async ({ page }) => {
+    await createProject(page);
+    await page.getByRole("button", { name: /add qr code/i }).click();
+    await expect(page.getByLabel(/website url/i)).toBeVisible();
+
+    // Shrink the QR below scannability and expect the module warning.
+    await page.getByLabel("Width", { exact: true }).fill("6");
+    await page.getByLabel("Width", { exact: true }).press("Enter");
+    await expect(page.getByText(/below the 0\.4 mm scanning guideline/i)).toBeVisible();
+  });
+
   test("exports a print-ready PDF", async ({ page }) => {
     await createProject(page);
 

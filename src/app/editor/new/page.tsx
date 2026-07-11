@@ -6,6 +6,8 @@ import { Loader2 } from "lucide-react";
 import { createDocument } from "@/lib/document/defaults";
 import type { LabelStyle } from "@/lib/geometry/label-calculator";
 import { getStorageAdapter } from "@/lib/storage";
+import { applyTemplate } from "@/lib/templates/apply";
+import { getTemplate } from "@/lib/templates/registry";
 import { getVialPreset } from "@/lib/vials/presets";
 
 const VALID_STYLES: LabelStyle[] = [
@@ -33,13 +35,15 @@ function NewProjectWorker() {
 
     (async () => {
       try {
-        const presetId = searchParams.get("preset") ?? "10ml-serum";
+        const template = getTemplate(searchParams.get("template") ?? "");
+        const presetId =
+          searchParams.get("preset") ?? template?.presetId ?? "10ml-serum";
         const styleParam = searchParams.get("style") as LabelStyle | null;
         const d = Number(searchParams.get("d"));
         const h = Number(searchParams.get("h"));
 
         const preset = getVialPreset(presetId) ?? getVialPreset("custom")!;
-        const doc = createDocument({
+        let doc = createDocument({
           preset,
           style:
             styleParam && VALID_STYLES.includes(styleParam)
@@ -48,8 +52,11 @@ function NewProjectWorker() {
           diameterMm: Number.isFinite(d) && d > 0 ? d : undefined,
           straightWallHeightMm: Number.isFinite(h) && h > 0 ? h : undefined,
         });
+        if (template) {
+          doc = applyTemplate(doc, template.doc);
+        }
         const project = await getStorageAdapter().createProject({
-          name: `${preset.name} label`,
+          name: template ? `${template.name} — ${preset.name}` : `${preset.name} label`,
           doc,
         });
         router.replace(`/editor/${project.id}`);

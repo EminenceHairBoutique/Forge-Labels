@@ -2,6 +2,7 @@ import type { LabelDocument, LabelObject } from "@/lib/document/schema";
 import { loadFontsForDocument } from "@/lib/fonts/registry";
 import { mmToPx } from "@/lib/geometry/units";
 import { buildStage } from "@/lib/render/build-stage";
+import { applyImageFilters } from "@/lib/render/image-filters";
 import { getStorageAdapter } from "@/lib/storage";
 import { setPngDpi } from "./png-dpi";
 
@@ -76,7 +77,16 @@ export async function resolveDocumentImages(
   const jobs: Promise<void>[] = [];
   const walk = (objects: LabelObject[]) => {
     for (const obj of objects) {
-      if (obj.type === "image") jobs.push(loadFrom(obj.id, obj.source));
+      if (obj.type === "image") {
+        jobs.push(
+          loadFrom(obj.id, obj.source).then(() => {
+            // Bake the object's filter settings — same function the editor
+            // uses, so exports match the screen.
+            const src = images.get(obj.id);
+            if (src) images.set(obj.id, applyImageFilters(src, obj.filters));
+          }),
+        );
+      }
       if (obj.type === "qrcode" && obj.logo) {
         jobs.push(loadFrom(`${obj.id}:logo`, obj.logo.source));
       }

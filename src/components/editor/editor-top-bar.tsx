@@ -85,6 +85,8 @@ export function EditorTopBar({
   const setDisplayUnit = useEditorUiStore((s) => s.setDisplayUnit);
   const showGuides = useEditorUiStore((s) => s.showGuides);
   const setShowGuides = useEditorUiStore((s) => s.setShowGuides);
+  const showRulers = useEditorUiStore((s) => s.showRulers);
+  const setShowRulers = useEditorUiStore((s) => s.setShowRulers);
   const projectName = useProjectSessionStore((s) => s.projectName);
   const setProjectName = useProjectSessionStore((s) => s.setProjectName);
   const projectId = useProjectSessionStore((s) => s.projectId);
@@ -193,6 +195,15 @@ export function EditorTopBar({
           className="size-3.5 accent-(--primary)"
         />
         Guides
+      </label>
+      <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <input
+          type="checkbox"
+          checked={showRulers}
+          onChange={(e) => setShowRulers(e.target.checked)}
+          className="size-3.5 accent-(--primary)"
+        />
+        Rulers
       </label>
 
       <Select value={displayUnit} onValueChange={(v) => setDisplayUnit(v as Unit)}>

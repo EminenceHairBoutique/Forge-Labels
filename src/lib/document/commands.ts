@@ -51,6 +51,15 @@ export function withGesture<T>(fn: () => T): T {
   }
 }
 
+/**
+ * Run a document mutation with gesture-aware history tracking. All command
+ * modules must route through this — never call setState on the document
+ * store directly, or gesture batching breaks.
+ */
+export function mutateDocument(recipe: (doc: LabelDocument) => LabelDocument): void {
+  mutate(recipe);
+}
+
 function mutate(recipe: (doc: LabelDocument) => LabelDocument): void {
   const { doc } = useDocumentStore.getState();
   if (!doc) return;

@@ -18,6 +18,7 @@ import {
   rectNodeConfig,
   starNodeConfig,
   textNodeConfig,
+  textPathNodeConfig,
 } from "./node-configs";
 
 /**
@@ -83,7 +84,9 @@ export function buildObjectNode(
 ): Konva.Shape | Konva.Group | null {
   switch (obj.type) {
     case "text":
-      return new Konva.Text(textNodeConfig(obj));
+      return obj.curve
+        ? new Konva.TextPath(textPathNodeConfig(obj))
+        : new Konva.Text(textNodeConfig(obj));
     case "rect":
       return new Konva.Rect(rectNodeConfig(obj));
     case "ellipse":

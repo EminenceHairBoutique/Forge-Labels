@@ -215,13 +215,21 @@ export function NewLabelDialog({ trigger }: { trigger?: React.ReactNode }) {
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>
-            Cancel
-          </Button>
-          <Button onClick={create} disabled={!valid} loading={creating}>
-            Create &amp; open editor
-          </Button>
+        <DialogFooter className="items-center sm:justify-between">
+          <a
+            href="/templates"
+            className="text-sm text-primary underline-offset-2 hover:underline"
+          >
+            Or start from a template
+          </a>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={create} disabled={!valid} loading={creating}>
+              Create &amp; open editor
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

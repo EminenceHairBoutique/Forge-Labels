@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/toaster";
 import { ACTUAL_SIZE_ZOOM, EditorCanvas, computeFitViewport } from "./editor-canvas";
+import { EditorContextMenu } from "./editor-context-menu";
 import { EditorTopBar } from "./editor-top-bar";
 import { EditorToolbar } from "./editor-toolbar";
 import { ExportDialog } from "./export-dialog";
@@ -158,9 +159,11 @@ export function EditorShell({ projectId }: { projectId: string }) {
       />
       <div className="flex min-h-0 flex-1">
         <EditorToolbar />
-        <div className="min-w-0 flex-1">
-          <EditorCanvas doc={doc} />
-        </div>
+        <EditorContextMenu>
+          <div className="min-w-0 flex-1">
+            <EditorCanvas doc={doc} />
+          </div>
+        </EditorContextMenu>
         <aside
           className="hidden w-76 shrink-0 flex-col overflow-y-auto border-l border-border bg-panel md:flex"
           aria-label="Inspector"

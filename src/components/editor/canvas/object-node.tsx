@@ -12,9 +12,19 @@ import {
   RegularPolygon,
   Star,
   Text,
+  TextPath,
 } from "react-konva";
 import type { LabelObject, TextObject } from "@/lib/document/schema";
-import { updateObject, withGesture } from "@/lib/document/commands";
+import { updateObject, updateObjects, withGesture } from "@/lib/document/commands";
+import {
+  applySessionSnap,
+  beginDragSession,
+  dragSession,
+  endDragSession,
+  type DragSibling,
+} from "@/lib/editor/snap-session";
+import { aabbAt } from "@/lib/editor/snapping";
+import { useDocumentStore } from "@/stores/document-store";
 import { measureTextHeightMm } from "@/lib/render/text-measure";
 import {
   codeGroupConfig,
@@ -23,12 +33,15 @@ import {
   imageNodeConfig,
   lineNodeConfig,
   polygonNodeConfig,
+  curvedTextBox,
   rectNodeConfig,
   starNodeConfig,
   textNodeConfig,
+  textPathNodeConfig,
 } from "@/lib/render/node-configs";
 import { renderQrToCanvas } from "@/lib/codes/qr";
 import { renderBarcodeToCanvas } from "@/lib/codes/barcode";
+import { applyImageFilters, filterCacheKey } from "@/lib/render/image-filters";
 import { mmToPx } from "@/lib/geometry/units";
 import { useEditorUiStore } from "@/stores/editor-ui-store";
 import { useObjectImage } from "./use-object-image";
@@ -66,15 +79,98 @@ function useInteraction(obj: LabelObject, interactive: boolean) {
     [interactive, obj.id, obj.locked],
   );
 
-  const onDragStart = React.useCallback(() => {
-    const ui = useEditorUiStore.getState();
-    if (!ui.selection.includes(obj.id)) ui.setSelection([obj.id]);
-  }, [obj.id]);
+  // Right-click selects before the DOM contextmenu bubbles to the menu.
+  const onContextMenu = React.useCallback(
+    (e: KonvaEventObject<PointerEvent>) => {
+      if (!interactive) return;
+      e.cancelBubble = true;
+      const ui = useEditorUiStore.getState();
+      if (!ui.selection.includes(obj.id)) ui.setSelection([obj.id]);
+    },
+    [interactive, obj.id],
+  );
+
+  const onDragStart = React.useCallback(
+    (e: KonvaEventObject<DragEvent>) => {
+      const ui = useEditorUiStore.getState();
+      const doc = useDocumentStore.getState().doc;
+      if (!ui.selection.includes(obj.id)) ui.setSelection([obj.id]);
+      if (!doc) return;
+
+      // Co-selected objects follow the dragged one (multi-drag).
+      const node = e.target;
+      const stage = node.getStage();
+      const selectedIds = useEditorUiStore.getState().selection;
+      const siblings: DragSibling[] = [];
+      if (stage) {
+        for (const id of selectedIds) {
+          if (id === obj.id) continue;
+          const sibling = stage.findOne(`#${id}`);
+          if (sibling) {
+            siblings.push({ id, node: sibling, startX: sibling.x(), startY: sibling.y() });
+          }
+        }
+      }
+      beginDragSession(
+        doc,
+        new Set(selectedIds),
+        { x: node.x(), y: node.y() },
+        siblings,
+      );
+    },
+    [obj.id],
+  );
+
+  const onDragMove = React.useCallback(
+    (e: KonvaEventObject<DragEvent>) => {
+      const sessionState = dragSession();
+      if (!sessionState) return;
+      const ui = useEditorUiStore.getState();
+      const node = e.target;
+
+      if (ui.snapEnabled) {
+        const thresholdMm = 5 / ui.zoom;
+        const box = aabbAt(obj, node.x(), node.y());
+        const snap = applySessionSnap(box, thresholdMm);
+        if (snap) {
+          if (snap.dx !== 0 || snap.dy !== 0) {
+            node.position({ x: node.x() + snap.dx, y: node.y() + snap.dy });
+          }
+          ui.setSnapGuides(snap.guideX, snap.guideY);
+        }
+      } else {
+        ui.setSnapGuides(null, null);
+      }
+
+      // Move co-selected siblings by the same delta.
+      const dx = node.x() - sessionState.primaryStart.x;
+      const dy = node.y() - sessionState.primaryStart.y;
+      for (const sibling of sessionState.siblings) {
+        sibling.node.position({ x: sibling.startX + dx, y: sibling.startY + dy });
+      }
+    },
+    [obj],
+  );
 
   const onDragEnd = React.useCallback(
     (e: KonvaEventObject<DragEvent>) => {
       const node = e.target;
-      updateObject(obj.id, { xMm: node.x(), yMm: node.y() });
+      const sessionState = dragSession();
+      const positions = new Map<string, { x: number; y: number }>();
+      positions.set(obj.id, { x: node.x(), y: node.y() });
+      if (sessionState) {
+        for (const sibling of sessionState.siblings) {
+          positions.set(sibling.id, { x: sibling.node.x(), y: sibling.node.y() });
+        }
+      }
+      withGesture(() => {
+        updateObjects([...positions.keys()], (o) => {
+          const pos = positions.get(o.id)!;
+          return { xMm: pos.x, yMm: pos.y };
+        });
+      });
+      endDragSession();
+      useEditorUiStore.getState().setSnapGuides(null, null);
     },
     [obj.id],
   );
@@ -96,6 +192,18 @@ function useInteraction(obj: LabelObject, interactive: boolean) {
       withGesture(() => {
         switch (obj.type) {
           case "text": {
+            if (obj.curve) {
+              const s = Math.max(sx, sy);
+              const radiusMm = Math.max(obj.curve.radiusMm * s, 2);
+              const fontSizePt = Math.max(obj.fontSizePt * s, 1.5);
+              updateObject(obj.id, {
+                ...base,
+                fontSizePt,
+                curve: { ...obj.curve, radiusMm },
+                ...curvedTextBox(radiusMm, fontSizePt),
+              });
+              return;
+            }
             const widthMm = Math.max(obj.widthMm * sx, 2);
             const fontSizePt = Math.max(obj.fontSizePt * sy, 1);
             const next: TextObject = { ...obj, ...base, widthMm, fontSizePt };
@@ -142,12 +250,28 @@ function useInteraction(obj: LabelObject, interactive: boolean) {
     [obj],
   );
 
-  return { draggable, onClick, onTap: onClick, onDragStart, onDragEnd, onTransformEnd };
+  return {
+    draggable,
+    onClick,
+    onTap: onClick,
+    onContextMenu,
+    onDragStart,
+    onDragMove,
+    onDragEnd,
+    onTransformEnd,
+  };
 }
 
 function TextNode({ obj, events }: { obj: TextObject; events: ReturnType<typeof useInteraction> }) {
   const editing = useEditorUiStore((s) => s.editingTextId) === obj.id;
   const setEditingTextId = useEditorUiStore((s) => s.setEditingTextId);
+
+  if (obj.curve) {
+    // Curved text edits through the properties panel (straight-line overlay
+    // would misrepresent the arc), so no dblclick editor here.
+    return <TextPath {...textPathNodeConfig(obj)} {...events} />;
+  }
+
   const config = textNodeConfig(obj);
   return (
     <Text
@@ -167,7 +291,13 @@ function ImageNode({
   obj: Extract<LabelObject, { type: "image" }>;
   events: ReturnType<typeof useInteraction>;
 }) {
-  const image = useObjectImage(obj.source);
+  const source = useObjectImage(obj.source);
+  const filterKey = filterCacheKey(obj.filters);
+  const image = React.useMemo(
+    () => (source ? applyImageFilters(source, obj.filters) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- filters compared by value key
+    [source, filterKey],
+  );
   return (
     <Group {...imageGroupConfig(obj)} {...events}>
       {image ? (
