@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import { AuthProvider } from "@/components/auth/auth-provider";
 import { ThemeScript } from "@/components/theme/theme-script";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -70,7 +71,9 @@ export default function RootLayout({
         <ThemeScript />
       </head>
       <body className="flex min-h-full flex-col">
-        <TooltipProvider delayDuration={300}>{children}</TooltipProvider>
+        <AuthProvider>
+          <TooltipProvider delayDuration={300}>{children}</TooltipProvider>
+        </AuthProvider>
         <Toaster />
       </body>
     </html>

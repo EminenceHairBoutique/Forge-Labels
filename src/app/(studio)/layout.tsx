@@ -2,6 +2,8 @@ import Link from "next/link";
 import { FolderOpen, Image as ImageIcon, Palette, Settings, Download } from "lucide-react";
 import { Logo } from "@/components/marketing/logo";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { ImportLocalDialog } from "@/components/auth/import-local-dialog";
+import { UserMenu } from "@/components/auth/user-menu";
 import { LocalModeBanner } from "@/components/studio/local-mode-banner";
 import { Button } from "@/components/ui/button";
 
@@ -38,6 +40,7 @@ export default function StudioLayout({
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
+            <UserMenu />
             <Button asChild variant="outline" size="sm">
               <Link href="/">Back to site</Link>
             </Button>
@@ -60,6 +63,7 @@ export default function StudioLayout({
         </nav>
       </header>
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6">{children}</main>
+      <ImportLocalDialog />
     </div>
   );
 }
