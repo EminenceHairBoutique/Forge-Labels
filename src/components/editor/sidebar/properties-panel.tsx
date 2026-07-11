@@ -1,0 +1,651 @@
+"use client";
+
+import * as React from "react";
+import {
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
+  ArrowDown,
+  ArrowUp,
+  ChevronsDown,
+  ChevronsUp,
+  Lock,
+  LockOpen,
+} from "lucide-react";
+import type {
+  Fill,
+  LabelDocument,
+  LabelObject,
+  LineObject,
+  PolygonObject,
+  RectObject,
+  StarObject,
+  TextObject,
+} from "@/lib/document/schema";
+import {
+  findObject,
+  reorderObjects,
+  setBackground,
+  updateLabelGeometry,
+  updateObject,
+  updateObjects,
+  withGesture,
+} from "@/lib/document/commands";
+import { loadFont, FONT_FAMILIES, availableWeights } from "@/lib/fonts/registry";
+import { measureTextHeightMm } from "@/lib/render/text-measure";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useEditorUiStore } from "@/stores/editor-ui-store";
+import { DimensionField, NumberField } from "../fields/dimension-field";
+import { ColorField } from "../fields/color-field";
+
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="space-y-3 px-4 py-4">
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        {title}
+      </h3>
+      {children}
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Document properties (no selection)
+// ---------------------------------------------------------------------------
+
+function DocumentProps({ doc }: { doc: LabelDocument }) {
+  const bg = doc.background;
+  return (
+    <>
+      <Section title="Label size">
+        <div className="grid grid-cols-2 gap-3">
+          <DimensionField
+            id="doc-width"
+            label="Width"
+            mm={doc.label.widthMm}
+            min={5}
+            max={600}
+            onCommit={(widthMm) => updateLabelGeometry({ widthMm })}
+          />
+          <DimensionField
+            id="doc-height"
+            label="Height"
+            mm={doc.label.heightMm}
+            min={5}
+            max={600}
+            onCommit={(heightMm) => updateLabelGeometry({ heightMm })}
+          />
+          <DimensionField
+            id="doc-bleed"
+            label="Bleed"
+            mm={doc.label.bleedMm}
+            min={0}
+            max={10}
+            onCommit={(bleedMm) => updateLabelGeometry({ bleedMm })}
+          />
+          <DimensionField
+            id="doc-safe"
+            label="Safe zone"
+            mm={doc.label.safeMm}
+            min={0}
+            max={15}
+            onCommit={(safeMm) => updateLabelGeometry({ safeMm })}
+          />
+          {doc.label.shape === "rect" && (
+            <DimensionField
+              id="doc-corner"
+              label="Corner radius"
+              mm={doc.label.cornerRadiusMm}
+              min={0}
+              max={Math.min(doc.label.widthMm, doc.label.heightMm) / 2}
+              onCommit={(cornerRadiusMm) => updateLabelGeometry({ cornerRadiusMm })}
+            />
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Vial: ⌀{doc.vial.diameterMm.toFixed(1)} mm · wall{" "}
+          {doc.vial.straightWallHeightMm.toFixed(1)} mm. Resizing the label does
+          not re-measure the vial — check the seam after big changes.
+        </p>
+      </Section>
+      <Separator />
+      <Section title="Background">
+        <div className="flex items-center justify-between">
+          <Label htmlFor="bg-transparent" className="text-sm">
+            Transparent
+          </Label>
+          <Switch
+            id="bg-transparent"
+            checked={bg.type === "none"}
+            onCheckedChange={(checked) =>
+              setBackground(
+                checked ? { type: "none" } : { type: "solid", color: "#ffffff" },
+              )
+            }
+          />
+        </div>
+        {bg.type === "solid" && (
+          <ColorField
+            id="bg-color"
+            label="Color"
+            color={bg.color}
+            onCommit={(color) => setBackground({ type: "solid", color })}
+          />
+        )}
+        {bg.type === "none" && (
+          <p className="text-xs text-muted-foreground">
+            The checkerboard preview stands in for clear or metallic stock —
+            exports keep true transparency.
+          </p>
+        )}
+      </Section>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Common object properties
+// ---------------------------------------------------------------------------
+
+function CommonProps({ objects }: { objects: LabelObject[] }) {
+  const single = objects.length === 1 ? objects[0] : null;
+  const ids = objects.map((o) => o.id);
+  const allLocked = objects.every((o) => o.locked);
+  const opacity = single?.opacity ?? objects[0]?.opacity ?? 1;
+
+  return (
+    <Section title={single ? single.type : `${objects.length} objects`}>
+      {single && (
+        <div className="grid grid-cols-2 gap-3">
+          <DimensionField
+            id="obj-x"
+            label="X (center)"
+            mm={single.xMm}
+            onCommit={(xMm) => updateObject(single.id, { xMm })}
+          />
+          <DimensionField
+            id="obj-y"
+            label="Y (center)"
+            mm={single.yMm}
+            onCommit={(yMm) => updateObject(single.id, { yMm })}
+          />
+          <DimensionField
+            id="obj-w"
+            label="Width"
+            mm={single.widthMm}
+            min={0.5}
+            onCommit={(widthMm) => {
+              if (single.type === "text") {
+                const next = { ...single, widthMm } as TextObject;
+                withGesture(() => {
+                  updateObject(single.id, {
+                    widthMm,
+                    heightMm: measureTextHeightMm(next),
+                  });
+                });
+              } else if (
+                single.type === "polygon" ||
+                single.type === "star" ||
+                single.type === "qrcode"
+              ) {
+                updateObject(single.id, { widthMm, heightMm: widthMm });
+              } else {
+                updateObject(single.id, { widthMm });
+              }
+            }}
+          />
+          <DimensionField
+            id="obj-h"
+            label="Height"
+            mm={single.heightMm}
+            min={0.5}
+            disabled={single.type === "text" || single.type === "line"}
+            onCommit={(heightMm) => {
+              if (
+                single.type === "polygon" ||
+                single.type === "star" ||
+                single.type === "qrcode"
+              ) {
+                updateObject(single.id, { widthMm: heightMm, heightMm });
+              } else {
+                updateObject(single.id, { heightMm });
+              }
+            }}
+          />
+          <NumberField
+            id="obj-rotation"
+            label="Rotation"
+            value={single.rotationDeg}
+            min={-360}
+            max={360}
+            suffix="deg"
+            onCommit={(rotationDeg) => updateObject(single.id, { rotationDeg })}
+          />
+        </div>
+      )}
+
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <Label className="text-xs text-muted-foreground">Opacity</Label>
+          <span className="text-xs tabular-nums text-muted-foreground">
+            {Math.round(opacity * 100)}%
+          </span>
+        </div>
+        <Slider
+          min={0}
+          max={100}
+          step={1}
+          value={[Math.round(opacity * 100)]}
+          onValueChange={([v]) =>
+            updateObjects(ids, () => ({ opacity: (v ?? 100) / 100 }))
+          }
+          aria-label="Opacity"
+        />
+      </div>
+
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1">
+          <Button
+            variant="outline"
+            size="icon-sm"
+            aria-label="Bring to front"
+            onClick={() => reorderObjects(ids, "front")}
+          >
+            <ChevronsUp className="size-3.5" aria-hidden />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon-sm"
+            aria-label="Bring forward"
+            onClick={() => reorderObjects(ids, "forward")}
+          >
+            <ArrowUp className="size-3.5" aria-hidden />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon-sm"
+            aria-label="Send backward"
+            onClick={() => reorderObjects(ids, "backward")}
+          >
+            <ArrowDown className="size-3.5" aria-hidden />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon-sm"
+            aria-label="Send to back"
+            onClick={() => reorderObjects(ids, "back")}
+          >
+            <ChevronsDown className="size-3.5" aria-hidden />
+          </Button>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => updateObjects(ids, (o) => ({ locked: !o.locked }))}
+        >
+          {allLocked ? (
+            <>
+              <LockOpen className="size-3.5" aria-hidden /> Unlock
+            </>
+          ) : (
+            <>
+              <Lock className="size-3.5" aria-hidden /> Lock
+            </>
+          )}
+        </Button>
+      </div>
+    </Section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Type-specific properties
+// ---------------------------------------------------------------------------
+
+function solidColor(fill: Fill): string {
+  return fill.type === "solid" ? fill.color : "#1a1a1a";
+}
+
+function TextProps({ obj }: { obj: TextObject }) {
+  const remeasure = (patch: Partial<TextObject>) => {
+    const next = { ...obj, ...patch } as TextObject;
+    withGesture(() => {
+      updateObject<TextObject>(obj.id, {
+        ...patch,
+        heightMm: measureTextHeightMm(next),
+      });
+    });
+  };
+
+  return (
+    <Section title="Text">
+      <Textarea
+        aria-label="Text content"
+        value={obj.text}
+        rows={2}
+        className="text-sm"
+        onChange={(e) => remeasure({ text: e.target.value })}
+      />
+      <div className="grid grid-cols-2 gap-3">
+        <div className="col-span-2 space-y-1">
+          <Label htmlFor="text-font" className="text-xs text-muted-foreground">
+            Font
+          </Label>
+          <Select
+            value={obj.fontFamilyId}
+            onValueChange={(fontFamilyId) => {
+              const weights = availableWeights(fontFamilyId);
+              const fontWeight = (
+                weights.includes(obj.fontWeight) ? obj.fontWeight : (weights[0] ?? 400)
+              ) as TextObject["fontWeight"];
+              void loadFont(fontFamilyId, fontWeight).then(() =>
+                remeasure({ fontFamilyId, fontWeight }),
+              );
+            }}
+          >
+            <SelectTrigger id="text-font" className="h-8">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {FONT_FAMILIES.map((f) => (
+                <SelectItem key={f.id} value={f.id}>
+                  {f.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor="text-weight" className="text-xs text-muted-foreground">
+            Weight
+          </Label>
+          <Select
+            value={String(obj.fontWeight)}
+            onValueChange={(w) => {
+              const fontWeight = Number(w) as TextObject["fontWeight"];
+              void loadFont(obj.fontFamilyId, fontWeight).then(() =>
+                remeasure({ fontWeight }),
+              );
+            }}
+          >
+            <SelectTrigger id="text-weight" className="h-8">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {availableWeights(obj.fontFamilyId).map((w) => (
+                <SelectItem key={w} value={String(w)}>
+                  {w}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <NumberField
+          id="text-size"
+          label="Size"
+          value={obj.fontSizePt}
+          min={2}
+          max={200}
+          step={0.5}
+          suffix="pt"
+          onCommit={(fontSizePt) => remeasure({ fontSizePt })}
+        />
+        <NumberField
+          id="text-lineheight"
+          label="Line height"
+          value={obj.lineHeight}
+          min={0.7}
+          max={3}
+          step={0.05}
+          onCommit={(lineHeight) => remeasure({ lineHeight })}
+        />
+        <NumberField
+          id="text-tracking"
+          label="Letter spacing"
+          value={obj.letterSpacingEm}
+          min={-0.2}
+          max={1}
+          step={0.01}
+          suffix="em"
+          onCommit={(letterSpacingEm) => remeasure({ letterSpacingEm })}
+        />
+      </div>
+
+      <div className="flex items-center justify-between gap-2">
+        <ToggleGroup
+          type="single"
+          value={obj.align}
+          aria-label="Text alignment"
+          onValueChange={(v) => v && updateObject<TextObject>(obj.id, { align: v as TextObject["align"] })}
+        >
+          <ToggleGroupItem value="left" aria-label="Align left">
+            <AlignLeft className="size-4" aria-hidden />
+          </ToggleGroupItem>
+          <ToggleGroupItem value="center" aria-label="Align center">
+            <AlignCenter className="size-4" aria-hidden />
+          </ToggleGroupItem>
+          <ToggleGroupItem value="right" aria-label="Align right">
+            <AlignRight className="size-4" aria-hidden />
+          </ToggleGroupItem>
+        </ToggleGroup>
+        <ToggleGroup
+          type="single"
+          value={obj.textTransform}
+          aria-label="Letter case"
+          onValueChange={(v) =>
+            v && remeasure({ textTransform: v as TextObject["textTransform"] })
+          }
+        >
+          <ToggleGroupItem value="none" aria-label="Original case">
+            Aa
+          </ToggleGroupItem>
+          <ToggleGroupItem value="uppercase" aria-label="Uppercase">
+            AA
+          </ToggleGroupItem>
+          <ToggleGroupItem value="lowercase" aria-label="Lowercase">
+            aa
+          </ToggleGroupItem>
+        </ToggleGroup>
+      </div>
+
+      <ColorField
+        id="text-color"
+        label="Color"
+        color={solidColor(obj.fill)}
+        onCommit={(color) =>
+          updateObject<TextObject>(obj.id, { fill: { type: "solid", color } })
+        }
+      />
+    </Section>
+  );
+}
+
+function ShapeProps({ obj }: { obj: RectObject | PolygonObject | StarObject | Extract<LabelObject, { type: "ellipse" }> }) {
+  return (
+    <Section title="Shape">
+      <ColorField
+        id="shape-fill"
+        label="Fill"
+        color={solidColor(obj.fill)}
+        onCommit={(color) => updateObject(obj.id, { fill: { type: "solid", color } })}
+      />
+      {obj.type === "rect" && (
+        <DimensionField
+          id="shape-corner"
+          label="Corner radius"
+          mm={obj.cornerRadiusMm}
+          min={0}
+          max={Math.min(obj.widthMm, obj.heightMm) / 2}
+          onCommit={(cornerRadiusMm) =>
+            updateObject<RectObject>(obj.id, { cornerRadiusMm })
+          }
+        />
+      )}
+      {obj.type === "polygon" && (
+        <NumberField
+          id="shape-sides"
+          label="Sides"
+          value={obj.sides}
+          min={3}
+          max={24}
+          onCommit={(sides) =>
+            updateObject<PolygonObject>(obj.id, { sides: Math.round(sides) })
+          }
+        />
+      )}
+      {obj.type === "star" && (
+        <div className="grid grid-cols-2 gap-3">
+          <NumberField
+            id="star-points"
+            label="Points"
+            value={obj.points}
+            min={3}
+            max={24}
+            onCommit={(points) =>
+              updateObject<StarObject>(obj.id, { points: Math.round(points) })
+            }
+          />
+          <NumberField
+            id="star-inner"
+            label="Inner ratio"
+            value={obj.innerRatio}
+            min={0.1}
+            max={0.95}
+            step={0.05}
+            onCommit={(innerRatio) => updateObject<StarObject>(obj.id, { innerRatio })}
+          />
+        </div>
+      )}
+      <div className="space-y-1">
+        <Label className="text-xs text-muted-foreground">Stroke</Label>
+        <div className="grid grid-cols-[1fr_auto] items-end gap-2">
+          <ColorField
+            id="shape-stroke-color"
+            color={obj.stroke?.color ?? "#1a1a1a"}
+            onCommit={(color) =>
+              updateObject(obj.id, {
+                stroke: { color, widthPt: obj.stroke?.widthPt ?? 1 },
+              })
+            }
+          />
+          <NumberField
+            id="shape-stroke-width"
+            label="Width"
+            value={obj.stroke?.widthPt ?? 0}
+            min={0}
+            max={40}
+            step={0.25}
+            suffix="pt"
+            className="w-24"
+            onCommit={(widthPt) =>
+              updateObject(obj.id, {
+                stroke:
+                  widthPt <= 0
+                    ? undefined
+                    : { color: obj.stroke?.color ?? "#1a1a1a", widthPt },
+              })
+            }
+          />
+        </div>
+      </div>
+    </Section>
+  );
+}
+
+function LineProps({ obj }: { obj: LineObject }) {
+  return (
+    <Section title="Line">
+      <ColorField
+        id="line-color"
+        label="Color"
+        color={obj.color}
+        onCommit={(color) => updateObject<LineObject>(obj.id, { color })}
+      />
+      <div className="grid grid-cols-2 gap-3">
+        <NumberField
+          id="line-width"
+          label="Thickness"
+          value={obj.strokePt}
+          min={0.25}
+          max={40}
+          step={0.25}
+          suffix="pt"
+          onCommit={(strokePt) => updateObject<LineObject>(obj.id, { strokePt })}
+        />
+        <div className="space-y-1">
+          <Label htmlFor="line-style" className="text-xs text-muted-foreground">
+            Style
+          </Label>
+          <Select
+            value={obj.dash && obj.dash.length > 0 ? "dashed" : "solid"}
+            onValueChange={(v) =>
+              updateObject<LineObject>(obj.id, {
+                dash: v === "dashed" ? [4, 3] : undefined,
+              })
+            }
+          >
+            <SelectTrigger id="line-style" className="h-8">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="solid">Solid</SelectItem>
+              <SelectItem value="dashed">Dashed</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+    </Section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+export function PropertiesPanel({ doc }: { doc: LabelDocument }) {
+  const selection = useEditorUiStore((s) => s.selection);
+  const objects = React.useMemo(
+    () => selection.map((id) => findObject(doc, id)).filter((o) => o !== null),
+    [doc, selection],
+  );
+
+  if (objects.length === 0) {
+    return <DocumentProps doc={doc} />;
+  }
+
+  const single = objects.length === 1 ? objects[0] : null;
+
+  return (
+    <>
+      <CommonProps objects={objects} />
+      {single && (
+        <>
+          <Separator />
+          {single.type === "text" && <TextProps obj={single} />}
+          {(single.type === "rect" ||
+            single.type === "ellipse" ||
+            single.type === "polygon" ||
+            single.type === "star") && <ShapeProps obj={single} />}
+          {single.type === "line" && <LineProps obj={single} />}
+        </>
+      )}
+    </>
+  );
+}

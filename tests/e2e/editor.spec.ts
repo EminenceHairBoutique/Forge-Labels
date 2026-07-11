@@ -1,0 +1,112 @@
+import { expect, test, type Download, type Page } from "@playwright/test";
+
+/**
+ * Editor flow e2e: create a project (local demo mode), edit on the canvas,
+ * verify autosave persistence, and check DPI-exact export dimensions —
+ * the core dimensional-accuracy guarantee, verified in a real browser.
+ */
+
+async function createProject(page: Page): Promise<void> {
+  await page.goto("/dashboard");
+  await page.getByRole("button", { name: /new label/i }).click();
+  await page.getByLabel(/project name/i).fill("E2E Serum Label");
+  await page.getByRole("button", { name: /create & open editor/i }).click();
+  await page.waitForURL(/\/editor\/[\w-]+/);
+  await expect(page.getByTestId("editor-canvas")).toBeVisible();
+  // Konva stage mounts a canvas element.
+  await expect(page.locator('[data-testid="editor-canvas"] canvas').first()).toBeVisible();
+}
+
+test.describe("editor", () => {
+  test("creates a project and shows the dimension-accurate canvas", async ({ page }) => {
+    await createProject(page);
+    // Default 10 mL serum: 73.969 → 74.0 shown in the width field (mm).
+    await expect(page.getByLabel("Width", { exact: true })).toHaveValue("74.0");
+    await expect(page.getByLabel("Height", { exact: true })).toHaveValue("26.0");
+  });
+
+  test("adds text and shapes, undoes, and autosaves", async ({ page }) => {
+    await createProject(page);
+
+    // Adding an object selects it — the properties panel switches to it.
+    await page.getByRole("button", { name: /add text/i }).click();
+    await expect(page.getByLabel(/text content/i)).toBeVisible();
+
+    await page.getByRole("button", { name: /add rectangle/i }).click();
+    await expect(page.getByLabel(/^fill$/i)).toBeVisible();
+
+    // Layers tab lists both objects.
+    await page.getByRole("tab", { name: /layers/i }).click();
+    await expect(page.getByRole("button", { name: /select rectangle/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^select text$/i })).toBeVisible();
+
+    // Undo removes the rectangle.
+    await page.keyboard.press("ControlOrMeta+z");
+    await expect(page.getByRole("button", { name: /select rectangle/i })).toHaveCount(0);
+
+    // Redo restores it.
+    await page.keyboard.press("ControlOrMeta+Shift+z");
+    await expect(page.getByRole("button", { name: /select rectangle/i })).toBeVisible();
+
+    // Autosave persists across reload (IndexedDB).
+    await expect(page.getByText(/saved in this browser/i)).toBeVisible({
+      timeout: 10_000,
+    });
+    await page.reload();
+    await expect(page.locator('[data-testid="editor-canvas"] canvas').first()).toBeVisible();
+    await page.getByRole("tab", { name: /layers/i }).click();
+    await expect(page.getByRole("button", { name: /select rectangle/i })).toBeVisible();
+  });
+
+  test("exports a PNG with exact pixel dimensions for the physical size", async ({
+    page,
+  }) => {
+    await createProject(page);
+
+    await page.getByRole("button", { name: /^export$/i }).click();
+    await page.getByLabel(/format/i).click();
+    await page.getByRole("option", { name: /die-cut sticker/i }).click();
+
+    const downloadPromise = page.waitForEvent("download");
+    await page.getByRole("dialog").getByRole("button", { name: /^export$/i }).click();
+    const download: Download = await downloadPromise;
+
+    expect(download.suggestedFilename()).toMatch(/\.png$/);
+
+    // Verify pixel dimensions: 73.969 mm × 26 mm at 300 DPI → 874 × 307 px.
+    const stream = await download.createReadStream();
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) chunks.push(chunk as Buffer);
+    const bytes = Buffer.concat(chunks);
+
+    // PNG IHDR: width at offset 16, height at offset 20 (big-endian).
+    const width = bytes.readUInt32BE(16);
+    const height = bytes.readUInt32BE(20);
+    expect(width).toBe(Math.round((73.96902001294994 / 25.4) * 300)); // 874
+    expect(height).toBe(Math.round((26 / 25.4) * 300)); // 307
+
+    // pHYs chunk must carry 300 DPI (11811 pixels per meter).
+    const physIndex = bytes.indexOf(Buffer.from("pHYs"));
+    expect(physIndex).toBeGreaterThan(0);
+    const ppmX = bytes.readUInt32BE(physIndex + 4);
+    expect(ppmX).toBe(Math.round(300 / 0.0254));
+  });
+
+  test("exports a print-ready PDF", async ({ page }) => {
+    await createProject(page);
+
+    await page.getByRole("button", { name: /^export$/i }).click();
+    const downloadPromise = page.waitForEvent("download");
+    await page.getByRole("dialog").getByRole("button", { name: /^export$/i }).click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toMatch(/print\.pdf$/);
+
+    const stream = await download.createReadStream();
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) chunks.push(chunk as Buffer);
+    const bytes = Buffer.concat(chunks);
+    expect(bytes.subarray(0, 5).toString()).toBe("%PDF-");
+    // TrimBox present (print-ready marker).
+    expect(bytes.includes(Buffer.from("/TrimBox"))).toBe(true);
+  });
+});
