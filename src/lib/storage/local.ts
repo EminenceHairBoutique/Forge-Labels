@@ -302,7 +302,7 @@ export class LocalAdapter implements StorageAdapter {
   }
 
   async saveBrandKit(
-    kit: Omit<BrandKitRecord, "createdAt" | "updatedAt"> & { id?: string },
+    kit: Omit<BrandKitRecord, "id" | "createdAt" | "updatedAt"> & { id?: string },
   ): Promise<BrandKitRecord> {
     const db = await this.db();
     const now = Date.now();

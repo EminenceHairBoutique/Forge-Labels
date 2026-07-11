@@ -123,7 +123,7 @@ export interface StorageAdapter {
   // Brand kits
   listBrandKits(): Promise<BrandKitRecord[]>;
   saveBrandKit(
-    kit: Omit<BrandKitRecord, "createdAt" | "updatedAt"> & { id?: string },
+    kit: Omit<BrandKitRecord, "id" | "createdAt" | "updatedAt"> & { id?: string },
   ): Promise<BrandKitRecord>;
   deleteBrandKit(id: string): Promise<void>;
 
