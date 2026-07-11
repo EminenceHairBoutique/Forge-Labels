@@ -13,10 +13,12 @@ import { ThemeToggle } from "@/components/theme/theme-toggle";
 export function SiteHeader() {
   const pathname = usePathname();
   const [open, setOpen] = React.useState(false);
-
-  React.useEffect(() => {
+  // Close the mobile menu after navigation ("adjust state during render").
+  const [lastPathname, setLastPathname] = React.useState(pathname);
+  if (pathname !== lastPathname) {
+    setLastPathname(pathname);
     setOpen(false);
-  }, [pathname]);
+  }
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur">
