@@ -197,6 +197,53 @@ test.describe("easy editor", () => {
   });
 });
 
+test.describe("design variations and product family", () => {
+  test("layouts switch with content intact, and tone flips dark/light", async ({
+    page,
+  }) => {
+    await runWizard(page, {
+      vial: /10 mL vial/i,
+      material: /plain/i,
+      product: "Variant Serum",
+    });
+    // Switch to a different layout family — the words survive.
+    await page.getByRole("button", { name: /type stack/i }).click();
+    await page.waitForTimeout(700);
+    await expect(page.getByLabel(/product name/i)).toHaveValue("Variant Serum");
+    await expect(page.getByRole("button", { name: /type stack/i })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    // Tone flip is offered and applies (start tone depends on the pick).
+    const flip = page.getByRole("button", { name: /try a (dark|light) version/i });
+    const before = (await flip.textContent()) ?? "";
+    await flip.click();
+    await page.waitForTimeout(700);
+    const after = (await flip.textContent()) ?? "";
+    expect(after).not.toBe(before); // dark ⇄ light swapped
+  });
+
+  test("creates a matching product label preserving the brand", async ({ page }) => {
+    await runWizard(page, {
+      vial: /10 mL vial/i,
+      material: /plain/i,
+      product: "Line Serum A",
+    });
+    await page.getByRole("button", { name: /matching label/i }).click();
+    await page.getByLabel(/product name/i).last().fill("Line Serum B");
+    await page.getByLabel("Strength", { exact: true }).fill("20 mg");
+    await page.getByRole("button", { name: /create matching label/i }).click();
+    await page.waitForURL(/\/easy\/[\w-]+/, { timeout: 20_000 });
+    await expect(page.getByRole("dialog")).toHaveCount(0); // dialog fully closed
+    // The new project opens with the new product name and the same brand.
+    await expect(page.getByLabel(/product name/i)).toHaveValue("Line Serum B");
+    await expect(page.getByLabel(/brand name/i)).toHaveValue("YOUR BRAND");
+    await expect(page.getByLabel("Amount or strength", { exact: true })).toHaveValue(
+      "20 mg",
+    );
+  });
+});
+
 test.describe("beginner dashboard", () => {
   test("empty state asks what to make and leads with the guided flow", async ({
     page,

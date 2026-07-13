@@ -225,7 +225,9 @@ export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
   const gap = 1.6 * scaleH;
   const qrOn = enabled.has("qr") && Boolean(fields.qr?.trim());
   const barcodeOn = enabled.has("barcode") && Boolean(fields.barcode?.trim());
-  const qrEdge = qrOn ? MM(Math.min(Math.max(heightMm * 0.42, 9), 16)) : 0;
+  const qrEdge = qrOn
+    ? MM(Math.min(Math.max(heightMm * 0.42 * (template.qrScale ?? 1), 9), 18))
+    : 0;
   const barcodeW = barcodeOn ? MM(Math.min(Math.max(widthMm * 0.32, 16), 34)) : 0;
   const barcodeH = barcodeOn ? MM(Math.min(Math.max(heightMm * 0.24, 6.5), 11)) : 0;
 

@@ -4,13 +4,17 @@ import { mutateDocument, withGesture } from "@/lib/document/commands";
 import { useDocumentStore } from "@/stores/document-store";
 import { loadFont } from "@/lib/fonts/registry";
 import { measureTextHeightMm } from "@/lib/render/text-measure";
-import type { EasyMeta, LabelDocument, LabelObject } from "@/lib/document/schema";
 import { getEasyPalette } from "./palettes";
 import { getMaterial, getMaterialOption } from "./materials";
 import { getEasyTemplate, type EasyTemplateDef } from "./templates";
 import { buildEasyLabel, mergeEasyObjects } from "./instantiate";
-import { nextEasyMeta, SIMPLIFY_SLOTS, type EasyChange } from "./meta";
-import { isSlotId, SLOTS, type SlotId } from "./slots";
+import {
+  nextEasyMeta,
+  readEasyContent as readEasyState,
+  SIMPLIFY_SLOTS,
+  type EasyChange,
+} from "./meta";
+import { SLOTS, type SlotId } from "./slots";
 
 /**
  * The bridge between the Easy form and the document. Reads current field
@@ -20,39 +24,7 @@ import { isSlotId, SLOTS, type SlotId } from "./slots";
  * document mutations, and the Advanced Editor sees ordinary objects.
  */
 
-export interface EasyState {
-  meta: EasyMeta;
-  fields: Partial<Record<SlotId, string>>;
-  /** Slots currently materialized on the label. */
-  enabled: Set<SlotId>;
-  /** Values remembered for toggled-off slots. */
-  stash: Record<string, string>;
-}
-
-function walk(objects: readonly LabelObject[], visit: (o: LabelObject) => void): void {
-  for (const o of objects) {
-    visit(o);
-    if (o.type === "group") walk(o.children, visit);
-  }
-}
-
-export function readEasyState(doc: LabelDocument): EasyState | null {
-  if (!doc.easy) return null;
-  const fields: Partial<Record<SlotId, string>> = {};
-  const enabled = new Set<SlotId>();
-  walk(doc.objects, (o) => {
-    if (!o.slot || !isSlotId(o.slot)) return;
-    enabled.add(o.slot);
-    if (o.type === "text") fields[o.slot] = o.text;
-    else if (o.type === "qrcode") fields[o.slot] = o.value;
-    else if (o.type === "barcode") fields[o.slot] = o.value;
-  });
-  const stash = doc.easy.stash ?? {};
-  for (const [slot, value] of Object.entries(stash)) {
-    if (isSlotId(slot) && !(slot in fields)) fields[slot] = value;
-  }
-  return { meta: doc.easy, fields, enabled, stash };
-}
+export { readEasyContent as readEasyState, type EasyContent as EasyState } from "./meta";
 
 export type { EasyChange } from "./meta";
 

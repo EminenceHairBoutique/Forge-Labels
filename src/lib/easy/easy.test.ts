@@ -4,6 +4,11 @@ import { createDocument } from "@/lib/document/defaults";
 import { parseLabelDocument, type LabelObject, type TextObject } from "@/lib/document/schema";
 import { getVialPreset } from "@/lib/vials/presets";
 import { buildEasyDocument, DEFAULT_ENABLED, defaultEasyFields } from "./create-doc";
+import {
+  buildFamilyVariant,
+  parseStrengthMg,
+  suggestPaletteForStrength,
+} from "./family";
 import { buildEasyLabel } from "./instantiate";
 import { contrastRatio, EASY_PALETTES, getEasyPalette } from "./palettes";
 import { getMaterial, getMaterialOption } from "./materials";
@@ -266,6 +271,90 @@ describe("nextEasyMeta (material switching)", () => {
       material: { materialId: "neon", optionId: "rainbow-prism" },
     });
     expect(meta.materialOptionId).toBe("neon-pink"); // neon's default
+  });
+});
+
+describe("template families", () => {
+  it("ships at least 12 genuinely distinct layout archetypes", () => {
+    expect(EASY_TEMPLATES.length).toBeGreaterThanOrEqual(12);
+    const families = new Set(EASY_TEMPLATES.map((t) => t.family));
+    expect(families.size).toBe(EASY_TEMPLATES.length); // one per family — no color swaps
+    // Distinct DNA: no two templates share font pair + alignment + decor shape.
+    const dna = EASY_TEMPLATES.map(
+      (t) =>
+        `${t.fonts.display}/${t.fonts.body}/${t.align}/${t.decor.map((d) => d.kind).sort().join(",")}`,
+    );
+    expect(new Set(dna).size).toBe(dna.length);
+  });
+
+  it("gives QR-focused layouts a larger code", () => {
+    const fields = defaultEasyFields({ qr: "https://example.com" });
+    const enabled = new Set<SlotId>([...DEFAULT_ENABLED, "qr"]);
+    const normal = buildEasyDocument(spec({ fields, enabled }));
+    const qrFirst = buildEasyDocument(
+      spec({ templateId: "qr-forward", fields, enabled }),
+    );
+    const qrA = normal.objects.find((o) => o.slot === "qr")!;
+    const qrB = qrFirst.objects.find((o) => o.slot === "qr")!;
+    expect(qrB.widthMm).toBeGreaterThan(qrA.widthMm);
+  });
+});
+
+describe("product-family generator", () => {
+  const source = () =>
+    buildEasyDocument(
+      spec({
+        fields: defaultEasyFields({
+          brand: "AURELIS LABS",
+          "product-name": "Retinol Serum",
+          strength: "10 mg",
+          warning: "External use only.",
+        }),
+        enabled: new Set<SlotId>([...DEFAULT_ENABLED, "warning"]),
+      }),
+    );
+
+  it("changes only the product fields and preserves the brand identity", () => {
+    const original = source();
+    const variant = buildFamilyVariant(original, {
+      productName: "Retinol Serum Night",
+      strength: "20 mg",
+      lot: "LOT-9",
+    });
+    expect(variant.easy).toMatchObject({
+      templateId: original.easy!.templateId,
+      materialId: original.easy!.materialId,
+    });
+    expect(variant.label).toEqual(original.label);
+    const texts = textObjects(variant.objects);
+    expect(texts.find((o) => o.slot === "brand")!.text).toBe("AURELIS LABS");
+    expect(texts.find((o) => o.slot === "product-name")!.text).toBe(
+      "Retinol Serum Night",
+    );
+    expect(texts.find((o) => o.slot === "strength")!.text).toBe("20 mg");
+    expect(texts.find((o) => o.slot === "lot")!.text).toBe("LOT-9");
+    expect(texts.find((o) => o.slot === "warning")!.text).toBe("External use only.");
+  });
+
+  it("keeps free objects added in the Advanced Editor", () => {
+    const original = source();
+    const withFree = {
+      ...original,
+      objects: [
+        ...original.objects,
+        { ...original.objects.find((o) => o.type === "text")!, id: "free-1", slot: undefined, name: "Free note" },
+      ],
+    };
+    const variant = buildFamilyVariant(withFree, { productName: "Other" });
+    expect(variant.objects.some((o) => o.id === "free-1")).toBe(true);
+  });
+
+  it("suggests strength colors by hue (5→blue, 10→purple, 20→red, 30→gold)", () => {
+    const material = getMaterial("plain")!;
+    expect(suggestPaletteForStrength("5 mg", material)?.id).toBe("white-blue");
+    expect(suggestPaletteForStrength("20 mg", material)?.id).toBe("gray-red");
+    expect(suggestPaletteForStrength("no number", material)).toBeNull();
+    expect(parseStrengthMg("0.5% · 10 mg")).toBe(0.5);
   });
 });
 

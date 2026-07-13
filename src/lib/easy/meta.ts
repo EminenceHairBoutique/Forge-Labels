@@ -1,6 +1,11 @@
-import type { EasyMeta, EasyTweaks } from "@/lib/document/schema";
+import type {
+  EasyMeta,
+  EasyTweaks,
+  LabelDocument,
+  LabelObject,
+} from "@/lib/document/schema";
 import { getMaterial, type Intensity } from "./materials";
-import type { SlotId } from "./slots";
+import { isSlotId, type SlotId } from "./slots";
 
 /**
  * Pure Easy-meta transitions (DOM-free — fields.ts wires them to the
@@ -29,6 +34,41 @@ export const SIMPLIFY_SLOTS: readonly SlotId[] = [
   "storage",
   "website",
 ];
+
+export interface EasyContent {
+  meta: EasyMeta;
+  fields: Partial<Record<SlotId, string>>;
+  /** Slots currently materialized on the label. */
+  enabled: Set<SlotId>;
+  /** Values remembered for toggled-off slots. */
+  stash: Record<string, string>;
+}
+
+/**
+ * Read the Easy state straight from a document: field values live in the
+ * slot objects (single source of truth), stashed values in the meta.
+ */
+export function readEasyContent(doc: LabelDocument): EasyContent | null {
+  if (!doc.easy) return null;
+  const fields: Partial<Record<SlotId, string>> = {};
+  const enabled = new Set<SlotId>();
+  const walk = (objects: readonly LabelObject[]): void => {
+    for (const o of objects) {
+      if (o.type === "group") walk(o.children);
+      if (!o.slot || !isSlotId(o.slot)) continue;
+      enabled.add(o.slot);
+      if (o.type === "text") fields[o.slot] = o.text;
+      else if (o.type === "qrcode") fields[o.slot] = o.value;
+      else if (o.type === "barcode") fields[o.slot] = o.value;
+    }
+  };
+  walk(doc.objects);
+  const stash = doc.easy.stash ?? {};
+  for (const [slot, value] of Object.entries(stash)) {
+    if (isSlotId(slot) && !(slot in fields)) fields[slot] = value;
+  }
+  return { meta: doc.easy, fields, enabled, stash };
+}
 
 /**
  * On a material change the palette carries across only when the new

@@ -3,13 +3,14 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Download, SlidersHorizontal, Undo2 } from "lucide-react";
+import { ArrowLeft, CopyPlus, Download, SlidersHorizontal, Undo2 } from "lucide-react";
 import { loadDocument, undo } from "@/lib/document/commands";
 import type { LabelDocument } from "@/lib/document/schema";
 import { ensureFinishesRegistered } from "@/lib/finishes";
 import { loadFontsForDocument } from "@/lib/fonts/registry";
 import { getEasyPalette } from "@/lib/easy/palettes";
 import { getMaterial, getMaterialOption } from "@/lib/easy/materials";
+import { templatesForMaterial } from "@/lib/easy/templates";
 import { applyEasyChange } from "@/lib/easy/fields";
 import { getStorageAdapter } from "@/lib/storage";
 import { useCanUndoRedo, useDoc } from "@/stores/document-store";
@@ -21,6 +22,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toaster";
 import { ContentForm } from "./content-form";
 import { MaterialPicker } from "./material-picker";
+import { MatchingLabelDialog } from "./matching-label-dialog";
 import { VialStage } from "./vial-stage";
 import { cn } from "@/lib/utils";
 
@@ -37,6 +39,7 @@ export function EasyEditor({ projectId }: { projectId: string }) {
   const router = useRouter();
   const [loadState, setLoadState] = React.useState<LoadState>("loading");
   const [exportOpen, setExportOpen] = React.useState(false);
+  const [matchingOpen, setMatchingOpen] = React.useState(false);
   const doc = useDoc();
   const projectName = useProjectSessionStore((s) => s.projectName);
   const { canUndo } = useCanUndoRedo();
@@ -147,6 +150,15 @@ export function EasyEditor({ projectId }: { projectId: string }) {
           >
             <Undo2 className="size-4" aria-hidden />
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="hidden sm:inline-flex"
+            onClick={() => setMatchingOpen(true)}
+          >
+            <CopyPlus className="size-4" aria-hidden />
+            Matching label
+          </Button>
           <Button asChild variant="outline" size="sm" className="hidden sm:inline-flex">
             <Link href={`/editor/${projectId}`}>
               <SlidersHorizontal className="size-4" aria-hidden />
@@ -214,6 +226,8 @@ export function EasyEditor({ projectId }: { projectId: string }) {
             </section>
           )}
 
+          <DesignSection doc={doc} />
+
           <QuickFixes doc={doc} />
 
           <MaterialSection
@@ -248,7 +262,60 @@ export function EasyEditor({ projectId }: { projectId: string }) {
       </main>
 
       <ExportDialog doc={doc} open={exportOpen} onOpenChange={setExportOpen} />
+      <MatchingLabelDialog
+        doc={doc}
+        open={matchingOpen}
+        onOpenChange={setMatchingOpen}
+      />
     </div>
+  );
+}
+
+/**
+ * §5 design variations: switch the layout family with your words intact,
+ * or flip between the material's dark and light palettes — every action a
+ * single undoable engine pass.
+ */
+function DesignSection({ doc }: { doc: LabelDocument }) {
+  const easy = doc.easy!;
+  const material = getMaterial(easy.materialId);
+  if (!material) return null;
+  const layouts = templatesForMaterial(material.id);
+  const currentPalette = getEasyPalette(easy.paletteId);
+  const oppositeTone = material.paletteIds
+    .map(getEasyPalette)
+    .find((p) => p.dark !== currentPalette.dark);
+
+  return (
+    <section aria-label="Design" className="space-y-2">
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        Layout
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {layouts.map((layout) => (
+          <Button
+            key={layout.id}
+            variant={layout.id === easy.templateId ? "primary" : "outline"}
+            size="sm"
+            className="h-8 text-xs"
+            aria-pressed={layout.id === easy.templateId}
+            onClick={() => void applyEasyChange({ templateId: layout.id })}
+          >
+            {layout.name}
+          </Button>
+        ))}
+        {oppositeTone && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs"
+            onClick={() => void applyEasyChange({ paletteId: oppositeTone.id })}
+          >
+            Try a {currentPalette.dark ? "light" : "dark"} version
+          </Button>
+        )}
+      </div>
+    </section>
   );
 }
 
