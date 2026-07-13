@@ -4,9 +4,10 @@ import { createDocument } from "@/lib/document/defaults";
 import { parseLabelDocument, type LabelObject, type TextObject } from "@/lib/document/schema";
 import { getVialPreset } from "@/lib/vials/presets";
 import { buildEasyDocument, DEFAULT_ENABLED, defaultEasyFields } from "./create-doc";
-import { contrastRatio, EASY_PALETTES } from "./palettes";
-import { getMaterial } from "./materials";
-import { EASY_TEMPLATES } from "./templates";
+import { buildEasyLabel } from "./instantiate";
+import { contrastRatio, EASY_PALETTES, getEasyPalette } from "./palettes";
+import { getMaterial, getMaterialOption } from "./materials";
+import { EASY_TEMPLATES, getEasyTemplate } from "./templates";
 import { recommendTemplates } from "./recommend";
 import { approximateMeasure, fitRow, squeezeFactor, stackZones } from "./layout";
 import { nextEasyMeta } from "./meta";
@@ -187,6 +188,50 @@ describe("material-aware rules", () => {
     expect(getMaterial("matte")!.rules.sheen).toBe("matte");
     expect(getMaterial("plain")!.rules.sheen).toBeUndefined();
     expect(getMaterial("holographic")!.rules.sheen).toBeUndefined();
+  });
+});
+
+describe("one-click fix tweaks", () => {
+  it("nameScale makes the product name bigger without breaking bounds", () => {
+    const plain = buildEasyDocument(spec());
+    const base = textObjects(plain.objects).find((o) => o.slot === "product-name")!;
+
+    const material = getMaterial("plain")!;
+    const build = buildEasyLabel({
+      template: getEasyTemplate("clinical-frame")!,
+      widthMm: plain.label.widthMm,
+      heightMm: plain.label.heightMm,
+      bleedMm: plain.label.bleedMm,
+      safeMm: plain.label.safeMm,
+      material,
+      option: getMaterialOption(material, "plain-white"),
+      intensity: "subtle",
+      palette: getEasyPalette("white-black"),
+      fields: { brand: "AURELIS LABS", "product-name": "Retinol Serum" },
+      enabled: DEFAULT_ENABLED,
+      tweaks: { nameScale: 1.5 },
+    });
+    const bigger = build.objects.find(
+      (o): o is TextObject => o.type === "text" && o.slot === "product-name",
+    )!;
+    expect(bigger.fontSizePt).toBeGreaterThan(base.fontSizePt);
+    expect(bigger.yMm + bigger.heightMm / 2).toBeLessThanOrEqual(plain.label.heightMm);
+  });
+
+  it("tweaks merge and persist through nextEasyMeta", () => {
+    const meta = {
+      templateId: "clinical-frame",
+      materialId: "plain",
+      materialOptionId: "plain-white",
+      paletteId: "white-black",
+    };
+    const withTight = nextEasyMeta(meta, { tweaks: { tight: true } });
+    expect(withTight.tweaks).toEqual({ tight: true });
+    const withBoth = nextEasyMeta(withTight, { tweaks: { nameScale: 1.15 } });
+    expect(withBoth.tweaks).toEqual({ tight: true, nameScale: 1.15 });
+    // A later unrelated change keeps them.
+    const later = nextEasyMeta(withBoth, { paletteId: "white-blue" });
+    expect(later.tweaks).toEqual({ tight: true, nameScale: 1.15 });
   });
 });
 

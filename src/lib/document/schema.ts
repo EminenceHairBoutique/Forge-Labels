@@ -404,8 +404,20 @@ export const EasyMetaSchema = z.object({
   paletteId: z.string(),
   styleId: z.string().optional(),
   stash: z.record(z.string(), z.string()).optional(),
+  /** One-click fix adjustments — persist so later edits keep the fix. */
+  tweaks: z
+    .object({
+      /** Product-name scale multiplier (Make it bigger). */
+      nameScale: z.number().min(0.5).max(2).optional(),
+      /** Tighter spacing + deeper shrink allowance (Fit everything). */
+      tight: z.boolean().optional(),
+      /** Larger small print (Easier to read). */
+      textBoost: z.boolean().optional(),
+    })
+    .optional(),
 });
 export type EasyMeta = z.infer<typeof EasyMetaSchema>;
+export type EasyTweaks = NonNullable<EasyMeta["tweaks"]>;
 
 export const LabelDocumentSchema = z.object({
   schemaVersion: z.literal(DOCUMENT_SCHEMA_VERSION),

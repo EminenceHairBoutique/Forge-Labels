@@ -1,4 +1,4 @@
-import type { EasyMeta } from "@/lib/document/schema";
+import type { EasyMeta, EasyTweaks } from "@/lib/document/schema";
 import { getMaterial, type Intensity } from "./materials";
 import type { SlotId } from "./slots";
 
@@ -14,7 +14,21 @@ export interface EasyChange {
   templateId?: string;
   material?: { materialId: string; optionId: string };
   intensity?: Intensity;
+  /** One-click fixes: merged into meta.tweaks so later edits keep them. */
+  tweaks?: Partial<EasyTweaks>;
+  /** Turn off the nice-to-have fields (Simplify design) — values stashed. */
+  simplify?: boolean;
+  /** Rebuild from current values (Balance layout) — no meta change. */
+  relayout?: boolean;
 }
+
+/** Slots "Simplify design" turns off (values are stashed, so reversible). */
+export const SIMPLIFY_SLOTS: readonly SlotId[] = [
+  "subtitle",
+  "description",
+  "storage",
+  "website",
+];
 
 /**
  * On a material change the palette carries across only when the new
@@ -27,6 +41,9 @@ export function nextEasyMeta(current: EasyMeta, change: EasyChange): EasyMeta {
   if (change.paletteId) meta.paletteId = change.paletteId;
   if (change.templateId) meta.templateId = change.templateId;
   if (change.intensity) meta.intensity = change.intensity;
+  if (change.tweaks) {
+    meta.tweaks = { ...meta.tweaks, ...change.tweaks };
+  }
   if (change.material) {
     meta.materialId = change.material.materialId;
     meta.materialOptionId = change.material.optionId;

@@ -38,6 +38,12 @@ export function ContentForm({ doc }: { doc: LabelDocument }) {
     };
   }, []);
 
+  // Adjust-during-render: once a pending slot materializes as an object,
+  // the document owns its on/off state again (so Simplify can turn it off).
+  if (state && [...pendingOn].some((slot) => state.enabled.has(slot))) {
+    setPendingOn(new Set([...pendingOn].filter((slot) => !state.enabled.has(slot))));
+  }
+
   if (!state) return null;
 
   const surfaceNotes = (notes: string[]) => {

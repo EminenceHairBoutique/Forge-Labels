@@ -9,7 +9,7 @@ import { getEasyPalette } from "./palettes";
 import { getMaterial, getMaterialOption } from "./materials";
 import { getEasyTemplate, type EasyTemplateDef } from "./templates";
 import { buildEasyLabel, mergeEasyObjects } from "./instantiate";
-import { nextEasyMeta, type EasyChange } from "./meta";
+import { nextEasyMeta, SIMPLIFY_SLOTS, type EasyChange } from "./meta";
 import { isSlotId, SLOTS, type SlotId } from "./slots";
 
 /**
@@ -115,6 +115,17 @@ async function applyEasyChangeNow(change: EasyChange): Promise<string[]> {
       delete fields[slot];
     }
   }
+  if (change.simplify) {
+    // "Simplify design": nice-to-have fields go off, values stashed —
+    // toggling them back on restores the text.
+    for (const slot of SIMPLIFY_SLOTS) {
+      if (!enabled.has(slot)) continue;
+      enabled.delete(slot);
+      const value = fields[slot];
+      if (value?.trim()) stash[slot] = value;
+      delete fields[slot];
+    }
+  }
   meta.stash = Object.keys(stash).length > 0 ? stash : undefined;
 
   await ensureEasyFonts(template);
@@ -132,6 +143,7 @@ async function applyEasyChangeNow(change: EasyChange): Promise<string[]> {
     fields,
     enabled,
     measure: measureTextHeightMm,
+    tweaks: meta.tweaks,
   });
 
   withGesture(() => {

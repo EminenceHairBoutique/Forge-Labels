@@ -3,6 +3,7 @@ import { resolveWeight } from "@/lib/fonts/registry";
 import type {
   Background,
   BarcodeObject,
+  EasyTweaks,
   Fill,
   LabelDocument,
   LabelObject,
@@ -49,6 +50,8 @@ export interface EasyBuildInput {
   fields: Partial<Record<SlotId, string>>;
   enabled: ReadonlySet<SlotId>;
   measure?: TextMeasure;
+  /** One-click fix adjustments (see EasyMetaSchema.tweaks). */
+  tweaks?: EasyTweaks;
 }
 
 export interface EasyBuildResult {
@@ -130,6 +133,7 @@ export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
   const measure = input.measure ?? approximateMeasure;
   const notes: string[] = [];
   const plan = effectPlan(material, intensity, option.finishId);
+  const tweaks = input.tweaks ?? {};
 
   // --- Background & substrate ----------------------------------------------
   let background: Background;
@@ -257,7 +261,17 @@ export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
       fontFamilyId,
       row.weight ?? (row.font === "display" ? template.fonts.displayWeight : template.fonts.bodyWeight),
     ) as TextObject["fontWeight"];
-    const prefPt = Math.max((row.sizeFactor * heightMm) / PT_TO_MM / 1.28, row.minPt) * squeeze;
+    // One-click fixes: bigger product name / larger small print.
+    let sizeFactor = row.sizeFactor;
+    let minPt = row.minPt;
+    if (row.slot === "product-name" && tweaks.nameScale) {
+      sizeFactor *= tweaks.nameScale;
+    }
+    if (tweaks.textBoost && isFooter) {
+      sizeFactor *= 1.15;
+      minPt += 1;
+    }
+    const prefPt = Math.max((sizeFactor * heightMm) / PT_TO_MM / 1.28, minPt) * squeeze;
 
     const base: TextObject = {
       id: newObjectId(),
@@ -294,7 +308,7 @@ export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
 
     const fitted = fitRow(
       base,
-      { prefPt, minPt: row.minPt, maxLines: row.maxLines },
+      { prefPt, minPt, maxLines: row.maxLines },
       measure,
     );
     if (fitted.atMinimum) {
@@ -306,7 +320,7 @@ export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
       def: row,
       obj: { ...base, fontSizePt: MM(fitted.fontSizePt), heightMm: MM(fitted.heightMm) },
       heightMm: fitted.heightMm,
-      spacingBeforeMm: (row.spacingBefore ?? 0.8) * scaleH,
+      spacingBeforeMm: (row.spacingBefore ?? 0.8) * scaleH * (tweaks.tight ? 0.6 : 1),
     };
   };
 
@@ -316,7 +330,7 @@ export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
   const codeFooterHeight = Math.max(qrOn ? qrEdge : 0, barcodeOn ? barcodeH : 0);
   const availableH = safeBottom - safeTop - (codeFooterHeight > 0 ? 0 : 0);
   const totalH = laid.reduce((sum, r) => sum + r.heightMm + r.spacingBeforeMm, 0);
-  const factor = squeezeFactor(totalH, availableH);
+  const factor = squeezeFactor(totalH, availableH, tweaks.tight ? 0.45 : 0.55);
   if (factor < 1) {
     laid = activeRows.map((row) => buildRow(row, factor));
     notes.push("Everything was scaled down slightly to fit — consider turning off a field.");

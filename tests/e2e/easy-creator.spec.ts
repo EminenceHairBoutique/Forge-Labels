@@ -123,6 +123,45 @@ test.describe("easy editor", () => {
     await expect(page.getByLabel(/product name/i)).toHaveValue("Roundtrip Serum");
   });
 
+  test("one-click fixes apply, persist, and Simplify stashes values reversibly", async ({
+    page,
+  }) => {
+    await runWizard(page, {
+      vial: /10 mL vial/i,
+      material: /plain/i,
+      product: "Fixable Serum",
+    });
+
+    // Turn on the subtitle with a value.
+    await page
+      .getByRole("switch", { name: /show short subtitle/i })
+      .click();
+    await page.getByLabel("Short subtitle", { exact: true }).fill("Overnight renewal");
+    await page.waitForTimeout(900);
+
+    // Simplify turns the nice-to-haves off…
+    await page.getByRole("button", { name: /^simplify$/i }).click();
+    await page.waitForTimeout(600);
+    await expect(page.getByRole("switch", { name: /show short subtitle/i })).not.toBeChecked();
+
+    // …and toggling back on restores the stashed text.
+    await page.getByRole("switch", { name: /show short subtitle/i }).click();
+    await page.waitForTimeout(600);
+    await expect(page.getByLabel("Short subtitle", { exact: true })).toHaveValue(
+      "Overnight renewal",
+    );
+
+    // Bigger product name persists as a tweak and offers a reset.
+    await page.getByRole("button", { name: /bigger product name/i }).click();
+    await page.waitForTimeout(600);
+    await expect(page.getByRole("button", { name: /reset fixes/i })).toBeVisible();
+    await page.getByRole("button", { name: /fit everything/i }).click();
+    await page.waitForTimeout(600);
+    await expect(
+      page.getByRole("button", { name: /fit everything/i }),
+    ).toHaveAttribute("aria-pressed", "true");
+  });
+
   test("material changes after creation, with an honest holographic intensity control", async ({
     page,
   }) => {

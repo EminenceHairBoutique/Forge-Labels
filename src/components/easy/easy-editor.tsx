@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Download, SlidersHorizontal, Undo2 } from "lucide-react";
 import { loadDocument, undo } from "@/lib/document/commands";
+import type { LabelDocument } from "@/lib/document/schema";
 import { ensureFinishesRegistered } from "@/lib/finishes";
 import { loadFontsForDocument } from "@/lib/fonts/registry";
 import { getEasyPalette } from "@/lib/easy/palettes";
@@ -213,6 +214,8 @@ export function EasyEditor({ projectId }: { projectId: string }) {
             </section>
           )}
 
+          <QuickFixes doc={doc} />
+
           <MaterialSection
             materialName={material?.name}
             optionName={option?.name}
@@ -246,6 +249,97 @@ export function EasyEditor({ projectId }: { projectId: string }) {
 
       <ExportDialog doc={doc} open={exportOpen} onOpenChange={setExportOpen} />
     </div>
+  );
+}
+
+/**
+ * §4 one-click corrections: controlled engine re-runs (all undoable).
+ * "Fit everything" and "Easier to read" persist as tweaks so later edits
+ * keep the fix; "Balance layout" simply regenerates — which also cleans up
+ * anything dragged around in the Advanced Editor.
+ */
+function QuickFixes({ doc }: { doc: LabelDocument }) {
+  const tweaks = doc.easy?.tweaks;
+  const tightFit = doc.objects.some(
+    (o) => o.type === "text" && Boolean(o.slot) && o.fontSizePt <= 4.6,
+  );
+  const nameScale = tweaks?.nameScale ?? 1;
+
+  const fix = (change: Parameters<typeof applyEasyChange>[0]) =>
+    void applyEasyChange(change);
+
+  return (
+    <section aria-label="Quick fixes" className="space-y-2">
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        Quick fixes
+      </p>
+      {tightFit && (
+        <p className="text-xs text-warning-foreground" role="status">
+          Some text is getting very small — try “Fit everything” or “Simplify”.
+        </p>
+      )}
+      <div className="flex flex-wrap gap-1.5">
+        <FixButton onClick={() => fix({ relayout: true })}>Balance layout</FixButton>
+        <FixButton
+          pressed={tweaks?.tight}
+          onClick={() => fix({ tweaks: { tight: !tweaks?.tight } })}
+        >
+          Fit everything
+        </FixButton>
+        <FixButton
+          disabled={nameScale >= 1.6}
+          onClick={() =>
+            fix({ tweaks: { nameScale: Math.min(nameScale * 1.15, 1.6) } })
+          }
+        >
+          Bigger product name
+        </FixButton>
+        <FixButton
+          pressed={tweaks?.textBoost}
+          onClick={() => fix({ tweaks: { textBoost: !tweaks?.textBoost } })}
+        >
+          Easier to read
+        </FixButton>
+        <FixButton onClick={() => fix({ simplify: true })}>Simplify</FixButton>
+        {(tweaks?.tight || tweaks?.textBoost || nameScale !== 1) && (
+          <FixButton
+            onClick={() =>
+              fix({ tweaks: { tight: false, textBoost: false, nameScale: undefined } })
+            }
+          >
+            Reset fixes
+          </FixButton>
+        )}
+      </div>
+      <p className="text-[11px] text-muted-foreground">
+        Every fix is one undo step (Cmd/Ctrl+Z).
+      </p>
+    </section>
+  );
+}
+
+function FixButton({
+  children,
+  onClick,
+  pressed,
+  disabled,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  pressed?: boolean;
+  disabled?: boolean;
+}) {
+  return (
+    <Button
+      variant={pressed ? "primary" : "outline"}
+      size="sm"
+      className="h-8 text-xs"
+      aria-pressed={pressed}
+      disabled={disabled}
+      onClick={onClick}
+    >
+      {children}
+    </Button>
   );
 }
 
