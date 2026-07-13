@@ -89,6 +89,22 @@ can't express vectorially (gradients, finishes, shadows, images) as tightly
 cropped 600-DPI tiles (`src/lib/export/vector-paths.ts`, `vector-doc.ts`,
 `pdf-vector.ts`); the export dialog lists exactly what got rasterized.
 
+## Beginner-first UX overhaul — Shipped
+
+The Easy Creator layer (built additively on the same document model):
+guided `/create` wizard with visual vial cards and plain-language
+measuring, eight beginner materials with reactive previews and intensity
+controls, twelve size-responsive layout archetypes driven by a semantic
+slot engine (schema v2), a form-based editor with the 3D vial as the
+canvas, one-click layout fixes, design variations and dark/light flips,
+the matching product-line generator with strength color coding, a
+plain-language print wizard with one-click preflight fixes and a printer
+specification sheet, "Make my label for me" (one screen → three finished
+options), first-run onboarding with a sample project, and a mobile-first
+flow verified end-to-end on iPhone/iPad/laptop/desktop viewports. Details:
+[EASY-CREATOR-ARCHITECTURE.md](./EASY-CREATOR-ARCHITECTURE.md) and the
+user guide in [EASY-CREATOR-GUIDE.md](./EASY-CREATOR-GUIDE.md).
+
 ## Phase 3 — Partially shipped
 
 Shipped in this build:

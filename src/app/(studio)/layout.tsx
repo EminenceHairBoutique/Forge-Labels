@@ -35,7 +35,8 @@ export default function StudioLayout({
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
           <div className="flex items-center gap-6">
             <Logo />
-            <nav aria-label="Studio" className="hidden items-center gap-1 md:flex">
+            {/* Six nav items don't fit tablet widths — desktop nav from lg. */}
+            <nav aria-label="Studio" className="hidden items-center gap-1 lg:flex">
               {STUDIO_NAV.map((item) => (
                 <Link
                   key={item.href}
@@ -58,7 +59,7 @@ export default function StudioLayout({
         </div>
         <nav
           aria-label="Studio mobile"
-          className="flex items-center gap-1 overflow-x-auto border-t border-border px-2 py-1 md:hidden"
+          className="flex items-center gap-1 overflow-x-auto border-t border-border px-2 py-1 lg:hidden"
         >
           {STUDIO_NAV.map((item) => (
             <Link

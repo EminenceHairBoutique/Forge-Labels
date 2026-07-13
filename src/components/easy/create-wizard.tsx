@@ -1,10 +1,12 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { loadDraft, saveDraft, type WizardDraft } from "@/lib/easy/draft";
 import { Button } from "@/components/ui/button";
+import { AutoStep } from "./steps/auto-step";
 import { VialStep } from "./steps/vial-step";
 import { MaterialStep } from "./steps/material-step";
 import { StyleStep } from "./steps/style-step";
@@ -28,6 +30,7 @@ export function CreateWizard() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const step = Math.min(Math.max(Number(searchParams.get("step") ?? 0) || 0, 0), 3);
+  const auto = searchParams.get("auto") === "1";
 
   const [draft, setDraft] = React.useState<WizardDraft>(() => ({
     version: 1,
@@ -61,9 +64,9 @@ export function CreateWizard() {
   const goTo = React.useCallback(
     (nextStep: number) => {
       update({ step: nextStep });
-      router.push(`/create?step=${nextStep}`, { scroll: true });
+      router.push(`/create?step=${nextStep}${auto ? "&auto=1" : ""}`, { scroll: true });
     },
-    [router, update],
+    [router, update, auto],
   );
 
   // Later steps need earlier answers — bounce back if a refresh lost them.
@@ -73,14 +76,49 @@ export function CreateWizard() {
     void Promise.resolve().then(() => {
       if (!alive) return;
       if (step >= 1 && !draft.presetId) goTo(0);
-      else if (step >= 2 && !draft.materialId) goTo(1);
+      else if (!auto && step >= 2 && !draft.materialId) goTo(1);
     });
     return () => {
       alive = false;
     };
-  }, [hydrated, step, draft.presetId, draft.materialId, goTo]);
+  }, [hydrated, step, auto, draft.presetId, draft.materialId, goTo]);
+
+  // Mark auto drafts so the pick step shows exactly three finished options.
+  React.useEffect(() => {
+    if (!hydrated || draft.auto === auto) return;
+    let alive = true;
+    void Promise.resolve().then(() => {
+      if (alive) update({ auto });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [hydrated, auto, draft.auto, update]);
 
   if (!hydrated) return null;
+
+  if (auto) {
+    return (
+      <div className="mx-auto flex min-h-[calc(100dvh-3.5rem)] w-full max-w-3xl flex-col px-4 pb-28 pt-6 sm:px-6">
+        <h1 className="font-display text-2xl font-bold tracking-tight sm:text-3xl">
+          {step === 3 ? "Your label, three ways" : "Make my label for me"}
+        </h1>
+        {step !== 3 && (
+          <p className="mt-1 text-sm text-muted-foreground">
+            Answer once — we&apos;ll design three complete labels you can use
+            immediately.
+          </p>
+        )}
+        <div className="mt-6 flex-1">
+          {step === 3 ? (
+            <PickStep draft={draft} update={update} />
+          ) : (
+            <AutoStep draft={draft} update={update} onContinue={() => goTo(3)} />
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto flex min-h-[calc(100dvh-3.5rem)] w-full max-w-3xl flex-col px-4 pb-28 pt-6 sm:px-6">
@@ -116,6 +154,17 @@ export function CreateWizard() {
       <h1 className="font-display text-2xl font-bold tracking-tight sm:text-3xl">
         {STEPS[step]!.title}
       </h1>
+
+      {step === 0 && (
+        <p className="mt-1 text-sm">
+          <Link
+            href="/create?auto=1"
+            className="text-primary underline-offset-2 hover:underline"
+          >
+            In a hurry? Make my label for me →
+          </Link>
+        </p>
+      )}
 
       <div className="mt-6 flex-1">
         {step === 0 && <VialStep draft={draft} update={update} onContinue={() => goTo(1)} />}

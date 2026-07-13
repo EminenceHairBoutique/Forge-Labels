@@ -1,12 +1,31 @@
 # Forge Labels
 
-A professional design studio for vial labels — think Canva, specialized for
-10 mL / 20 mL / 30 mL vials. Calculate the exact label size from vial
-dimensions, design on a dimension-accurate canvas, preview on a 3D vial, and
-export print-ready files whose physical size is correct to the pixel.
+The easiest way to make a professional vial label — and a full design studio
+underneath. A guided **Easy Creator** takes a first-time user from "I have a
+10 mL vial" to a print-correct label in about two minutes (choose a vial →
+pick a material → answer a few questions → pick from designs made with your
+own words), while the **Advanced Editor** offers complete canvas control.
+Both edit the same document; switching modes never loses work.
 
 ## What it does
 
+- **Easy Creator** (`/create`) — a visual wizard with no design jargon:
+  vial cards drawn from real proportions, measure-with-a-string sizing,
+  animated material cards (holographic, neon, glossy, plain, matte, clear,
+  metallic, kraft), style questions, and 3–6 recommended designs rendered
+  with your brand and product names already in place. The editor that
+  follows is a simple form beside a live 3D vial: type and the label
+  relays itself — auto-fit, reflow, contrast protection, and one-click
+  fixes ("Fit everything", "Bigger product name", "Simplify") included.
+  "Make my label for me" compresses the whole thing to one screen and
+  three finished options.
+- **Plain-language printing** — "How will you use your label?" produces a
+  home-print sheet, a professional printer package (print-ready PDF +
+  specification sheet), or a PNG, with print checks written for humans
+  ("Your QR code is too small to scan reliably") and one-click fixes.
+- **Matching product lines** — one dialog creates a sibling label that
+  keeps the brand, fonts, material, and layout, changing only the product
+  fields — with automatic strength color coding (5 mg blue, 10 mg purple…).
 - **Vial-size calculator** — circumference = π × diameter, wrap width =
   circumference − gap, height bounded by the straight wall. Full-wrap,
   partial-wrap, front-only, front+back, neck-band, and cap-circle styles,

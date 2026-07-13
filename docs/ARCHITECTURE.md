@@ -156,6 +156,45 @@ Key-gated (`ANTHROPIC_API_KEY`) and split down the trust boundary:
   orphaning tool calls; the document never goes over the wire raw (a capped
   0.1 mm-rounded summary does, `summarize.ts`).
 
+## Easy Creator — `src/lib/easy/`, `src/components/easy/`
+
+The beginner layer is ADDITIVE: one document model, two editors. Schema v2
+adds an optional semantic `slot` on objects ("brand", "product-name",
+"qr"…) and an `easy` block on the document (template/material/palette
+choices, stashed values of toggled-off fields, one-click-fix tweaks);
+content itself lives in the slot objects, so autosave, undo, exports, and
+the Advanced Editor all see ordinary objects.
+
+- **Templates are layout programs, not documents** (`templates.ts`):
+  twelve archetype families defined as slot rows with zone/size/casing
+  rules — size-responsive across 10/20/30 mL by construction and
+  material-aware. `instantiate.ts` turns a definition + geometry +
+  material + palette + field values into real objects: auto-fit
+  (`layout.ts`, injectable text measurer), header/hero/footer zone
+  stacking, global squeeze on overflow, decorative bands/stripes/borders
+  that inset the text zones, automatic contrast panels on reflective
+  materials, and QR/barcode space reservation with scannable defaults.
+  Engine-owned objects are identified by `slot`; regeneration replaces
+  exactly those and leaves free objects on top.
+- **Materials** (`materials.ts`) bundle substrate + finish usage +
+  curated palettes (`palettes.ts`, contrast-guaranteed) + per-intensity
+  coverage rules; glossy/matte set a preview-only `sheen` on the vial
+  scene's label mesh — finish never mutates artwork colors.
+- **The form is the editor** (`fields.ts`): every change re-runs the
+  engine through the command bus as ONE gesture — debounced, serialized,
+  reading the live store (never props) so rapid edits can't resurrect
+  stale values. One-click fixes persist as `easy.tweaks` so later edits
+  keep them. `family.ts` builds matching product-line variants (strength
+  hue coding included); `recommend.ts` scores templates from wizard
+  answers; `plain-preflight.ts` maps preflight ruleIds to beginner copy +
+  EasyChange fixes; `spec-sheet.ts` writes the printer specification.
+- **Surfaces**: `/create` (wizard, draft persisted in localStorage,
+  `?auto=1` = one-screen "Make my label for me" with three options),
+  `/easy/[id]` (form + live vial preview + variations + plain-language
+  export wizard; advanced-only docs redirect to `/editor/[id]`), and the
+  Advanced Editor's "Easy mode" button back. Mobile-first: one decision
+  per screen, sticky Continue, no hover or drag requirements.
+
 ## Finishes — `src/lib/finishes/`
 
 Twelve simulated finishes (holographic variants, foils, brushed metal,

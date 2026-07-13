@@ -443,6 +443,30 @@ describe("printer specification sheet (§11)", () => {
   });
 });
 
+describe("QR survives template changes (§23 case 7)", () => {
+  it("keeps a scannable, in-bounds QR on every template", () => {
+    for (const template of EASY_TEMPLATES) {
+      const doc = buildEasyDocument(
+        spec({
+          templateId: template.id,
+          fields: defaultEasyFields({ qr: "https://example.com" }),
+          enabled: new Set<SlotId>([...DEFAULT_ENABLED, "qr"]),
+        }),
+      );
+      const qr = doc.objects.find((o) => o.slot === "qr");
+      expect(qr, template.id).toBeDefined();
+      if (qr?.type !== "qrcode") continue;
+      expect(qr.widthMm, template.id).toBeGreaterThanOrEqual(9);
+      expect(qr.fgColor).toBe("#000000");
+      expect(qr.bgColor).toBe("#ffffff");
+      expect(qr.quietModules).toBeGreaterThanOrEqual(4);
+      expect(qr.xMm - qr.widthMm / 2).toBeGreaterThanOrEqual(-0.01);
+      expect(qr.xMm + qr.widthMm / 2).toBeLessThanOrEqual(doc.label.widthMm + 0.01);
+      expect(qr.yMm + qr.heightMm / 2).toBeLessThanOrEqual(doc.label.heightMm + 0.01);
+    }
+  });
+});
+
 describe("curated palettes protect contrast", () => {
   it.each(EASY_PALETTES.map((p) => [p.id, p] as const))("%s", (_id, palette) => {
     if (palette.bg) {

@@ -57,7 +57,7 @@ export function PickStep({
         styleId: draft.styleId,
         preferDark: draft.preferDark ?? null,
         material,
-        count: 4,
+        count: draft.auto ? 3 : 4,
       });
       const option = getMaterialOption(
         material,

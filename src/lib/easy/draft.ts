@@ -12,6 +12,8 @@ import type { SlotId } from "./slots";
 export interface WizardDraft {
   version: 1;
   step: number;
+  /** "Make my label for me" — one combined screen, three finished options. */
+  auto?: boolean;
   presetId?: string;
   measurements?: "preset" | "custom" | "later";
   diameterMm?: number;
