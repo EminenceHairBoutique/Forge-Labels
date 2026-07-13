@@ -143,4 +143,40 @@ describe("preflight rules", () => {
     const hidden = createTextObject(base, { fontSizePt: 2, visible: false });
     expect(ruleIds(docWith([hidden]))).not.toContain("font-too-small");
   });
+
+  it("notes white-ink assignments on opaque stock, honoring group inheritance", () => {
+    const base = createDocument();
+    const assigned = createShapeObject(base, "rect", {
+      xMm: 37,
+      yMm: 13,
+      widthMm: 10,
+      heightMm: 6,
+      printLayer: "white-ink",
+    });
+    // Default substrate is opaque → advisory fires.
+    expect(ruleIds(docWith([assigned]))).toContain("white-ink-on-opaque");
+    // On clear film the assignment is exactly right → no advisory.
+    expect(
+      ruleIds(docWith([assigned], { substrateId: "clear-pp" })),
+    ).not.toContain("white-ink-on-opaque");
+  });
+
+  it("warns when text or codes land on the die-cut layer", () => {
+    const base = createDocument();
+    const cutText = createTextObject(base, {
+      fontSizePt: 10,
+      yMm: 13,
+      printLayer: "die-cut",
+    });
+    const cutShape = createShapeObject(base, "ellipse", {
+      xMm: 37,
+      yMm: 13,
+      widthMm: 20,
+      heightMm: 20,
+      printLayer: "die-cut",
+    });
+    const ids = ruleIds(docWith([cutText, cutShape]));
+    // Text on die-cut warns; a plain shape outline is the intended use.
+    expect(ids.filter((r) => r === "die-cut-content")).toHaveLength(1);
+  });
 });

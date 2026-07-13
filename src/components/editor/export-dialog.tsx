@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/toaster";
 import { classifyVectorability } from "@/lib/export/vector-doc";
+import { PRINT_LAYER_INFO, collectUsedLayers } from "@/lib/print/layers";
 import { PreflightPanel } from "./preflight-panel";
 
 type ExportFormat =
@@ -38,6 +39,7 @@ type ExportFormat =
   | "pdf"
   | "pdf-vector"
   | "svg"
+  | "separations"
   | "zip";
 
 const FORMAT_LABELS: Record<ExportFormat, string> = {
@@ -47,6 +49,7 @@ const FORMAT_LABELS: Record<ExportFormat, string> = {
   pdf: "PDF — print-ready (TrimBox + BleedBox)",
   "pdf-vector": "PDF — vector art (text outlined, editable)",
   svg: "SVG — vector (text outlined)",
+  separations: "Separations — one PNG per print layer (ZIP)",
   zip: "ZIP — every format bundled",
 };
 
@@ -91,9 +94,19 @@ export function ExportDialog({ doc, open, onOpenChange }: ExportDialogProps) {
       const base = `${sanitizeFileName(projectName)}-${doc.label.widthMm.toFixed(0)}x${doc.label.heightMm.toFixed(0)}mm`;
       let fileName: string;
       let blob: Blob;
-      let kind: "png" | "jpg" | "pdf" | "svg" | "zip";
+      let kind: "png" | "jpg" | "pdf" | "svg" | "zip" | "separations";
 
-      if (format === "svg") {
+      if (format === "separations") {
+        const { exportSeparations } = await import("@/lib/export/separations");
+        const result = await exportSeparations(doc, { baseName: base, dpi: 600 });
+        blob = result.blob;
+        fileName = `${base}-separations.zip`;
+        kind = "separations";
+        toast.info(
+          "Separations exported",
+          `${result.layers.length} layer${result.layers.length === 1 ? "" : "s"}: ${result.layers.join(", ")}`,
+        );
+      } else if (format === "svg") {
         const { exportSvg } = await import("@/lib/export/svg");
         const result = await exportSvg(doc);
         if (result.warnings.length > 0) {
@@ -190,7 +203,10 @@ export function ExportDialog({ doc, open, onOpenChange }: ExportDialogProps) {
         kind,
         fileName,
         byteSize: blob.size,
-        dpi: format === "pdf" || format === "pdf-vector" ? 600 : dpi,
+        dpi:
+          format === "pdf" || format === "pdf-vector" || format === "separations"
+            ? 600
+            : dpi,
       });
       toast.success("Export ready", fileName);
       onOpenChange(false);
@@ -231,7 +247,7 @@ export function ExportDialog({ doc, open, onOpenChange }: ExportDialogProps) {
             </Select>
           </div>
 
-          {format !== "pdf" && format !== "pdf-vector" && (
+          {format !== "pdf" && format !== "pdf-vector" && format !== "separations" && (
             <div className="space-y-1.5">
               <Label htmlFor="export-dpi">Resolution</Label>
               <Select
@@ -257,6 +273,7 @@ export function ExportDialog({ doc, open, onOpenChange }: ExportDialogProps) {
           )}
 
           {format === "pdf-vector" && <VectorabilityNote doc={doc} />}
+          {format === "separations" && <SeparationsNote doc={doc} />}
 
           <PreflightPanel doc={doc} onJump={() => onOpenChange(false)} />
 
@@ -278,6 +295,27 @@ export function ExportDialog({ doc, open, onOpenChange }: ExportDialogProps) {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** How many print layers the separations export will produce. */
+function SeparationsNote({ doc }: { doc: LabelDocument }) {
+  const layers = React.useMemo(() => collectUsedLayers(doc), [doc]);
+  if (layers.length <= 1) {
+    return (
+      <Callout variant="info">
+        Every object is on the default artwork layer, so this export produces
+        a single file. Assign objects to white ink, foil, or other layers in
+        the Properties panel (“Print layer”) to generate separations.
+      </Callout>
+    );
+  }
+  return (
+    <Callout variant="info">
+      {layers.length} layers in use: {layers.map((l) => PRINT_LAYER_INFO[l].label).join(", ")}.
+      Each exports as a 600 DPI PNG (artwork keeps the background; spot layers
+      render on transparency).
+    </Callout>
   );
 }
 

@@ -18,10 +18,12 @@ import type {
   LabelObject,
   LineObject,
   PolygonObject,
+  PrintLayer,
   RectObject,
   StarObject,
   TextObject,
 } from "@/lib/document/schema";
+import { PRINT_LAYERS, PRINT_LAYER_INFO } from "@/lib/print/layers";
 import {
   findObject,
   reorderObjects,
@@ -288,6 +290,37 @@ function CommonProps({ objects }: { objects: LabelObject[] }) {
           }
           aria-label="Opacity"
         />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="obj-print-layer" className="text-xs text-muted-foreground">
+          Print layer
+        </Label>
+        <Select
+          value={single ? single.printLayer : (objects[0]?.printLayer ?? "artwork")}
+          onValueChange={(v) =>
+            updateObjects(ids, () => ({ printLayer: v as PrintLayer }))
+          }
+        >
+          <SelectTrigger id="obj-print-layer" className="h-8 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {PRINT_LAYERS.map((layer) => (
+              <SelectItem key={layer} value={layer}>
+                {PRINT_LAYER_INFO[layer].label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-[11px] leading-snug text-muted-foreground">
+          {
+            PRINT_LAYER_INFO[
+              single ? single.printLayer : (objects[0]?.printLayer ?? "artwork")
+            ].hint
+          }{" "}
+          Layers export via “Separations” in the Export dialog.
+        </p>
       </div>
 
       <div className="flex items-center justify-between gap-2">

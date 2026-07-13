@@ -76,7 +76,7 @@ export interface ExportRecord {
   id: string;
   projectId: string | null;
   projectName: string;
-  kind: "png" | "jpg" | "svg" | "pdf" | "sheet-pdf" | "zip" | "mockup";
+  kind: "png" | "jpg" | "svg" | "pdf" | "sheet-pdf" | "zip" | "separations" | "tiff" | "mockup";
   fileName: string;
   byteSize: number;
   dpi: number | null;

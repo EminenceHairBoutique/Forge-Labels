@@ -16,6 +16,8 @@ const KIND_ICONS: Record<ExportRecord["kind"], LucideIcon> = {
   pdf: FileText,
   "sheet-pdf": FileText,
   zip: FileArchive,
+  separations: FileArchive,
+  tiff: FileImage,
   mockup: FileImage,
 };
 

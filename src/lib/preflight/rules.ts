@@ -1,8 +1,9 @@
-import type { LabelDocument, LabelObject } from "@/lib/document/schema";
+import type { LabelDocument, LabelObject, PrintLayer } from "@/lib/document/schema";
 import { objectAabb, bleedRect, safeRect } from "@/lib/render/geometry";
 import { createQrMatrix, qrTotalModules, MIN_QR_MODULE_MM } from "@/lib/codes/qr";
 import { validateBarcodeValue } from "@/lib/codes/validate";
 import { getSubstrate } from "@/lib/finishes/types";
+import { effectiveLayer } from "@/lib/print/layers";
 
 /**
  * Print-readiness checks. Pure functions over the document — every issue
@@ -296,6 +297,43 @@ export function runPreflight(doc: LabelDocument): PreflightIssue[] {
       }
     }
   });
+
+  // --- Print-production layer checks ---------------------------------------
+  // Effective layer inherits from group assignments (see lib/print/layers).
+  const layerWalk = (objects: readonly LabelObject[], inherited: PrintLayer) => {
+    for (const obj of objects) {
+      if (!obj.visible) continue;
+      const layer = effectiveLayer(obj.printLayer, inherited);
+      if (obj.type === "group") {
+        layerWalk(obj.children, layer);
+        continue;
+      }
+      const label = obj.name || obj.type;
+      if (layer === "white-ink" && !transparentStock) {
+        issues.push({
+          ruleId: "white-ink-on-opaque",
+          severity: "info",
+          message: `“${label}” is on the white-ink layer, but the substrate is opaque — white ink is usually only needed on clear or metallic stock.`,
+          objectId: obj.id,
+        });
+      }
+      if (
+        layer === "die-cut" &&
+        (obj.type === "text" ||
+          obj.type === "image" ||
+          obj.type === "qrcode" ||
+          obj.type === "barcode")
+      ) {
+        issues.push({
+          ruleId: "die-cut-content",
+          severity: "warning",
+          message: `“${label}” is on the die-cut layer — cut paths should be simple vector outlines, not ${obj.type === "text" ? "text" : "raster or code"} content.`,
+          objectId: obj.id,
+        });
+      }
+    }
+  };
+  layerWalk(doc.objects, "artwork");
 
   // --- Document-level checks -----------------------------------------------
   if (doc.label.bleedMm < 1) {

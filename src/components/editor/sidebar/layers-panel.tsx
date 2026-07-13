@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { PRINT_LAYER_INFO } from "@/lib/print/layers";
 import {
   ArrowDown,
   ArrowUp,
@@ -98,6 +99,14 @@ function LayerRow({ obj }: { obj: LabelObject }) {
         ) : (
           <span className={cn("truncate", !obj.visible && "opacity-50")}>
             {displayName(obj)}
+          </span>
+        )}
+        {obj.printLayer !== "artwork" && !renaming && (
+          <span
+            className="shrink-0 rounded-sm bg-accent/15 px-1 py-px text-[10px] font-medium uppercase tracking-wide text-accent"
+            title={`Prints on the ${PRINT_LAYER_INFO[obj.printLayer].label} layer`}
+          >
+            {PRINT_LAYER_INFO[obj.printLayer].label}
           </span>
         )}
       </button>
