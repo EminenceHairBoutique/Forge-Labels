@@ -44,6 +44,16 @@ test.describe("local demo mode states", () => {
     await page.goto("/admin");
     await expect(page.getByText(/admin requires cloud mode/i)).toBeVisible();
   });
+
+  test("settings security card explains MFA needs cloud mode", async ({ page }) => {
+    await page.goto("/settings");
+    await expect(page.getByRole("heading", { name: /^security$/i })).toBeVisible();
+    await expect(page.getByText(/local demo mode has no accounts/i)).toBeVisible();
+    // No dead enrollment button without an account system.
+    await expect(
+      page.getByRole("button", { name: /set up two-factor/i }),
+    ).toHaveCount(0);
+  });
 });
 
 test.describe("accessibility basics", () => {

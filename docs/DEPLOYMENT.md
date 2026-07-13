@@ -11,11 +11,15 @@ route handlers under `src/app/api/` and the session-refresh proxy.
    preset is detected automatically (`npm run build`).
 2. Add environment variables (**Project → Settings → Environment
    Variables**). All are optional — see the reference in
-   [SETUP.md](SETUP.md#3-environment-variable-reference):
+   [SETUP.md](SETUP.md#4-environment-variable-reference):
    - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `SUPABASE_SERVICE_ROLE_KEY` (server-only — do **not** expose to the
      client; no `NEXT_PUBLIC_` prefix)
    - `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_ENABLED`
+   - `ANTHROPIC_API_KEY` (server-only; activates the editor's AI assistant),
+     optional `ASSISTANT_MODEL`/`ASSISTANT_EFFORT`
+   - `NEXT_PUBLIC_AUTH_APPLE=1` once the Apple provider is configured in
+     Supabase
 3. Deploy. With no variables set the deployment runs in local demo mode and
    is still a complete, honest product — a reasonable way to stage the UI
    before wiring the backend.

@@ -122,9 +122,9 @@ export const PLAN_SEED: readonly PlanDef[] = [
       "Everything in Pro",
       "25 GB asset storage",
       "Priority support",
-      "First access: team workspaces, 5 seats (in development)",
-      "First access: CSV batch + dynamic data fields (in development)",
-      "First access: production layers — white ink, foil (in development)",
+      "Team workspaces (5 seats)",
+      "CSV batch export + dynamic data fields",
+      "Production layers — white ink, foil, spot UV",
     ],
     entitlements: {
       maxProjects: null,

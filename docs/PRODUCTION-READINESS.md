@@ -22,10 +22,12 @@ build) and an `e2e` job that runs Playwright Chromium against that build.
 E2E coverage (`tests/e2e/`): project creation with a dimension-accurate
 canvas, editing/undo/autosave, PNG export with exact pixel dimensions,
 template rescaling, QR preflight warnings, vector SVG with outlined text,
-print-ready PDF, editor-to-export pixel parity (pixelmatch), editor
-responsiveness with 100+ objects, local-mode UI states, accessibility
-basics (skip link, landmarks, labeled toolbar), marketing pages, and the
-label calculator.
+print-ready PDF, hybrid vector PDF (image-XObject counts parsed from the
+bytes), TIFF magic bytes, separations and CSV-batch ZIP contents, editor-
+to-export pixel parity (pixelmatch), editor responsiveness with 100+
+objects, local-mode UI states (billing, teams, sharing, assistant),
+accessibility basics (skip link, landmarks, labeled toolbar), marketing
+pages, and the label calculator.
 
 ## Local mode vs cloud mode
 
@@ -49,6 +51,12 @@ webhook/billing routes.
 webhook activate; the adapter reports `billing: true` only when
 `NEXT_PUBLIC_STRIPE_ENABLED === "1"`.
 
+**Independent toggles.** `ANTHROPIC_API_KEY` activates the editor's AI
+assistant in any mode (with `ASSISTANT_MODEL`/`ASSISTANT_EFFORT` as optional
+overrides); `NEXT_PUBLIC_AUTH_APPLE=1` adds the Apple OAuth button once the
+provider is configured in Supabase. The TIFF export route needs nothing —
+it is a pure server-side transcode that also works in local mode.
+
 ## Security review
 
 - **RLS everywhere.** `supabase/migrations/0001_init.sql` enables row-level
@@ -71,8 +79,22 @@ webhook activate; the adapter reports `billing: true` only when
   returning a sanitized payload; anon users get no direct table access.
 - **Secrets in bundles.** Only `NEXT_PUBLIC_*` values are client-visible:
   the Supabase URL and anon key (safe by design — RLS enforces access) and
-  the Stripe-enabled flag. Verify no other secret gains a `NEXT_PUBLIC_`
+  the Stripe/Apple flags. Verify no other secret gains a `NEXT_PUBLIC_`
   prefix during setup.
+- **Assistant rails.** `POST /api/assistant` owns the Claude key, system
+  prompt, and tool definitions server-side (clients send only messages);
+  it enforces same-origin, requires a signed-in user in cloud mode,
+  rate-limits 20/min per user/IP, caps bodies at 256 KB, and maps SDK
+  failures to honest statuses without echoing upstream detail. The
+  browser learns configuration state only as a boolean. Note the rate
+  limiter is in-memory (per instance) — put a shared limiter in front if
+  you scale to many serverless instances.
+- **Team invitations.** `POST /api/team/accept` is the only path that
+  writes memberships for invitees (service role after email/seat/reuse
+  checks in `src/lib/teams-accept.ts`); invite links grant nothing until
+  the signed-in email matches the invitation.
+- **TIFF route.** `POST /api/export/tiff` validates PNG magic bytes,
+  caps bodies at 64 MB, and never touches user data stores.
 
 ## Performance notes
 
@@ -112,19 +134,22 @@ webhook activate; the adapter reports `billing: true` only when
 
 - Print finishes and substrates are on-screen simulations; physical results
   differ. Order a proof (see [PRINT-ACCURACY.md](./PRINT-ACCURACY.md)).
-- PDF export embeds raster artwork in exact-dimension boxes; it is not a
-  full vector PDF (deferred — see [deferred.md](./deferred.md)).
-- CI exercises local mode only. Cloud paths (RLS behavior, OAuth, Stripe
-  end-to-end) need a live Supabase project and Stripe account to verify —
-  the walkthrough is in [SETUP.md](./SETUP.md).
+- The standard print PDF embeds raster artwork in exact-dimension boxes.
+  The hybrid vector PDF keeps text/shapes/codes as paths but still
+  rasterizes gradients, finishes, shadows, and images (listed per-export in
+  the dialog) — pdf-lib has no shading API.
+- CI exercises local mode only. Cloud paths (RLS behavior, OAuth, MFA,
+  teams/sharing, Stripe end-to-end, the assistant with a live key) need a
+  live Supabase project, Stripe account, and API key to verify — the
+  walkthroughs are in [SETUP.md](./SETUP.md).
 
 ## Launch checklist
 
 1. Set the environment variables from `.env.example` in the host
    (Supabase pair + service key, Stripe pair + `NEXT_PUBLIC_STRIPE_ENABLED`).
 2. Apply `supabase/migrations/0001_init.sql` (tables, RLS, functions,
-   Storage buckets) then `0002_seed.sql` (plans, template categories) to
-   the Supabase project.
+   Storage buckets), `0002_seed.sql` (plans, template categories), and
+   `0003_team_ui.sql` (team membership helpers) to the Supabase project.
 3. Grant the first admin directly in SQL — RLS forbids the client path:
    `insert into public.user_roles (user_id, role) values ('<auth-user-uuid>', 'admin');`
 4. Sign in as that admin and seed templates from the code registry via
@@ -141,3 +166,7 @@ webhook activate; the adapter reports `billing: true` only when
    duplicate.
 9. Set up scheduled database backups (and Storage bucket backups) in
    Supabase before announcing availability.
+10. Optional toggles: set `ANTHROPIC_API_KEY` (assistant) and run the smoke
+    test in [SETUP.md](./SETUP.md) §3.3; configure the Apple provider and
+    set `NEXT_PUBLIC_AUTH_APPLE=1`; verify MFA enrollment + challenge
+    ([SETUP.md](./SETUP.md) §1.4) and the team/share flows (§1.8).

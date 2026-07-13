@@ -41,7 +41,13 @@ function FieldError({ message }: { message?: string }) {
   );
 }
 
-function GoogleButton({ label }: { label: string }) {
+function OAuthButton({
+  provider,
+  label,
+}: {
+  provider: "google" | "apple";
+  label: string;
+}) {
   const [busy, setBusy] = React.useState(false);
   return (
     <Button
@@ -54,13 +60,13 @@ function GoogleButton({ label }: { label: string }) {
         if (!supabase) return;
         setBusy(true);
         const { error } = await supabase.auth.signInWithOAuth({
-          provider: "google",
+          provider,
           options: {
             redirectTo: `${location.origin}/auth/callback?next=${encodeURIComponent(nextPath())}`,
           },
         });
         if (error) {
-          toast.error("Google sign-in failed", error.message);
+          toast.error("Sign-in failed", error.message);
           setBusy(false);
         }
       }}
@@ -70,9 +76,28 @@ function GoogleButton({ label }: { label: string }) {
   );
 }
 
+/**
+ * OAuth provider buttons. Apple appears only behind NEXT_PUBLIC_AUTH_APPLE=1
+ * because the provider needs Apple Developer + Supabase dashboard setup
+ * first — an unconfigured button would be a dead end.
+ */
+function OAuthButtons({ mode }: { mode: "in" | "up" }) {
+  return (
+    <>
+      <OAuthButton provider="google" label={`Sign ${mode} with Google`} />
+      {process.env.NEXT_PUBLIC_AUTH_APPLE === "1" && (
+        <OAuthButton provider="apple" label={`Sign ${mode} with Apple`} />
+      )}
+    </>
+  );
+}
+
 export function LoginForm() {
   const router = useRouter();
   const [magicSent, setMagicSent] = React.useState(false);
+  const [mfaFactorId, setMfaFactorId] = React.useState<string | null>(null);
+  const [mfaCode, setMfaCode] = React.useState("");
+  const [mfaBusy, setMfaBusy] = React.useState(false);
   const {
     register,
     handleSubmit,
@@ -88,8 +113,81 @@ export function LoginForm() {
       toast.error("Sign-in failed", error.message);
       return;
     }
+    // Accounts with a verified TOTP factor stop at aal1 until a code passes.
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (aal?.nextLevel === "aal2" && aal.nextLevel !== aal.currentLevel) {
+      const { data: factors } = await supabase.auth.mfa.listFactors();
+      const totp = factors?.totp.find((f) => f.status === "verified");
+      if (totp) {
+        setMfaFactorId(totp.id);
+        return;
+      }
+    }
     router.push(nextPath());
   });
+
+  async function verifyMfa() {
+    const supabase = getSupabaseBrowser();
+    if (!supabase || !mfaFactorId || mfaCode.trim().length < 6) return;
+    setMfaBusy(true);
+    const { error } = await supabase.auth.mfa.challengeAndVerify({
+      factorId: mfaFactorId,
+      code: mfaCode.trim(),
+    });
+    setMfaBusy(false);
+    if (error) {
+      toast.error("That code didn't verify", "Check your authenticator app and try again.");
+      setMfaCode("");
+      return;
+    }
+    router.push(nextPath());
+  }
+
+  if (mfaFactorId) {
+    return (
+      <div className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          This account is protected with two-factor authentication. Enter the
+          6-digit code from your authenticator app.
+        </p>
+        <div className="space-y-1.5">
+          <Label htmlFor="login-mfa-code">Authentication code</Label>
+          <Input
+            id="login-mfa-code"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={8}
+            autoFocus
+            value={mfaCode}
+            onChange={(e) => setMfaCode(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void verifyMfa();
+            }}
+            className="tracking-widest"
+          />
+        </div>
+        <Button
+          className="w-full"
+          loading={mfaBusy}
+          disabled={mfaCode.trim().length < 6}
+          onClick={() => void verifyMfa()}
+        >
+          Verify & sign in
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          className="w-full"
+          onClick={() => {
+            setMfaFactorId(null);
+            setMfaCode("");
+          }}
+        >
+          Back to sign-in
+        </Button>
+      </div>
+    );
+  }
 
   async function sendMagicLink() {
     const supabase = getSupabaseBrowser();
@@ -137,7 +235,7 @@ export function LoginForm() {
         Sign in
       </Button>
       <Separator />
-      <GoogleButton label="Sign in with Google" />
+      <OAuthButtons mode="in" />
       <Button
         type="button"
         variant="ghost"
@@ -214,7 +312,7 @@ export function SignupForm() {
         Create account
       </Button>
       <Separator />
-      <GoogleButton label="Sign up with Google" />
+      <OAuthButtons mode="up" />
       <p className="text-center text-sm text-muted-foreground">
         Already registered?{" "}
         <Link href="/login" className="text-primary underline-offset-2 hover:underline">

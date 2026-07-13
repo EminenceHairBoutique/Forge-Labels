@@ -1,4 +1,4 @@
-# Setup — Supabase (accounts & cloud sync) and Stripe (billing)
+# Setup — Supabase (accounts & cloud sync), Stripe (billing), AI assistant
 
 Forge Labels runs three ways, each fully functional for what it claims:
 
@@ -34,7 +34,7 @@ imports `server-only`), but treat the value with the same care.
 
 ### 1.2 Run the migrations
 
-Two files in `supabase/migrations/`, in order:
+Three files in `supabase/migrations/`, in order:
 
 - `0001_init.sql` — all tables, RLS policies, helper functions
   (`is_admin()`, `is_org_member()`), the `get_shared_project` RPC, and the
@@ -42,6 +42,8 @@ Two files in `supabase/migrations/`, in order:
   public) with folder-scoped policies.
 - `0002_seed.sql` — the four plans (pricing lives in the database, not in
   code) and template categories.
+- `0003_team_ui.sql` — owner-inclusive membership checks and the
+  `get_org_members` directory function used by the Team page.
 
 Either paste each file into the **SQL Editor** and run them, or use the
 Supabase CLI:
@@ -65,8 +67,30 @@ In **Authentication → Providers**:
   `https://<project-ref>.supabase.co/auth/v1/callback`, then paste the
   client ID/secret into the Google provider settings. The app's Google
   buttons appear automatically — no code change.
+- **Apple** (optional, flag-gated): configure the Apple provider in Supabase
+  (needs an Apple Developer account: Services ID, key, team ID — Supabase's
+  Apple guide walks through it), then set `NEXT_PUBLIC_AUTH_APPLE=1`. The
+  "Sign in with Apple" button renders only behind the flag, because an
+  unconfigured provider would be a dead button.
 
-### 1.4 Start the app in cloud mode
+### 1.4 Two-factor authentication (TOTP)
+
+MFA needs no configuration beyond Supabase itself (TOTP is enabled by
+default on GoTrue). To verify the flow end to end:
+
+1. Sign in, open **Settings → Security**, click **Set up two-factor
+   authentication**.
+2. Scan the QR with any authenticator app (or paste the secret), enter the
+   6-digit code, and confirm the factor shows as enrolled.
+3. Sign out and back in with email/password — the login form now stops at a
+   code prompt (`aal2` challenge) before entering the studio.
+4. Remove the factor from Settings → Security and confirm sign-in no longer
+   asks for a code.
+
+Local demo mode shows an honest "requires cloud mode" note instead of the
+controls.
+
+### 1.5 Start the app in cloud mode
 
 ```bash
 npm run dev
@@ -78,7 +102,7 @@ write their own rows under RLS. Signed-out visitors still get the full
 editor with browser persistence, plus a sign-in prompt. On first sign-in the
 app offers a one-time import of any local projects into the cloud account.
 
-### 1.5 Grant the first admin
+### 1.6 Grant the first admin
 
 Roles live in `user_roles`, which **only the service role can write** — a
 user cannot promote themselves. After the account has signed in once, run in
@@ -92,7 +116,25 @@ on conflict (user_id) do update set role = 'admin';
 
 `/admin` now unlocks for that account.
 
-### 1.6 Seed the template library
+### 1.8 Verify teams and share links (two test users)
+
+CI covers local-mode gating only — these flows need a live project:
+
+1. **Teams.** As user A: **Team** page → create an organization → **Invite
+   member** (role: editor) → copy the invite link. Open it in a second
+   browser as user B (matching the invited email): B lands on the accept
+   page, joins, and appears in A's member list. Move a project to the team
+   from its card menu; B sees it on their dashboard with a "Team" badge.
+   Re-using the link must fail with "already used"; a third seat past the
+   plan limit must be refused with the plan named.
+2. **Share links.** From a project card (or the editor's Share button):
+   create a view link, open it signed-out — the read-only page renders the
+   design with a download option and no edit controls. Revoke the link and
+   confirm the page turns into the honest "link no longer available" state.
+   A "copy" mode link must offer "Open a copy in the studio" to signed-in
+   viewers.
+
+### 1.7 Seed the template library
 
 Templates are served from the database in cloud mode so admins can curate
 them. In **/admin → Templates**, click **“Seed from code registry”** — it
@@ -167,16 +209,60 @@ portal once in **Settings → Billing → Customer portal** in Stripe).
 
 ---
 
-## 3. Environment variable reference
+## 3. AI design assistant
+
+The editor's **AI** tab activates when the server has a Claude API key.
+Without one, the tab (and `POST /api/assistant`, with a 503) explains
+exactly what's missing — nothing else in the app depends on it.
+
+### 3.1 Enable
+
+1. Create an API key at [console.anthropic.com](https://console.anthropic.com).
+2. Set `ANTHROPIC_API_KEY` in the deployment (server-only — the browser only
+   ever learns a `configured: true/false` boolean from
+   `/api/assistant/status`).
+3. Optional tuning: `ASSISTANT_MODEL` overrides the model id;
+   `ASSISTANT_EFFORT` (`low`/`medium`/`high`/`max`, default `low`) trades
+   latency for reasoning depth.
+
+### 3.2 How it's guarded
+
+The route proxies exactly one model round per request. It owns the system
+prompt and tool definitions (clients cannot inject either), enforces
+same-origin, requires a signed-in user in cloud mode (local demo mode has no
+accounts — key possession is the boundary there), rate-limits to 20
+requests/minute per user/IP, and caps request bodies at 256 KB. Documents
+never leave the browser raw: the assistant sees a capped text summary, and
+its edits run client-side through the same undoable command bus as manual
+edits (one undo entry per assistant turn).
+
+### 3.3 Smoke test (live key)
+
+1. Set the key, restart, open any project, switch to the **AI** tab.
+2. Ask for something concrete: *"Add the name 'Retinol Serum' as a bold
+   title near the top."* Tool chips appear, the canvas updates, and the
+   reply describes the change.
+3. Press **Cmd/Ctrl+Z** once — the entire assistant turn reverts as one
+   undo step.
+4. Ask for something out of bounds (*"upload a photo"*): the assistant
+   explains where in the UI to do it instead of faking a change.
+
+---
+
+## 4. Environment variable reference
 
 | Variable                        | Scope   | Purpose                                        |
 | ------------------------------- | ------- | ---------------------------------------------- |
 | `NEXT_PUBLIC_SUPABASE_URL`      | client  | Supabase project URL                           |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | client  | Public anon key (RLS enforces access)          |
-| `SUPABASE_SERVICE_ROLE_KEY`     | server  | Webhook/billing writes; bypasses RLS           |
+| `SUPABASE_SERVICE_ROLE_KEY`     | server  | Webhook/billing/invite writes; bypasses RLS    |
 | `STRIPE_SECRET_KEY`             | server  | Stripe API                                     |
 | `STRIPE_WEBHOOK_SECRET`         | server  | Webhook signature verification                 |
 | `NEXT_PUBLIC_STRIPE_ENABLED`    | client  | `1` shows checkout/portal UI                   |
+| `NEXT_PUBLIC_AUTH_APPLE`        | client  | `1` shows the Apple sign-in button             |
+| `ANTHROPIC_API_KEY`             | server  | Activates the editor's AI assistant            |
+| `ASSISTANT_MODEL`               | server  | Optional assistant model override              |
+| `ASSISTANT_EFFORT`              | server  | Optional reasoning effort (default `low`)      |
 
 All optional; each absent group degrades honestly (see the table at the top).
 

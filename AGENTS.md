@@ -40,9 +40,24 @@ react-konva editor, optional Supabase/Stripe. Full design rationale:
    `src/lib/billing/plan-seed.ts` + `supabase/migrations/0002_seed.sql` —
    keep the two in sync). Plan highlights must only claim shipped features;
    deferred ones are marked "(in development)".
-7. **Secrets:** `SUPABASE_SERVICE_ROLE_KEY` and Stripe secrets are
-   server-only (`server-only` import guards). Never expose them or write
-   subscription state from the client.
+7. **Secrets:** `SUPABASE_SERVICE_ROLE_KEY`, Stripe secrets, and
+   `ANTHROPIC_API_KEY` are server-only (`server-only` import guards). Never
+   expose them or write subscription state from the client.
+8. **One vector geometry source.** `src/lib/export/vector-paths.ts` feeds
+   BOTH the SVG exporter and the hybrid vector PDF. Change a path builder
+   and `svg.test.ts` must stay byte-identical; pdf-lib quirks (y-flip,
+   matrix composition) stay confined to `pdf-vector.ts`.
+9. **Batch tokens are content, not schema.** `{{column}}` placeholders live
+   inside plain string fields; `TOKEN_RE`/substitution in `src/lib/batch/tokens.ts`
+   are the single definition, and unknown tokens stay literal.
+10. **The assistant edits ONLY through its typed tools**
+    (`src/lib/assistant/tools.ts` → `execute.ts` → the command bus), one
+    gesture per turn. The route owns the API key, system prompt, and tool
+    defs — clients can never inject them; the raw document never goes over
+    the wire (capped summary only).
+11. **Layer semantics:** a group's non-artwork `printLayer` applies to its
+    descendants unless a child overrides (`src/lib/print/layers.ts`) —
+    separations, the layers-panel badges, and preflight all assume it.
 
 ## Gotchas discovered in this codebase
 

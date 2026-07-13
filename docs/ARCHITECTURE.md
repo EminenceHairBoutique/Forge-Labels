@@ -30,8 +30,10 @@ Conventions that everything downstream relies on:
 - Positions are **object centers** (`xMm`, `yMm`) with rotation about the
   center — resize/rotate math and alignment stay symmetric.
 - **Z-order is array order.** No z-index field to drift out of sync.
-- Every object carries `printLayer: "artwork"` (forward-compatibility for
-  white-ink/varnish separations) and may carry a `finish`.
+- Every object carries `printLayer` (default `"artwork"`; assignable in the
+  properties panel), which drives the separations export — a group's
+  non-artwork layer applies to its descendants unless a child overrides it
+  (`src/lib/print/layers.ts`).
 - `migrateDocument()` (in `migrate.ts`) upgrades any stored document to the
   current `schemaVersion` on load; adapters call it on every read.
 
@@ -84,11 +86,28 @@ then the final mm values land as a single command. Transforms bake
   (`png-dpi.ts`); JPGs composite over white.
 - **PDF** (`pdf.ts`): raster-in-exact-dimension strategy — art embedded as a
   600-DPI PNG inside MediaBox/BleedBox/TrimBox computed in points from mm,
-  with vector crop marks. Rationale: the maintained pdf-lib fork has no
-  gradient/shading API, so most real labels would rasterize anyway; a hybrid
-  vector path would mean two render paths to keep pixel-identical. The SVG
-  exporter's glyph-outline machinery is the on-ramp to a future full-vector
-  mode (see `deferred.md`).
+  with vector crop marks. Predictable and pixel-identical to the editor by
+  construction; the default for print delivery.
+- **Hybrid vector PDF** (`vector-paths.ts` → `vector-doc.ts` →
+  `pdf-vector.ts` → `pdf-vector-export.ts`): shapes, outlined text, and
+  QR/barcodes as true PDF paths. `vector-paths.ts` holds the pure path
+  builders **shared byte-for-byte with the SVG exporter** — one geometry
+  source, two serializers. `planVectorDoc` classifies each object:
+  vector-expressible → a center-origin path element (group transforms
+  flattened through the same math as ungroup); everything pdf-lib can't
+  express (gradients, finishes, shadows, images, QR logos) → a tightly
+  cropped 600-DPI raster tile rendered by the ordinary stage pipeline.
+  Z-order interleaves tiles and paths by index; the dialog reports exactly
+  which objects rasterized and why. `drawSvgPath` quirks (implicit y-flip,
+  matrix composition, stroke-over-fill ordering) are confined to
+  `pdf-vector.ts`.
+- **Separations** (`separations.ts`): one 600-DPI PNG per print layer in
+  use (artwork keeps the background; spot layers render on transparency via
+  `filterDocumentToLayer`), zipped with a manifest and press-notes README.
+- **TIFF** (`src/app/api/export/tiff/route.ts`): the client renders the
+  usual DPI-exact PNG and a nodejs route transcodes it with sharp (LZW,
+  density metadata). Pure byte transform — size-capped, no auth, works in
+  local mode.
 - **Sheets** (`sheet-pdf.ts`): the label is rasterized **once**, embedded
   once, and drawn N times (PDF XObject reuse) — a Letter sheet at 600 DPI
   as a single canvas would exceed iOS's ~16.7 MP canvas cap. Includes cut
@@ -101,6 +120,41 @@ then the final mm values land as a single command. Transforms bake
 - **Imposition** (`src/lib/print/imposition.ts`): pure grid math
   (rows/cols, centering, spacing, start-at offsets, calibration shifts),
   property-tested with fast-check against overlap and bounds invariants.
+
+### Batch export — `src/lib/batch/`
+
+`{{column}}` tokens in text, QR values, and barcode values are content, not
+schema — extraction (`tokens.ts`) walks the tree, substitution is pure with
+structural sharing, and unknown tokens stay literal. `csv.ts` is an RFC-4180
+state machine (BOM, quoted fields, embedded newlines, `;` sniffing, ragged
+rows padded with per-row errors) capped at 300 rows. `generate.ts` renders
+each row through the ordinary raster exporter and streams entries into a
+STORE-mode fflate ZIP (PNGs don't recompress; ~1× memory), with per-row
+validation (`validate.ts`: QR encodability, barcode check digits), progress,
+abort, size warnings, and a trailing manifest + README. The renderer is
+injectable, so the whole engine is node-testable. Entitlement gating
+(`src/lib/billing/entitlements.ts`) is advisory UX — local mode gets an
+all-enabled demo resolver, cloud reads the subscriber's plan row.
+
+## AI assistant — `src/lib/assistant/`
+
+Key-gated (`ANTHROPIC_API_KEY`) and split down the trust boundary:
+
+- **Server** (`server.ts`, `src/app/api/assistant/route.ts`): owns the key,
+  the stable cache-friendly system prompt, and the tool definitions; proxies
+  exactly one model round per POST with same-origin, cloud-auth, rate-limit,
+  and body-size rails. The client can never inject tools or system text.
+- **Client executor** (`executor.ts`, `execute.ts`): drives the tool loop —
+  POST, execute every `tool_use` block against the live document, reply with
+  one `tool_result` message, repeat (≤8 rounds, then a forced no-tools
+  summary). All 16 tools validate with the same zod schemas that generate
+  the wire JSON schemas (`tools.ts`), clamp numeric input, and return
+  directive error strings the model can self-correct from.
+- **Undo contract:** the whole turn wraps in one lazy gesture on the command
+  bus — principle 4 paying out — so an assistant turn undoes like any other
+  edit. Thinking blocks round-trip verbatim; histories trim without
+  orphaning tool calls; the document never goes over the wire raw (a capped
+  0.1 mm-rounded summary does, `summarize.ts`).
 
 ## Finishes — `src/lib/finishes/`
 
@@ -162,8 +216,11 @@ Schema/RLS decisions worth knowing:
 - `subscriptions` has zero authenticated write policies — the Stripe
   webhook (service role) is the only writer.
 - Share links resolve through a `security definer` RPC
-  (`get_shared_project`) rather than anon table grants; the sharing UI
-  itself is deferred.
+  (`get_shared_project`) rather than anon table grants; the share dialog
+  and the public `/share/[token]` page are its consumers.
+- Invitees can't read `team_invitations` under RLS (only org admins can),
+  so `POST /api/team/accept` validates tokens and writes memberships with
+  the service role after pure-function checks (`src/lib/teams-accept.ts`).
 - Storage buckets enforce `{uid}/` folder ownership plus size/MIME limits.
 
 ## Stripe — `src/app/api/stripe/`
@@ -188,13 +245,18 @@ when WebGL or motion is unavailable.
 ## Testing
 
 - **Unit (Vitest):** geometry/calculator, document commands + undo
-  semantics, migration, imposition (fast-check properties), preflight
-  rules, QR/barcode validity, SVG exporter (glyph paths), finishes
-  determinism, template application.
+  semantics, migration, imposition + CSV parsing (fast-check properties),
+  preflight rules, QR/barcode validity, SVG exporter (glyph paths), vector
+  PDF planning/serialization, batch tokens + ZIP generation, effective
+  print layers, entitlements matrix, invitation acceptance logic, assistant
+  executor (undo semantics, clamps, budget, abort) and route contract
+  (mocked SDK), finishes determinism, template application.
 - **E2E (Playwright, production build):** byte-level export goldens (PNG
-  IHDR dimensions + pHYs, PDF TrimBox, SVG physical units), editor flows
-  (undo, autosave reload, templates, QR warnings), **editor↔export
-  pixelmatch parity**, local-mode honesty states, accessibility basics
-  (skip links, labeled toolbar), and a 100+-object perf smoke.
+  IHDR dimensions + pHYs, PDF TrimBox, SVG physical units, vector-PDF
+  XObject counts, TIFF magic bytes, separations/batch ZIP entries), editor
+  flows (undo, autosave reload, templates, QR warnings), **editor↔export
+  pixelmatch parity**, local-mode honesty states (billing, teams, sharing,
+  assistant), accessibility basics (skip links, labeled toolbar), and a
+  100+-object perf smoke.
 - **CI** (`.github/workflows/ci.yml`): lint → typecheck → unit → build,
   then the e2e job against the built app.

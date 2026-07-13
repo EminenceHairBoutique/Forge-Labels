@@ -57,53 +57,61 @@ idempotent webhook (`src/app/api/stripe/webhook/route.ts`).
 pages, and CI running lint, typecheck, unit tests, e2e, and build
 (`.github/workflows/ci.yml`).
 
-## Phase 2 — Next (unblocks production printing workflows)
+## Phase 2 — Shipped (production printing workflows)
 
-- **CSV batch and dynamic text fields.** Generate a labeled run (lots,
-  serials, per-row QR payloads) from a CSV.
-  Hook: all document mutations already flow through typed commands
-  (`src/lib/document/commands.ts`), the ZIP export pipeline exists, and the
-  `csvBatch` entitlement flag is already modeled in `src/lib/billing/plan-seed.ts`.
-- **Share-link UI.** Create view/edit links to a project.
-  Hook: `shared_links` table and the `get_shared_project` security-definer
-  RPC ship in `supabase/migrations/0001_init.sql`; the storage adapter's
-  `capabilities.sharing` flag (currently `false`) already gates the UI.
-- **Team collaboration UI.** Organizations, roles, and invitations.
-  Hook: `organizations`, `organization_members`, and `team_invitations`
-  tables with RLS and the `is_org_member()`/`org_role_rank()` helpers are
-  already migrated; `maxTeamMembers` is an existing plan entitlement.
-- **Print-production layer UI.** Assign objects to white-ink, varnish, foil,
-  and other separations and export per-layer files.
-  Hook: every object already stores `printLayer` (default `"artwork"`) via
-  `PrintLayerSchema` in `src/lib/document/schema.ts`, so documents saved
-  today need no migration; preflight already warns when clear/metallic stock
-  needs white ink.
-- **Full vector PDF mode.** Today's PDFs embed a 600-DPI raster in
-  exact-dimension boxes; a vector mode would draw shapes and outlined text
-  directly.
-  Hook: `src/lib/export/svg.ts` already converts text to glyph outlines with
-  fontkit and emits vector QR/barcodes; `src/lib/export/pdf.ts` deliberately
-  confines all pdf-lib usage so the compositor can be swapped.
+**CSV batch and dynamic data fields.** `{{column}}` placeholders in text, QR,
+and barcode values fill per CSV row (RFC-4180 parser, 300-row cap) and export
+as a streamed ZIP with a manifest (`src/lib/batch/`); per-row validation
+covers QR encodability and barcode check digits, and preflight downgrades
+tokened-value errors to a batch note. Business-plan entitlement, advisory
+client-side gate (`src/lib/billing/entitlements.ts`).
 
-## Phase 3 — Later
+**Share links.** Per-project view/copy links with revocation and optional
+expiry (`src/lib/sharing.ts`), served on a public read-only page
+(`src/app/share/[token]`) through the `get_shared_project` security-definer
+RPC. Cloud mode only; local mode explains why.
 
-- **AI design assistant.** Conversational edits to the open document.
-  Hook: the command bus in `src/lib/document/commands.ts` is the single
-  mutation path — an assistant emits the same typed commands, so its changes
-  are undoable like any manual edit.
-- **Print fulfillment integration.** Order physical labels from inside the app.
-  Hook: the `export_jobs` table and per-export history records (format, DPI,
-  byte size) already exist to anchor an order pipeline.
-- **Background removal for images.** One-click subject isolation.
-  Hook: the image filter pipeline (`src/lib/render/image-filters.ts`) is
-  applied identically in the editor and every export, and processed variants
-  can be stored through the existing assets adapter.
-- **TIFF export.** Print shops occasionally require TIFF; this needs
-  server-side image processing (sharp), which this build does not run.
-  Hook: `exportRaster` already produces DPI-exact bitmaps suitable for a
-  server-side transcode route.
-- **Apple sign-in.** Hook: the Supabase OAuth flow used for Google in
-  `src/components/auth/auth-forms.tsx` extends to additional providers with
-  provider registration plus one button.
-- **MFA.** Hook: cloud mode authenticates through Supabase Auth, which
-  supports MFA enrollment without schema changes.
+**Team collaboration.** One organization per owner, roles
+(owner/admin/editor/viewer), invite LINKS (no email — stated in the UI),
+seat limits from the owner's plan, and project↔team moves
+(`src/lib/teams.ts`, `/team`, `POST /api/team/accept` with the service role,
+`supabase/migrations/0003_team_ui.sql`).
+
+**Print-production layers.** Per-object layer assignment in the properties
+panel (10 layers incl. white ink, foils, spot UV, die-cut), group-inherited
+effective layers, per-layer 600-DPI separations ZIP with README/manifest
+(`src/lib/print/layers.ts`, `src/lib/export/separations.ts`), and two new
+preflight rules (white-ink-on-opaque, die-cut content).
+
+**Hybrid vector PDF.** `pdf-vector` export keeps text (fontkit outlines),
+shapes, and QR/barcodes as true vector paths and rasterizes only what PDF
+can't express vectorially (gradients, finishes, shadows, images) as tightly
+cropped 600-DPI tiles (`src/lib/export/vector-paths.ts`, `vector-doc.ts`,
+`pdf-vector.ts`); the export dialog lists exactly what got rasterized.
+
+## Phase 3 — Partially shipped
+
+Shipped in this build:
+
+- **AI design assistant (key-gated).** A 4th editor tab chats with Claude and
+  edits the document through 16 typed tools over the same command bus — one
+  undo entry per assistant turn. Activates when `ANTHROPIC_API_KEY` is set;
+  otherwise the tab explains what's missing (`src/lib/assistant/`,
+  `POST /api/assistant`).
+- **TIFF export.** Server-side PNG→TIFF transcode (sharp, LZW, embedded
+  density) at `POST /api/export/tiff`, wired into the export dialog.
+- **MFA (TOTP).** Enrollment (QR + verify) and factor management in Settings →
+  Security; sign-in challenges for aal2 accounts in the login form. Cloud
+  mode only.
+- **Apple sign-in (flagged).** `NEXT_PUBLIC_AUTH_APPLE=1` adds the Apple
+  OAuth button once the provider is configured in Supabase.
+
+Still later (tracked in [deferred.md](./deferred.md)):
+
+- **Print fulfillment integration.** Order physical labels from inside the
+  app. Hook: the `export_jobs` table and per-export history records (format,
+  DPI, byte size) already exist to anchor an order pipeline.
+- **Background removal for images.** One-click subject isolation. Hook: the
+  image filter pipeline (`src/lib/render/image-filters.ts`) is applied
+  identically in the editor and every export, and processed variants can be
+  stored through the existing assets adapter.

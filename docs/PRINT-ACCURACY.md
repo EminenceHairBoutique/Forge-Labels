@@ -113,9 +113,9 @@ deliberately. Thresholds below are the shipped values in
       shorter than 15 mm, otherwise 300.
 - [ ] Finishes are **on-screen simulations**. Physical foil, holographic
       film, and textured stocks differ from the preview in color, sheen, and
-      coverage — order a printed proof before a production run. Per-layer
-      foil/varnish separations are not yet exported (see
-      [deferred.md](./deferred.md)).
+      coverage — order a printed proof before a production run. For presses
+      that print them, assign objects to production layers and export
+      **Separations** (see below).
 - [ ] Print one sheet, cut one label, and apply it to a real vial before
       committing the batch.
 
@@ -129,11 +129,34 @@ transparent areas of the design:
 - **Clear polypropylene** — the no-label look. There is no white ink in a
   desktop workflow: near-white artwork is effectively invisible, and
   preflight raises `white-ink-needed` for near-white fills on transparent
-  stock. Commercial printing needs a white-ink underbase, whose per-object
-  separation UI is deferred (the `printLayer` field already exists on every
-  object).
+  stock. For commercial printing, assign the underbase objects to the
+  **White ink** layer (properties panel → Print layer) and export
+  Separations.
 - **Silver / holographic polyester** — unprinted areas stay metallic;
   inks print semi-translucent over the film, and the same white-ink caveat
   applies wherever you want opaque color.
 - **Kraft and textured papers** — not waterproof; expect ink gain and muted
   color on uncoated fiber.
+
+## Separations conventions
+
+The **Separations** export (export dialog) produces one PNG per print layer
+actually in use, for presses that print white ink, foils, spot UV, emboss,
+or die-cut guides as separate processes:
+
+- Assign layers per object in the properties panel (**Print layer**). A
+  group's non-artwork layer applies to all its children unless a child sets
+  its own non-artwork layer (`src/lib/print/layers.ts`).
+- Files are named `{label}-{n}-{layer}.png` in a stable order and rendered
+  at 600 DPI including bleed — pixel dimensions match the raster export
+  guarantee above.
+- The **artwork** file includes the label background. Every spot layer
+  renders its objects **on transparency, at authored colors**: the file is
+  a positive/mask for your printer to map onto the physical process, not a
+  color simulation of it.
+- `manifest.csv` and `README.txt` in the ZIP restate the finished size,
+  bleed, DPI, and per-layer intent — send the whole ZIP to the print shop
+  and confirm their layer handling before a production run.
+- Preflight flags two layer mistakes: white ink assigned on opaque white
+  stock (usually unintended) and text/images on the die-cut layer (die
+  lines should be simple shapes).

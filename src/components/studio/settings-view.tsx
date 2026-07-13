@@ -7,6 +7,7 @@ import { migrateDocument } from "@/lib/document/migrate";
 import { Button } from "@/components/ui/button";
 import { Callout } from "@/components/ui/callout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SecurityCard } from "@/components/studio/security-card";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { toast } from "@/components/ui/toaster";
 import {
@@ -198,6 +199,8 @@ export function SettingsView() {
           </p>
         </CardContent>
       </Card>
+
+      <SecurityCard />
 
       <Dialog open={confirmClear} onOpenChange={setConfirmClear}>
         <DialogContent className="max-w-sm">

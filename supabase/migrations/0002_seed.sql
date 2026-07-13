@@ -20,7 +20,7 @@ values
   ),
   (
     'business', 'Business', 'For studios producing at volume.', 3900, 3200,
-    '["Everything in Pro", "25 GB asset storage", "Priority support", "First access: team workspaces, 5 seats (in development)", "First access: CSV batch + dynamic data fields (in development)", "First access: production layers — white ink, foil (in development)"]',
+    '["Everything in Pro", "25 GB asset storage", "Priority support", "Team workspaces (5 seats)", "CSV batch export + dynamic data fields", "Production layers — white ink, foil, spot UV"]',
     '{"maxProjects": null, "maxStorageMb": 25000, "maxTeamMembers": 5, "hiResExport": true, "printReadyPdf": true, "svgExport": true, "premiumTemplates": true, "finishes": true, "brandKits": true, "qrAndBarcodes": true, "watermarkedMockups": false, "versionHistory": true, "csvBatch": true, "productionLayers": true, "commercialTemplateUse": true, "prioritySupport": true}',
     false, 2
   ),

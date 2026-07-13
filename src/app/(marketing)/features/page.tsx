@@ -25,6 +25,7 @@ import {
   Ruler,
   ScanLine,
   Shapes,
+  Share2,
   Sparkles,
   Spline,
   Type,
@@ -242,6 +243,16 @@ const SECTIONS: Section[] = [
         title: "SVG vector export",
         body: "Resolution-independent vector output for professional workflows, cutting plotters, and downstream editing.",
       },
+      {
+        icon: Spline,
+        title: "Hybrid vector PDF",
+        body: "A PDF that keeps text, shapes, and codes as true vector outlines, rasterizing only effects that must be — crisp at any size a press prints it.",
+      },
+      {
+        icon: ScanLine,
+        title: "TIFF for print shops",
+        body: "Lossless LZW TIFF export with the exact physical density embedded, for printers whose workflow starts from TIFF.",
+      },
     ],
   },
   {
@@ -282,6 +293,16 @@ const SECTIONS: Section[] = [
         title: "Team collaboration",
         body: "Share projects and brand assets across up to five seats so the whole team designs from the same source of truth.",
         badge: "Business plan",
+      },
+      {
+        icon: Share2,
+        title: "Share links",
+        body: "Send a read-only preview of any project as a link — clients see the design without an account, and can copy it into their own studio when you allow it.",
+      },
+      {
+        icon: Sparkles,
+        title: "AI design assistant",
+        body: "Describe the change and the assistant edits the canvas through the same undoable commands you use — on deployments that connect a Claude API key.",
       },
     ],
   },
