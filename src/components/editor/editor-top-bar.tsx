@@ -15,12 +15,13 @@ import {
   Printer,
   Redo2,
   Share2,
+  Sparkles,
   Table2,
   Undo2,
 } from "lucide-react";
 import { redo, undo } from "@/lib/document/commands";
 import { getStorageAdapter } from "@/lib/storage";
-import { useCanUndoRedo } from "@/stores/document-store";
+import { useCanUndoRedo, useDocumentStore } from "@/stores/document-store";
 import { useEditorUiStore } from "@/stores/editor-ui-store";
 import { useProjectSessionStore } from "@/stores/project-session-store";
 import type { Unit } from "@/lib/geometry/units";
@@ -102,6 +103,7 @@ export function EditorTopBar({
   const projectName = useProjectSessionStore((s) => s.projectName);
   const setProjectName = useProjectSessionStore((s) => s.setProjectName);
   const projectId = useProjectSessionStore((s) => s.projectId);
+  const hasEasy = useDocumentStore((s) => Boolean(s.doc?.easy));
 
   const commitName = async (name: string) => {
     const trimmed = name.trim();
@@ -136,6 +138,20 @@ export function EditorTopBar({
       />
 
       <SaveStatus />
+
+      {hasEasy && projectId && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button asChild variant="ghost" size="sm" className="hidden text-xs lg:inline-flex">
+              <Link href={`/easy/${projectId}`}>
+                <Sparkles className="size-3.5 text-primary" aria-hidden />
+                Easy mode
+              </Link>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Back to the guided editor — same label, nothing lost</TooltipContent>
+        </Tooltip>
+      )}
 
       <div className="mx-auto flex items-center gap-1">
         <Tooltip>

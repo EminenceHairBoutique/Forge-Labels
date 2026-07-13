@@ -34,6 +34,32 @@ interface VialSceneProps {
   labelCanvas: HTMLCanvasElement | null;
   settings?: MockupSettings;
   className?: string;
+  /**
+   * When set, snaps the orbit to this azimuth (degrees; 0 = front). Change
+   * the value to jump between front/side/back views — the user can still
+   * drag freely afterwards.
+   */
+  viewAzimuthDeg?: number;
+}
+
+/** Applies view-button jumps to the (makeDefault) OrbitControls. */
+function ViewSnap({ azimuthDeg }: { azimuthDeg: number | undefined }) {
+  const controls = useThree(
+    (s) => s.controls as unknown as {
+      setAzimuthalAngle?: (rad: number) => void;
+      setPolarAngle?: (rad: number) => void;
+      update?: () => void;
+    } | null,
+  );
+  const invalidate = useThree((s) => s.invalidate);
+  React.useEffect(() => {
+    if (azimuthDeg === undefined || !controls?.setAzimuthalAngle) return;
+    controls.setAzimuthalAngle((azimuthDeg * Math.PI) / 180);
+    controls.setPolarAngle?.(Math.PI / 2 - 0.12);
+    controls.update?.();
+    invalidate();
+  }, [azimuthDeg, controls, invalidate]);
+  return null;
 }
 
 const GLASS_PRESETS: Record<
@@ -269,7 +295,15 @@ export interface VialSceneHandle {
 
 export const VialScene = React.forwardRef<VialSceneHandle, VialSceneProps>(
   function VialScene(
-    { vial, labelWidthMm, labelHeightMm, labelCanvas, settings = DEFAULT_MOCKUP_SETTINGS, className },
+    {
+      vial,
+      labelWidthMm,
+      labelHeightMm,
+      labelCanvas,
+      settings = DEFAULT_MOCKUP_SETTINGS,
+      className,
+      viewAzimuthDeg,
+    },
     ref,
   ) {
     const glRef = React.useRef<THREE.WebGLRenderer | null>(null);
@@ -326,6 +360,7 @@ export const VialScene = React.forwardRef<VialSceneHandle, VialSceneProps>(
             autoRotateSpeed={1.2}
             target={[0, 0, 0]}
           />
+          <ViewSnap azimuthDeg={viewAzimuthDeg} />
         </Canvas>
       </div>
     );

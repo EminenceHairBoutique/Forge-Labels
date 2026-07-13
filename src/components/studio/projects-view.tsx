@@ -10,6 +10,7 @@ import {
   Pencil,
   Search,
   Share2,
+  Sparkles,
   Trash2,
   Users,
 } from "lucide-react";
@@ -157,12 +158,12 @@ export function ProjectsView() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-display text-2xl font-bold tracking-tight">Projects</h1>
+          <h1 className="font-display text-2xl font-bold tracking-tight">Your labels</h1>
           <p className="text-sm text-muted-foreground">
-            Your vial label designs, most recent first.
+            Most recent first — everything saves automatically.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
             <Search
               className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
@@ -170,14 +171,29 @@ export function ProjectsView() {
             />
             <Input
               type="search"
-              placeholder="Search projects…"
-              className="w-56 pl-8"
+              placeholder="Search labels…"
+              className="w-40 pl-8 sm:w-56"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              aria-label="Search projects"
+              aria-label="Search labels"
             />
           </div>
-          <NewLabelDialog />
+          <NewLabelDialog
+            trigger={
+              <Button
+                variant="outline"
+                title="Advanced setup — exact measurements, blank canvas"
+              >
+                New label
+              </Button>
+            }
+          />
+          <Button asChild>
+            <Link href="/create">
+              <Sparkles className="size-4" aria-hidden />
+              Make a new label
+            </Link>
+          </Button>
         </div>
       </div>
 
@@ -195,26 +211,50 @@ export function ProjectsView() {
             </p>
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-4 rounded-xl border border-dashed border-border py-20 text-center">
-            <div className="flex size-14 items-center justify-center rounded-2xl bg-primary-subtle text-primary">
-              <FlaskConical className="size-7" aria-hidden />
+          <div className="rounded-xl border border-dashed border-border px-4 py-14">
+            <div className="mx-auto max-w-2xl space-y-6 text-center">
+              <div>
+                <h2 className="font-display text-xl font-semibold">
+                  What would you like to make?
+                </h2>
+                <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
+                  You don&apos;t need design experience — sizing, spacing, and
+                  print setup are handled for you.
+                </p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <Link
+                  href="/create"
+                  className="flex flex-col items-center gap-2 rounded-xl border-2 border-primary/50 bg-primary-subtle/30 p-5 transition-colors hover:border-primary"
+                >
+                  <Sparkles className="size-6 text-primary" aria-hidden />
+                  <span className="text-sm font-medium">Make my first label</span>
+                  <span className="text-xs text-muted-foreground">
+                    Guided, about two minutes
+                  </span>
+                </Link>
+                <Link
+                  href="/templates"
+                  className="flex flex-col items-center gap-2 rounded-xl border-2 border-border bg-surface p-5 transition-colors hover:border-primary/40"
+                >
+                  <FlaskConical className="size-6 text-muted-foreground" aria-hidden />
+                  <span className="text-sm font-medium">Start from a template</span>
+                  <span className="text-xs text-muted-foreground">
+                    Professionally designed starting points
+                  </span>
+                </Link>
+                <Link
+                  href="/tools/label-calculator"
+                  className="flex flex-col items-center gap-2 rounded-xl border-2 border-border bg-surface p-5 transition-colors hover:border-primary/40"
+                >
+                  <Search className="size-6 text-muted-foreground" aria-hidden />
+                  <span className="text-sm font-medium">Learn about label sizing</span>
+                  <span className="text-xs text-muted-foreground">
+                    See what fits your vial
+                  </span>
+                </Link>
+              </div>
             </div>
-            <div>
-              <h2 className="font-display text-lg font-semibold">
-                Design your first vial label
-              </h2>
-              <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
-                Pick a vial size, and we&apos;ll set up a dimension-accurate canvas
-                with bleed and safe zones.
-              </p>
-            </div>
-            <NewLabelDialog />
-            <Link
-              href="/tools/label-calculator"
-              className="text-sm text-primary underline-offset-2 hover:underline"
-            >
-              Not sure about the size? Use the calculator
-            </Link>
           </div>
         )
       ) : (
@@ -227,7 +267,7 @@ export function ProjectsView() {
                 className="group relative rounded-xl border border-border bg-surface shadow-xs transition-shadow hover:shadow-md"
               >
                 <Link
-                  href={`/editor/${project.id}`}
+                  href={`/easy/${project.id}`}
                   className="block p-3"
                   aria-label={`Open ${project.name}`}
                 >

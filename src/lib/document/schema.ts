@@ -15,7 +15,7 @@ import { z } from "zod";
  *   changes; never silently break stored documents.
  */
 
-export const DOCUMENT_SCHEMA_VERSION = 1;
+export const DOCUMENT_SCHEMA_VERSION = 2;
 
 // ---------------------------------------------------------------------------
 // Shared primitives
@@ -104,6 +104,12 @@ const baseObject = {
   locked: z.boolean().default(false),
   visible: z.boolean().default(true),
   printLayer: PrintLayerSchema.default("artwork"),
+  /**
+   * Semantic role for Easy Creator (v2): "brand", "product-name", "qr"…
+   * (see src/lib/easy/slots.ts). Objects without a slot are free objects —
+   * fully editable in the Advanced Editor, ignored by the Easy form.
+   */
+  slot: z.string().optional(),
 };
 
 export const FONT_WEIGHTS = [400, 500, 600, 700, 800, 900] as const;
@@ -383,6 +389,24 @@ export const BackgroundSchema = z.discriminatedUnion("type", [
 ]);
 export type Background = z.infer<typeof BackgroundSchema>;
 
+/**
+ * Easy Creator metadata (v2). Content itself lives in the slot objects —
+ * this block records the choices that generated the layout (template,
+ * material, palette) plus stashed values of toggled-off optional fields so
+ * re-enabling them restores the text. Absent on documents authored purely
+ * in the Advanced Editor.
+ */
+export const EasyMetaSchema = z.object({
+  templateId: z.string(),
+  materialId: z.string(),
+  materialOptionId: z.string(),
+  intensity: z.enum(["subtle", "balanced", "bold", "maximum"]).optional(),
+  paletteId: z.string(),
+  styleId: z.string().optional(),
+  stash: z.record(z.string(), z.string()).optional(),
+});
+export type EasyMeta = z.infer<typeof EasyMetaSchema>;
+
 export const LabelDocumentSchema = z.object({
   schemaVersion: z.literal(DOCUMENT_SCHEMA_VERSION),
   vial: VialSpecSchema,
@@ -391,6 +415,7 @@ export const LabelDocumentSchema = z.object({
   /** Simulated print substrate (lib/finishes/substrates). */
   substrateId: z.string().default("white-pp"),
   objects: z.array(LabelObjectSchema).default([]),
+  easy: EasyMetaSchema.optional(),
 });
 export type LabelDocument = z.infer<typeof LabelDocumentSchema>;
 

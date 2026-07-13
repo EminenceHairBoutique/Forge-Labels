@@ -23,10 +23,12 @@ export function migrateDocument(raw: unknown): LabelDocument {
   }
 
   // Migration chain: each step upgrades exactly one version.
-  // e.g. if (version < 2) { …reshape…; data.schemaVersion = 2; }
-  if (version < DOCUMENT_SCHEMA_VERSION) {
-    // Version 0 never shipped; treat anything below 1 as v1 with defaults.
-    data.schemaVersion = DOCUMENT_SCHEMA_VERSION;
+  // (Version 0 never shipped; anything below 1 is treated as v1.)
+  if (version < 2) {
+    // v2 added the optional semantic `slot` marker on objects and the
+    // optional `easy` block on the document — pure additions, so v1
+    // documents need only the version stamp.
+    data.schemaVersion = 2;
   }
 
   return parseLabelDocument(data);
