@@ -22,6 +22,16 @@ const emailSchema = z.object({ email: z.email("Enter a valid email address") });
 type Credentials = z.infer<typeof credentialsSchema>;
 type EmailOnly = z.infer<typeof emailSchema>;
 
+/**
+ * Post-auth destination: honors a same-origin ?next= path (e.g. team
+ * invitations) and falls back to the dashboard. Read at submit time so the
+ * statically prerendered auth pages need no Suspense boundary.
+ */
+function nextPath(): string {
+  const next = new URLSearchParams(location.search).get("next");
+  return next && next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
+}
+
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
   return (
@@ -45,7 +55,9 @@ function GoogleButton({ label }: { label: string }) {
         setBusy(true);
         const { error } = await supabase.auth.signInWithOAuth({
           provider: "google",
-          options: { redirectTo: `${location.origin}/auth/callback?next=/dashboard` },
+          options: {
+            redirectTo: `${location.origin}/auth/callback?next=${encodeURIComponent(nextPath())}`,
+          },
         });
         if (error) {
           toast.error("Google sign-in failed", error.message);
@@ -76,7 +88,7 @@ export function LoginForm() {
       toast.error("Sign-in failed", error.message);
       return;
     }
-    router.push("/dashboard");
+    router.push(nextPath());
   });
 
   async function sendMagicLink() {
@@ -88,7 +100,9 @@ export function LoginForm() {
     }
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: `${location.origin}/auth/callback?next=/dashboard` },
+      options: {
+        emailRedirectTo: `${location.origin}/auth/callback?next=${encodeURIComponent(nextPath())}`,
+      },
     });
     if (error) toast.error("Couldn't send the link", error.message);
     else setMagicSent(true);
@@ -157,7 +171,9 @@ export function SignupForm() {
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: `${location.origin}/auth/callback?next=/dashboard` },
+      options: {
+        emailRedirectTo: `${location.origin}/auth/callback?next=${encodeURIComponent(nextPath())}`,
+      },
     });
     if (error) {
       toast.error("Sign-up failed", error.message);

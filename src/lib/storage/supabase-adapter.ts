@@ -24,6 +24,7 @@ import type {
  */
 
 interface ProjectRow {
+  org_id: string | null;
   id: string;
   name: string;
   tags: string[];
@@ -46,6 +47,7 @@ function toSummary(row: ProjectRow): ProjectSummary {
     thumbnail: row.thumbnail,
     labelSizeMm: { width: Number(row.label_width_mm), height: Number(row.label_height_mm) },
     vialName: row.vial_preset_id,
+    orgId: row.org_id ?? null,
   };
 }
 
@@ -75,7 +77,7 @@ export class SupabaseAdapter implements StorageAdapter {
     const { data, error } = await this.supabase
       .from("projects")
       .select(
-        "id,name,tags,thumbnail,label_width_mm,label_height_mm,vial_preset_id,created_at,updated_at,doc",
+        "id,name,tags,thumbnail,label_width_mm,label_height_mm,vial_preset_id,org_id,created_at,updated_at,doc",
       )
       .order("updated_at", { ascending: false });
     if (error) fail("Couldn't load projects", error);

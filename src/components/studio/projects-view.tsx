@@ -11,6 +11,7 @@ import {
   Search,
   Share2,
   Trash2,
+  Users,
 } from "lucide-react";
 import { ShareDialog } from "./share-dialog";
 import { getStorageAdapter } from "@/lib/storage";
@@ -128,6 +129,30 @@ export function ProjectsView() {
     }
   }
 
+  async function handleTeamToggle(project: ProjectSummary) {
+    try {
+      const { getMyOrganization, moveProjectToOrg } = await import("@/lib/teams");
+      if (project.orgId) {
+        await moveProjectToOrg(project.id, null);
+        toast.success("Removed from the team", "The project is personal again.");
+      } else {
+        const org = await getMyOrganization();
+        if (!org) {
+          toast.info(
+            "No team yet",
+            "Create one on the Team page first, then share projects with it.",
+          );
+          return;
+        }
+        await moveProjectToOrg(project.id, org.id);
+        toast.success(`Shared with ${org.name}`, "Team members see it on their dashboard.");
+      }
+      await reload();
+    } catch (err) {
+      toast.error("Couldn't update the project", err instanceof Error ? err.message : undefined);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -219,7 +244,17 @@ export function ProjectsView() {
                     )}
                   </div>
                   <div className="mt-3 space-y-0.5 pr-8">
-                    <h3 className="truncate text-sm font-medium">{project.name}</h3>
+                    <h3 className="flex items-center gap-1.5 truncate text-sm font-medium">
+                      <span className="truncate">{project.name}</span>
+                      {project.orgId && (
+                        <span
+                          className="inline-flex shrink-0 items-center gap-0.5 rounded-sm bg-primary-subtle px-1 py-px text-[10px] font-medium text-primary"
+                          title="Shared with your team"
+                        >
+                          <Users className="size-2.5" aria-hidden /> Team
+                        </span>
+                      )}
+                    </h3>
                     <p className="text-xs text-muted-foreground">
                       {project.labelSizeMm.width.toFixed(1)} ×{" "}
                       {project.labelSizeMm.height.toFixed(1)} mm
@@ -257,6 +292,12 @@ export function ProjectsView() {
                       <DropdownMenuItem onSelect={() => setShareTarget(project)}>
                         <Share2 /> Share
                       </DropdownMenuItem>
+                      {getStorageAdapter().capabilities.mode === "cloud" && (
+                        <DropdownMenuItem onSelect={() => void handleTeamToggle(project)}>
+                          <Users />
+                          {project.orgId ? "Remove from team" : "Move to team"}
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         data-variant="destructive"

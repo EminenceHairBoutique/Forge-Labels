@@ -30,6 +30,8 @@ export interface ProjectSummary {
   thumbnail: string | null; // data URL
   labelSizeMm: { width: number; height: number };
   vialName: string | null;
+  /** Organization the project is shared with (cloud mode; null = personal). */
+  orgId: string | null;
 }
 
 export interface ProjectRecord extends ProjectSummary {

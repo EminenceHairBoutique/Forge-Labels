@@ -1,5 +1,12 @@
 import Link from "next/link";
-import { FolderOpen, Image as ImageIcon, Palette, Settings, Download } from "lucide-react";
+import {
+  FolderOpen,
+  Image as ImageIcon,
+  Palette,
+  Settings,
+  Download,
+  Users,
+} from "lucide-react";
 import { Logo } from "@/components/marketing/logo";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { ImportLocalDialog } from "@/components/auth/import-local-dialog";
@@ -12,6 +19,7 @@ const STUDIO_NAV = [
   { href: "/dashboard", label: "Projects", icon: FolderOpen },
   { href: "/brand-kits", label: "Brand kits", icon: Palette },
   { href: "/assets", label: "Assets", icon: ImageIcon },
+  { href: "/team", label: "Team", icon: Users },
   { href: "/exports", label: "Exports", icon: Download },
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;

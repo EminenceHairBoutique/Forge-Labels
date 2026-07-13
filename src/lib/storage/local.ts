@@ -64,6 +64,7 @@ function summarize(p: StoredProject, doc: LabelDocument | null): ProjectSummary 
       ? { width: doc.label.widthMm, height: doc.label.heightMm }
       : { width: 0, height: 0 },
     vialName: doc?.vial.presetId ?? null,
+    orgId: null,
   };
 }
 
