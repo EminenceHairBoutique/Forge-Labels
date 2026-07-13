@@ -25,6 +25,8 @@ import { MockupDialog } from "@/components/mockup/mockup-dialog";
 import { PropertiesPanel } from "./sidebar/properties-panel";
 import { LayersPanel } from "./sidebar/layers-panel";
 import { BrandPanel } from "./sidebar/brand-panel";
+import { AssistantPanel } from "./sidebar/assistant-panel";
+import { useAssistantStore } from "@/stores/assistant-store";
 import { saveNow, useAutosave } from "./hooks/use-autosave";
 import { useEditorShortcuts } from "./hooks/use-editor-shortcuts";
 
@@ -60,6 +62,7 @@ export function EditorShell({ projectId }: { projectId: string }) {
         if (cancelled) return;
         useProjectSessionStore.getState().startSession(project.id, project.name);
         loadDocument(project.doc);
+        useAssistantStore.getState().reset(); // chat is per-project
         setLoadState("ready");
       } catch {
         if (!cancelled) setLoadState("error");
@@ -189,10 +192,19 @@ export function EditorShell({ projectId }: { projectId: string }) {
           aria-label="Inspector"
         >
           <Tabs defaultValue="properties" className="flex min-h-0 flex-1 flex-col">
-            <TabsList className="mx-4 mt-3 grid grid-cols-3">
-              <TabsTrigger value="properties">Properties</TabsTrigger>
-              <TabsTrigger value="layers">Layers</TabsTrigger>
-              <TabsTrigger value="brand">Brand</TabsTrigger>
+            <TabsList className="mx-4 mt-3 grid grid-cols-4">
+              <TabsTrigger value="properties" className="px-2">
+                Props
+              </TabsTrigger>
+              <TabsTrigger value="layers" className="px-2">
+                Layers
+              </TabsTrigger>
+              <TabsTrigger value="brand" className="px-2">
+                Brand
+              </TabsTrigger>
+              <TabsTrigger value="assistant" className="px-2">
+                AI
+              </TabsTrigger>
             </TabsList>
             <TabsContent value="properties" className="mt-0 flex-1">
               <PropertiesPanel doc={doc} />
@@ -202,6 +214,9 @@ export function EditorShell({ projectId }: { projectId: string }) {
             </TabsContent>
             <TabsContent value="brand" className="mt-0 flex-1">
               <BrandPanel doc={doc} />
+            </TabsContent>
+            <TabsContent value="assistant" className="mt-0 min-h-0 flex-1">
+              <AssistantPanel />
             </TabsContent>
           </Tabs>
         </aside>
