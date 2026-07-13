@@ -18,6 +18,7 @@ import { EditorContextMenu } from "./editor-context-menu";
 import { EditorTopBar } from "./editor-top-bar";
 import { EditorToolbar } from "./editor-toolbar";
 import { BatchDialog } from "./batch-dialog";
+import { ShareDialog } from "@/components/studio/share-dialog";
 import { ExportDialog } from "./export-dialog";
 import { PrintDialog } from "./print-dialog";
 import { MockupDialog } from "@/components/mockup/mockup-dialog";
@@ -35,7 +36,9 @@ export function EditorShell({ projectId }: { projectId: string }) {
   const [printOpen, setPrintOpen] = React.useState(false);
   const [previewOpen, setPreviewOpen] = React.useState(false);
   const [batchOpen, setBatchOpen] = React.useState(false);
+  const [shareOpen, setShareOpen] = React.useState(false);
   const doc = useDoc();
+  const projectName = useProjectSessionStore((s) => s.projectName);
 
   // Simulated-finish patterns feed the shared fill resolver.
   React.useEffect(() => {
@@ -172,6 +175,7 @@ export function EditorShell({ projectId }: { projectId: string }) {
         onPrint={() => setPrintOpen(true)}
         onPreview={() => setPreviewOpen(true)}
         onBatch={() => setBatchOpen(true)}
+        onShare={() => setShareOpen(true)}
       />
       <div className="flex min-h-0 flex-1">
         <EditorToolbar />
@@ -209,6 +213,12 @@ export function EditorShell({ projectId }: { projectId: string }) {
       <PrintDialog doc={doc} open={printOpen} onOpenChange={setPrintOpen} />
       <MockupDialog doc={doc} open={previewOpen} onOpenChange={setPreviewOpen} />
       <BatchDialog doc={doc} open={batchOpen} onOpenChange={setBatchOpen} />
+      <ShareDialog
+        projectId={projectId}
+        projectName={projectName}
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+      />
     </div>
   );
 }

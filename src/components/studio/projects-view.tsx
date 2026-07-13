@@ -9,8 +9,10 @@ import {
   MoreVertical,
   Pencil,
   Search,
+  Share2,
   Trash2,
 } from "lucide-react";
+import { ShareDialog } from "./share-dialog";
 import { getStorageAdapter } from "@/lib/storage";
 import type { ProjectSummary } from "@/lib/storage/types";
 import { getVialPreset } from "@/lib/vials/presets";
@@ -54,6 +56,7 @@ export function ProjectsView() {
   const [renameTarget, setRenameTarget] = React.useState<ProjectSummary | null>(null);
   const [renameValue, setRenameValue] = React.useState("");
   const [deleteTarget, setDeleteTarget] = React.useState<ProjectSummary | null>(null);
+  const [shareTarget, setShareTarget] = React.useState<ProjectSummary | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [reloadTick, setReloadTick] = React.useState(0);
 
@@ -251,6 +254,9 @@ export function ProjectsView() {
                       <DropdownMenuItem onSelect={() => void handleDuplicate(project)}>
                         <Copy /> Duplicate
                       </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => setShareTarget(project)}>
+                        <Share2 /> Share
+                      </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         data-variant="destructive"
@@ -312,6 +318,17 @@ export function ProjectsView() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {shareTarget && (
+        <ShareDialog
+          projectId={shareTarget.id}
+          projectName={shareTarget.name}
+          open={shareTarget !== null}
+          onOpenChange={(open) => {
+            if (!open) setShareTarget(null);
+          }}
+        />
+      )}
     </div>
   );
 }
