@@ -4,6 +4,7 @@ import { createQrMatrix, qrTotalModules, MIN_QR_MODULE_MM } from "@/lib/codes/qr
 import { validateBarcodeValue } from "@/lib/codes/validate";
 import { getSubstrate } from "@/lib/finishes/types";
 import { effectiveLayer } from "@/lib/print/layers";
+import { hasTokens } from "@/lib/batch/tokens";
 
 /**
  * Print-readiness checks. Pure functions over the document — every issue
@@ -221,6 +222,14 @@ export function runPreflight(doc: LabelDocument): PreflightIssue[] {
         break;
       }
       case "qrcode": {
+        if (hasTokens(obj.value)) {
+          issues.push({
+            ruleId: "batch-token",
+            severity: "info",
+            message: `“${label}” contains a {{column}} placeholder — it resolves per row during batch export, where each row is validated.`,
+            objectId: obj.id,
+          });
+        }
         if (obj.value.trim().length === 0) {
           issues.push({
             ruleId: "qr-empty",
@@ -261,7 +270,16 @@ export function runPreflight(doc: LabelDocument): PreflightIssue[] {
       }
       case "barcode": {
         const validation = validateBarcodeValue(obj.symbology, obj.value);
-        if (!validation.ok) {
+        if (!validation.ok && hasTokens(obj.value)) {
+          // Tokenized values are resolved per row at batch time; a literal
+          // "{{sku}}" failing EAN-13 here would just be noise.
+          issues.push({
+            ruleId: "batch-token",
+            severity: "info",
+            message: `“${label}” contains a {{column}} placeholder — it resolves per row during batch export, where each row is validated.`,
+            objectId: obj.id,
+          });
+        } else if (!validation.ok) {
           issues.push({
             ruleId: "barcode-invalid",
             severity: "error",

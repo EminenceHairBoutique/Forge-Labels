@@ -161,6 +161,28 @@ describe("preflight rules", () => {
     ).not.toContain("white-ink-on-opaque");
   });
 
+  it("downgrades tokenized code values to a batch info note", () => {
+    const base = createDocument();
+    const tokenBarcode = createBarcodeObject(base, {
+      symbology: "ean13",
+      value: "{{ean}}",
+      yMm: 13,
+    });
+    const ids = ruleIds(docWith([tokenBarcode]));
+    expect(ids).toContain("batch-token");
+    expect(ids).not.toContain("barcode-invalid");
+
+    const literalBad = createBarcodeObject(base, {
+      symbology: "ean13",
+      value: "not-a-number",
+      yMm: 13,
+    });
+    expect(ruleIds(docWith([literalBad]))).toContain("barcode-invalid");
+
+    const tokenQr = createQrObject(base, { value: "https://x.example/{{sku}}", yMm: 13 });
+    expect(ruleIds(docWith([tokenQr]))).toContain("batch-token");
+  });
+
   it("warns when text or codes land on the die-cut layer", () => {
     const base = createDocument();
     const cutText = createTextObject(base, {

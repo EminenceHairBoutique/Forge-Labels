@@ -17,6 +17,7 @@ import { ACTUAL_SIZE_ZOOM, EditorCanvas, computeFitViewport } from "./editor-can
 import { EditorContextMenu } from "./editor-context-menu";
 import { EditorTopBar } from "./editor-top-bar";
 import { EditorToolbar } from "./editor-toolbar";
+import { BatchDialog } from "./batch-dialog";
 import { ExportDialog } from "./export-dialog";
 import { PrintDialog } from "./print-dialog";
 import { MockupDialog } from "@/components/mockup/mockup-dialog";
@@ -33,6 +34,7 @@ export function EditorShell({ projectId }: { projectId: string }) {
   const [exportOpen, setExportOpen] = React.useState(false);
   const [printOpen, setPrintOpen] = React.useState(false);
   const [previewOpen, setPreviewOpen] = React.useState(false);
+  const [batchOpen, setBatchOpen] = React.useState(false);
   const doc = useDoc();
 
   // Simulated-finish patterns feed the shared fill resolver.
@@ -169,6 +171,7 @@ export function EditorShell({ projectId }: { projectId: string }) {
         onExport={() => setExportOpen(true)}
         onPrint={() => setPrintOpen(true)}
         onPreview={() => setPreviewOpen(true)}
+        onBatch={() => setBatchOpen(true)}
       />
       <div className="flex min-h-0 flex-1">
         <EditorToolbar />
@@ -205,6 +208,7 @@ export function EditorShell({ projectId }: { projectId: string }) {
       <ExportDialog doc={doc} open={exportOpen} onOpenChange={setExportOpen} />
       <PrintDialog doc={doc} open={printOpen} onOpenChange={setPrintOpen} />
       <MockupDialog doc={doc} open={previewOpen} onOpenChange={setPreviewOpen} />
+      <BatchDialog doc={doc} open={batchOpen} onOpenChange={setBatchOpen} />
     </div>
   );
 }

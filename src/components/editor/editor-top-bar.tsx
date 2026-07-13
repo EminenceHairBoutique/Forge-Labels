@@ -14,6 +14,7 @@ import {
   Plus,
   Printer,
   Redo2,
+  Table2,
   Undo2,
 } from "lucide-react";
 import { redo, undo } from "@/lib/document/commands";
@@ -43,6 +44,7 @@ interface EditorTopBarProps {
   onExport: () => void;
   onPrint: () => void;
   onPreview: () => void;
+  onBatch: () => void;
 }
 
 function SaveStatus() {
@@ -84,6 +86,7 @@ export function EditorTopBar({
   onExport,
   onPrint,
   onPreview,
+  onBatch,
 }: EditorTopBarProps) {
   const { canUndo, canRedo } = useCanUndoRedo();
   const zoom = useEditorUiStore((s) => s.zoom);
@@ -233,6 +236,10 @@ export function EditorTopBar({
       <Button variant="outline" size="sm" onClick={onPrint}>
         <Printer className="size-4" aria-hidden />
         Print sheet
+      </Button>
+      <Button variant="outline" size="sm" onClick={onBatch}>
+        <Table2 className="size-4" aria-hidden />
+        Batch
       </Button>
       <Button size="sm" onClick={onExport}>
         <Download className="size-4" aria-hidden />

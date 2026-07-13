@@ -517,6 +517,24 @@ function TextProps({ obj }: { obj: TextObject }) {
         className="text-sm"
         onChange={(e) => remeasure({ text: e.target.value })}
       />
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[11px] leading-snug text-muted-foreground">
+          <code>{"{{column}}"}</code> placeholders fill from CSV rows in Batch
+          export.
+        </p>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-6 shrink-0 px-2 text-[11px]"
+          onClick={() =>
+            remeasure({
+              text: `${obj.text}${obj.text.endsWith(" ") || obj.text === "" ? "" : " "}{{field}}`,
+            })
+          }
+        >
+          Insert data field
+        </Button>
+      </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2 space-y-1">
           <Label htmlFor="text-font" className="text-xs text-muted-foreground">

@@ -11,6 +11,7 @@ import { updateObject, withGesture } from "@/lib/document/commands";
 import { prepareUpload, UploadError, UPLOAD_ACCEPT_ATTR } from "@/lib/images/upload";
 import { qrModuleSizeMm, MIN_QR_MODULE_MM } from "@/lib/codes/qr";
 import { validateBarcodeValue } from "@/lib/codes/validate";
+import { hasTokens } from "@/lib/batch/tokens";
 import { Button } from "@/components/ui/button";
 import { Callout } from "@/components/ui/callout";
 import { Input } from "@/components/ui/input";
@@ -290,6 +291,9 @@ export function QrProps({ obj }: { obj: QrObject }) {
           className="font-mono text-xs"
           onChange={(e) => updateObject<QrObject>(obj.id, { value: e.target.value })}
         />
+        <p className="text-[11px] leading-snug text-muted-foreground">
+          Supports <code>{"{{column}}"}</code> placeholders (Batch export).
+        </p>
       </div>
 
       <div className="grid grid-cols-2 gap-2">
@@ -463,7 +467,12 @@ export function BarcodeProps({ obj }: { obj: BarcodeObject }) {
             updateObject<BarcodeObject>(obj.id, { value: e.target.value })
           }
         />
-        {!validation.ok ? (
+        {!validation.ok && hasTokens(obj.value) ? (
+          <p className="text-xs text-muted-foreground">
+            Contains a <code>{"{{column}}"}</code> placeholder — validated per
+            row during Batch export.
+          </p>
+        ) : !validation.ok ? (
           <p className="text-xs text-destructive">{validation.message}</p>
         ) : validation.normalized && validation.normalized !== obj.value ? (
           <p className="text-xs text-muted-foreground">
