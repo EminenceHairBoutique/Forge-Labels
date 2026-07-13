@@ -3,7 +3,8 @@ import { mmToPt } from "@/lib/geometry/units";
 
 /**
  * Print-ready PDF composition (wrapper around @cantoo/pdf-lib — keep all
- * direct pdf-lib usage inside this module so the backend can be swapped).
+ * direct pdf-lib usage inside this module and pdf-vector.ts so the backend
+ * can be swapped).
  *
  * Strategy: label artwork is embedded as a DPI-exact raster; physical size
  * comes from PDF box math (MediaBox/TrimBox/BleedBox in points), which is
@@ -28,49 +29,78 @@ const MARK_LENGTH_MM = 4;
 const MARK_GAP_MM = 1; // gap between bleed edge and mark start
 const MARK_WIDTH_PT = 0.35;
 
-export async function createSingleLabelPdf(
-  options: SingleLabelPdfOptions,
-): Promise<Uint8Array> {
+export interface LabelPageSetup {
+  page: PDFPage;
+  /** Page margin reserved for crop marks (0 when marks are off), mm. */
+  marginMm: number;
+  /** Full page height in mm (for top-left → bottom-left y flips). */
+  pageHmm: number;
+}
+
+/**
+ * Shared page scaffolding for both PDF strategies: page sized to
+ * trim + bleed (+ mark margin), TrimBox/BleedBox in points, metadata.
+ */
+export function setupLabelPage(
+  pdf: PDFDocument,
+  options: {
+    widthMm: number;
+    heightMm: number;
+    bleedMm: number;
+    cropMarks: boolean;
+    title?: string;
+  },
+): LabelPageSetup {
   const { widthMm, heightMm, bleedMm, cropMarks } = options;
-  const margin = cropMarks ? MARK_SPACE_MM : 0;
+  const marginMm = cropMarks ? MARK_SPACE_MM : 0;
 
-  const pageWmm = widthMm + 2 * bleedMm + 2 * margin;
-  const pageHmm = heightMm + 2 * bleedMm + 2 * margin;
+  const pageWmm = widthMm + 2 * bleedMm + 2 * marginMm;
+  const pageHmm = heightMm + 2 * bleedMm + 2 * marginMm;
 
-  const pdf = await PDFDocument.create();
   pdf.setTitle(options.title ?? "Label");
   pdf.setProducer("Forge Labels");
   pdf.setCreator("Forge Labels");
 
   const page = pdf.addPage([mmToPt(pageWmm), mmToPt(pageHmm)]);
 
-  // Artwork (trim + bleed) at exact physical size.
-  const png = await pdf.embedPng(options.pngBytes);
-  page.drawImage(png, {
-    x: mmToPt(margin),
-    y: mmToPt(margin),
-    width: mmToPt(widthMm + 2 * bleedMm),
-    height: mmToPt(heightMm + 2 * bleedMm),
-  });
-
   // Print boxes: TrimBox = finished label; BleedBox = artwork extent.
   page.setTrimBox(
-    mmToPt(margin + bleedMm),
-    mmToPt(margin + bleedMm),
+    mmToPt(marginMm + bleedMm),
+    mmToPt(marginMm + bleedMm),
     mmToPt(widthMm),
     mmToPt(heightMm),
   );
   page.setBleedBox(
-    mmToPt(margin),
-    mmToPt(margin),
+    mmToPt(marginMm),
+    mmToPt(marginMm),
     mmToPt(widthMm + 2 * bleedMm),
     mmToPt(heightMm + 2 * bleedMm),
   );
 
+  return { page, marginMm, pageHmm };
+}
+
+export async function createSingleLabelPdf(
+  options: SingleLabelPdfOptions,
+): Promise<Uint8Array> {
+  const { widthMm, heightMm, bleedMm, cropMarks } = options;
+
+  const pdf = await PDFDocument.create();
+  const { page, marginMm } = setupLabelPage(pdf, options);
+
+  // Artwork (trim + bleed) at exact physical size.
+  const png = await pdf.embedPng(options.pngBytes);
+  page.drawImage(png, {
+    x: mmToPt(marginMm),
+    y: mmToPt(marginMm),
+    width: mmToPt(widthMm + 2 * bleedMm),
+    height: mmToPt(heightMm + 2 * bleedMm),
+  });
+
   if (cropMarks) {
     drawCropMarks(page, {
-      trimX: margin + bleedMm,
-      trimY: margin + bleedMm,
+      trimX: marginMm + bleedMm,
+      trimY: marginMm + bleedMm,
       trimW: widthMm,
       trimH: heightMm,
       bleedMm,
@@ -80,7 +110,7 @@ export async function createSingleLabelPdf(
   return pdf.save();
 }
 
-interface TrimRectMm {
+export interface TrimRectMm {
   trimX: number;
   trimY: number;
   trimW: number;
@@ -93,7 +123,7 @@ interface TrimRectMm {
  * trim edges, held clear of the bleed so they never print on the label.
  * Coordinates here are PDF points with the origin at the BOTTOM-left.
  */
-function drawCropMarks(page: PDFPage, rect: TrimRectMm): void {
+export function drawCropMarks(page: PDFPage, rect: TrimRectMm): void {
   const { trimX, trimY, trimW, trimH, bleedMm } = rect;
   const start = bleedMm + MARK_GAP_MM; // distance from trim edge to mark start
   const end = start + MARK_LENGTH_MM;

@@ -28,15 +28,24 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/toaster";
+import { classifyVectorability } from "@/lib/export/vector-doc";
 import { PreflightPanel } from "./preflight-panel";
 
-type ExportFormat = "png-sticker" | "png-print" | "jpg" | "pdf" | "svg" | "zip";
+type ExportFormat =
+  | "png-sticker"
+  | "png-print"
+  | "jpg"
+  | "pdf"
+  | "pdf-vector"
+  | "svg"
+  | "zip";
 
 const FORMAT_LABELS: Record<ExportFormat, string> = {
   "png-sticker": "PNG — die-cut sticker (transparent-capable)",
   "png-print": "PNG — print artwork with bleed",
   jpg: "JPG — flattened preview",
   pdf: "PDF — print-ready (TrimBox + BleedBox)",
+  "pdf-vector": "PDF — vector art (text outlined, editable)",
   svg: "SVG — vector (text outlined)",
   zip: "ZIP — every format bundled",
 };
@@ -127,6 +136,17 @@ export function ExportDialog({ doc, open, onOpenChange }: ExportDialogProps) {
         blob = new Blob([zipped as unknown as BlobPart], { type: "application/zip" });
         fileName = `${base}-package.zip`;
         kind = "zip";
+      } else if (format === "pdf-vector") {
+        const { exportVectorPdf } = await import("@/lib/export/pdf-vector-export");
+        const result = await exportVectorPdf(doc, { cropMarks, title: projectName });
+        if (result.warnings.length > 0) {
+          toast.info("Vector PDF notes", result.warnings.join(" • "));
+        }
+        blob = new Blob([result.bytes as unknown as BlobPart], {
+          type: "application/pdf",
+        });
+        fileName = `${base}-vector.pdf`;
+        kind = "pdf";
       } else if (format === "pdf") {
         // 600 DPI raster inside the PDF regardless of the preview DPI choice
         // keeps small text crisp; physical size comes from the PDF boxes.
@@ -170,7 +190,7 @@ export function ExportDialog({ doc, open, onOpenChange }: ExportDialogProps) {
         kind,
         fileName,
         byteSize: blob.size,
-        dpi: format === "pdf" ? 600 : dpi,
+        dpi: format === "pdf" || format === "pdf-vector" ? 600 : dpi,
       });
       toast.success("Export ready", fileName);
       onOpenChange(false);
@@ -211,7 +231,7 @@ export function ExportDialog({ doc, open, onOpenChange }: ExportDialogProps) {
             </Select>
           </div>
 
-          {format !== "pdf" && (
+          {format !== "pdf" && format !== "pdf-vector" && (
             <div className="space-y-1.5">
               <Label htmlFor="export-dpi">Resolution</Label>
               <Select
@@ -229,12 +249,14 @@ export function ExportDialog({ doc, open, onOpenChange }: ExportDialogProps) {
             </div>
           )}
 
-          {format === "pdf" && (
+          {(format === "pdf" || format === "pdf-vector") && (
             <div className="flex items-center justify-between">
               <Label htmlFor="export-marks">Crop marks</Label>
               <Switch id="export-marks" checked={cropMarks} onCheckedChange={setCropMarks} />
             </div>
           )}
+
+          {format === "pdf-vector" && <VectorabilityNote doc={doc} />}
 
           <PreflightPanel doc={doc} onJump={() => onOpenChange(false)} />
 
@@ -256,5 +278,28 @@ export function ExportDialog({ doc, open, onOpenChange }: ExportDialogProps) {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Which objects the vector PDF will embed as raster tiles, and why. */
+function VectorabilityNote({ doc }: { doc: LabelDocument }) {
+  const { rasterFallbacks } = React.useMemo(() => classifyVectorability(doc), [doc]);
+  if (rasterFallbacks.length === 0) {
+    return (
+      <Callout variant="info">
+        Every object exports as editable vector paths (text outlined to
+        glyphs).
+      </Callout>
+    );
+  }
+  const names = rasterFallbacks.slice(0, 3).map((f) => `“${f.name}”`);
+  const more = rasterFallbacks.length - names.length;
+  return (
+    <Callout variant="info">
+      {rasterFallbacks.length === 1 ? "1 object" : `${rasterFallbacks.length} objects`}{" "}
+      (gradients, finishes, shadows, or images) will be embedded as 600 DPI
+      raster tiles: {names.join(", ")}
+      {more > 0 ? ` and ${more} more` : ""}. Everything else stays vector.
+    </Callout>
   );
 }

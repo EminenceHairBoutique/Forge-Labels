@@ -276,8 +276,9 @@ export const BarcodeObjectSchema = z.object({
 export type BarcodeObject = z.infer<typeof BarcodeObjectSchema>;
 
 /**
- * Group: children use coordinates relative to the group's center, in the
- * group's unrotated local space. Nested groups are allowed.
+ * Group: children are positioned by their centers in the group's unrotated
+ * local space, with (0,0) at the group box's TOP-LEFT corner (see
+ * structure-commands' childToDocSpace). Nested groups are allowed.
  */
 export interface GroupObject extends z.infer<typeof GroupObjectBaseSchema> {
   type: "group";

@@ -1,5 +1,4 @@
-import * as fontkit from "fontkit";
-import type { Font, PathCommand } from "fontkit";
+import type { Font } from "fontkit";
 import bwipjs from "bwip-js/browser";
 import type {
   Background,
@@ -22,12 +21,14 @@ import { fontPtToMm } from "@/lib/geometry/units";
 import { applyTextTransform, resolveImageLayout } from "@/lib/render/node-configs";
 import { createQrMatrix, qrTotalModules } from "@/lib/codes/qr";
 import { validateBarcodeValue } from "@/lib/codes/validate";
+import { FontStore, fetchFontBytes } from "./font-store";
 import {
-  DEFAULT_FONT_ID,
-  fontFileUrl,
-  getFontFamily,
-  resolveWeight,
-} from "@/lib/fonts/registry";
+  curvedGlyphPlacements,
+  polygonPointsMm,
+  qrSquareRunsPathData,
+  starPointsMm,
+  straightTextLineData,
+} from "./vector-paths";
 import {
   bytesToBase64,
   escapeXml,
@@ -97,66 +98,6 @@ function warn(ctx: EmitContext, message: string): void {
 
 function objectLabel(obj: LabelObject): string {
   return obj.name || obj.id;
-}
-
-// ---------------------------------------------------------------------------
-// Fonts (fontkit works on plain Uint8Array in node and the browser)
-// ---------------------------------------------------------------------------
-
-async function fetchFontBytes(familyId: string, weight: number): Promise<ArrayBuffer> {
-  const res = await fetch(fontFileUrl(familyId, weight));
-  if (!res.ok) throw new Error(`HTTP ${res.status} for ${fontFileUrl(familyId, weight)}`);
-  return res.arrayBuffer();
-}
-
-class FontStore {
-  private cache = new Map<string, Promise<Font | null>>();
-
-  constructor(
-    private load: (familyId: string, weight: number) => Promise<ArrayBuffer>,
-    private onWarn: (message: string) => void,
-  ) {}
-
-  /** Resolve a document (family, weight) to a parsed font, warning + falling
-   *  back to Inter 400 when the family is unknown or its file fails to load. */
-  async get(familyId: string, weight: number): Promise<Font | null> {
-    const known = getFontFamily(familyId) !== undefined;
-    if (!known) {
-      this.onWarn(
-        `Font "${familyId}" is not available; substituted Inter 400 in the SVG export.`,
-      );
-    }
-    const famId = known ? familyId : DEFAULT_FONT_ID;
-    const resolved = resolveWeight(famId, known ? weight : 400);
-
-    let font = await this.getExact(famId, resolved);
-    if (!font) {
-      this.onWarn(
-        `Font file for "${famId}" (weight ${resolved}) could not be loaded; substituted Inter 400 in the SVG export.`,
-      );
-      if (!(famId === DEFAULT_FONT_ID && resolved === 400)) {
-        font = await this.getExact(DEFAULT_FONT_ID, 400);
-      }
-    }
-    return font;
-  }
-
-  private getExact(familyId: string, weight: number): Promise<Font | null> {
-    const key = `${familyId}:${weight}`;
-    let cached = this.cache.get(key);
-    if (!cached) {
-      cached = this.load(familyId, weight)
-        .then((bytes) => {
-          // fontkit's runtime accepts any Uint8Array; its .d.ts still says
-          // Buffer. No Buffer polyfill is required in the browser.
-          const parsed = fontkit.create(new Uint8Array(bytes) as unknown as Buffer);
-          return "fonts" in parsed ? (parsed.fonts[0] ?? null) : parsed;
-        })
-        .catch(() => null);
-      this.cache.set(key, cached);
-    }
-    return cached;
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -252,12 +193,7 @@ function emitLine(ctx: EmitContext, obj: LineObject): string {
 function emitPolygon(ctx: EmitContext, obj: PolygonObject): string {
   shadowCheck(ctx, obj);
   const paint = fillPaint(ctx, obj, obj.fill, { width: obj.widthMm, height: obj.heightMm });
-  const r = Math.min(obj.widthMm, obj.heightMm) / 2;
-  const pts: string[] = [];
-  for (let k = 0; k < obj.sides; k++) {
-    const a = ((-90 + (k * 360) / obj.sides) * Math.PI) / 180;
-    pts.push(`${fmt(r * Math.cos(a), 3)},${fmt(r * Math.sin(a), 3)}`);
-  }
+  const pts = polygonPointsMm(obj).map((p) => `${fmt(p.x, 3)},${fmt(p.y, 3)}`);
   const inner =
     `<polygon points="${pts.join(" ")}" fill="${paint}"${strokeAttrs(obj.stroke)}/>`;
   return wrap(obj, inner, true);
@@ -267,14 +203,7 @@ function emitPolygon(ctx: EmitContext, obj: PolygonObject): string {
 function emitStar(ctx: EmitContext, obj: StarObject): string {
   shadowCheck(ctx, obj);
   const paint = fillPaint(ctx, obj, obj.fill, { width: obj.widthMm, height: obj.heightMm });
-  const outer = Math.min(obj.widthMm, obj.heightMm) / 2;
-  const inner = outer * obj.innerRatio;
-  const pts: string[] = [];
-  for (let n = 0; n < obj.points * 2; n++) {
-    const radius = n % 2 === 0 ? outer : inner;
-    const a = ((-90 + (n * 180) / obj.points) * Math.PI) / 180;
-    pts.push(`${fmt(radius * Math.cos(a), 3)},${fmt(radius * Math.sin(a), 3)}`);
-  }
+  const pts = starPointsMm(obj).map((p) => `${fmt(p.x, 3)},${fmt(p.y, 3)}`);
   const markup =
     `<polygon points="${pts.join(" ")}" fill="${paint}"${strokeAttrs(obj.stroke)}/>`;
   return wrap(obj, markup, true);
@@ -283,81 +212,6 @@ function emitStar(ctx: EmitContext, obj: StarObject): string {
 // ---------------------------------------------------------------------------
 // Text — glyph outlines
 // ---------------------------------------------------------------------------
-
-/**
- * Serialize a glyph outline (font units, y-up) into absolute mm-space path
- * data: x → ox + x·scale, y → oy − y·scale (the sign flip converts the
- * font's y-up axis to SVG's y-down axis). Baking the full transform into the
- * path keeps userSpaceOnUse gradients correct and needs no nested scaling.
- */
-function glyphPathData(
-  commands: PathCommand[],
-  scale: number,
-  ox: number,
-  oy: number,
-): string {
-  const px = (x: number) => fmt(ox + x * scale, 3);
-  const py = (y: number) => fmt(oy - y * scale, 3);
-  let d = "";
-  for (const cmd of commands) {
-    const a = cmd.args;
-    switch (cmd.command) {
-      case "moveTo":
-        d += `M${px(a[0]!)} ${py(a[1]!)}`;
-        break;
-      case "lineTo":
-        d += `L${px(a[0]!)} ${py(a[1]!)}`;
-        break;
-      case "quadraticCurveTo":
-        d += `Q${px(a[0]!)} ${py(a[1]!)} ${px(a[2]!)} ${py(a[3]!)}`;
-        break;
-      case "bezierCurveTo":
-        d +=
-          `C${px(a[0]!)} ${py(a[1]!)} ${px(a[2]!)} ${py(a[3]!)}` +
-          ` ${px(a[4]!)} ${py(a[5]!)}`;
-        break;
-      case "closePath":
-        d += "Z";
-        break;
-    }
-  }
-  return d;
-}
-
-interface GlyphRunMetrics {
-  glyphs: { commands: PathCommand[]; xOffset: number; yOffset: number }[];
-  /** Per-glyph advance in mm (font advance only, letter spacing excluded). */
-  advancesMm: number[];
-  /** Total run width in mm including letter spacing between glyphs. */
-  widthMm: number;
-}
-
-function layoutRun(font: Font, text: string, scale: number, letterSpacingMm: number): GlyphRunMetrics {
-  const run = font.layout(text);
-  const glyphs: GlyphRunMetrics["glyphs"] = [];
-  const advancesMm: number[] = [];
-  let widthMm = 0;
-  for (let i = 0; i < run.glyphs.length; i++) {
-    const glyph = run.glyphs[i]!;
-    const pos = run.positions[i]!;
-    glyphs.push({
-      commands: glyph.path.commands,
-      xOffset: pos.xOffset * scale,
-      yOffset: pos.yOffset * scale,
-    });
-    const adv = pos.xAdvance * scale;
-    advancesMm.push(adv);
-    widthMm += adv;
-  }
-  if (glyphs.length > 1) widthMm += letterSpacingMm * (glyphs.length - 1);
-  return { glyphs, advancesMm, widthMm };
-}
-
-function alignOffset(align: TextObject["align"], boxWidth: number, lineWidth: number): number {
-  if (align === "center") return (boxWidth - lineWidth) / 2;
-  if (align === "right") return boxWidth - lineWidth;
-  return 0;
-}
 
 async function emitText(ctx: EmitContext, obj: TextObject): Promise<string> {
   shadowCheck(ctx, obj);
@@ -407,11 +261,8 @@ async function emitText(ctx: EmitContext, obj: TextObject): Promise<string> {
 }
 
 /**
- * Straight text: split on newlines, no wrapping (the editor keeps heightMm in
- * sync with the measured text, so stored documents fit their boxes).
- * Vertical metrics replicate Konva's line boxes: each line occupies
- * lineHeight·fontSize with the glyph baseline at
- * ascender + (lineHeight − 1)·fontSize/2 from the box top (half-leading).
+ * Straight text: shared line layout from vector-paths (Konva half-leading
+ * metrics), serialized here as <path> elements.
  */
 function emitStraightLines(
   font: Font,
@@ -421,39 +272,14 @@ function emitStraightLines(
   scale: number,
   letterSpacingMm: number,
 ): string[] {
-  const ascenderMm = (font.ascent / font.unitsPerEm) * fontSizeMm;
-  const halfLeadingMm = ((obj.lineHeight - 1) * fontSizeMm) / 2;
-  const lineHeightMm = obj.lineHeight * fontSizeMm;
-
-  const paths: string[] = [];
-  const lines = text.split("\n");
-  for (let index = 0; index < lines.length; index++) {
-    const line = lines[index]!;
-    if (line.length === 0) continue;
-    const run = layoutRun(font, line, scale, letterSpacingMm);
-    if (run.glyphs.length === 0) continue;
-
-    const baselineY = halfLeadingMm + ascenderMm + index * lineHeightMm;
-    let penX = alignOffset(obj.align, obj.widthMm, run.widthMm);
-    let d = "";
-    for (let i = 0; i < run.glyphs.length; i++) {
-      const g = run.glyphs[i]!;
-      d += glyphPathData(g.commands, scale, penX + g.xOffset, baselineY - g.yOffset);
-      penX += run.advancesMm[i]! + letterSpacingMm;
-    }
-    if (d) paths.push(`<path d="${d}"/>`);
-  }
-  return paths;
+  return straightTextLineData(font, obj, text, fontSizeMm, scale, letterSpacingMm).map(
+    (d) => `<path d="${d}"/>`,
+  );
 }
 
 /**
- * Curved text: glyphs on a circle of curve.radiusMm centered at the object's
- * (xMm, yMm) — the same geometry as curvedTextPathData. Direction "up" runs
- * clockwise over the top semicircle (apex at 270° in SVG's y-down angles),
- * "down" counterclockwise under the bottom (apex at 90°); the run is centered
- * on the apex. Each glyph's pen point sits on the circle (the radius reaches
- * the baseline) and the glyph is rotated to the chord orientation across its
- * own advance — identical to Konva.TextPath's per-glyph placement.
+ * Curved text: shared circle placement from vector-paths (identical to
+ * Konva.TextPath's per-glyph geometry), serialized as transformed <path>s.
  */
 function emitCurvedGlyphs(
   font: Font,
@@ -462,42 +288,10 @@ function emitCurvedGlyphs(
   scale: number,
   letterSpacingMm: number,
 ): string[] {
-  const curve = obj.curve!;
-  const singleLine = text.replace(/\s*\n\s*/g, " ");
-  const run = layoutRun(font, singleLine, scale, letterSpacingMm);
-  if (run.glyphs.length === 0) return [];
-
-  const r = curve.radiusMm;
-  const degPerMm = 180 / (Math.PI * r);
-  const up = curve.direction === "up";
-  const apexDeg = up ? 270 : 90;
-  const startDeg = up
-    ? apexDeg - (run.widthMm / 2) * degPerMm
-    : apexDeg + (run.widthMm / 2) * degPerMm;
-
-  const paths: string[] = [];
-  let distMm = 0;
-  for (let i = 0; i < run.glyphs.length; i++) {
-    const g = run.glyphs[i]!;
-    const advDeg = run.advancesMm[i]! * degPerMm;
-    const penDeg = up ? startDeg + distMm * degPerMm : startDeg - distMm * degPerMm;
-    const midDeg = up ? penDeg + advDeg / 2 : penDeg - advDeg / 2;
-    const rotateDeg = (((up ? midDeg + 90 : midDeg - 90) % 360) + 360) % 360;
-
-    const rad = (penDeg * Math.PI) / 180;
-    const gx = r * Math.cos(rad);
-    const gy = r * Math.sin(rad);
-    const d = glyphPathData(g.commands, scale, g.xOffset, -g.yOffset);
-    if (!d) {
-      distMm += run.advancesMm[i]! + letterSpacingMm;
-      continue;
-    }
-    paths.push(
-      `<path transform="translate(${fmt(gx, 3)} ${fmt(gy, 3)}) rotate(${fmt(rotateDeg, 3)})" d="${d}"/>`,
-    );
-    distMm += run.advancesMm[i]! + letterSpacingMm;
-  }
-  return paths;
+  return curvedGlyphPlacements(font, obj.curve!, text, scale, letterSpacingMm).map(
+    (p) =>
+      `<path transform="translate(${fmt(p.gxMm, 3)} ${fmt(p.gyMm, 3)}) rotate(${fmt(p.rotateDeg, 3)})" d="${p.d}"/>`,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -632,20 +426,7 @@ function emitQr(ctx: EmitContext, obj: QrObject): string {
   switch (obj.moduleShape) {
     case "square": {
       // One path; horizontal runs of dark modules merge into single subpaths.
-      let d = "";
-      for (let y = 0; y < matrix.size; y++) {
-        let x = 0;
-        while (x < matrix.size) {
-          if (!matrix.get(x, y)) {
-            x++;
-            continue;
-          }
-          let len = 1;
-          while (x + len < matrix.size && matrix.get(x + len, y)) len++;
-          d += `M${x + q} ${y + q}h${len}v1h-${len}z`;
-          x += len;
-        }
-      }
+      const d = qrSquareRunsPathData(matrix, q);
       if (d) parts.push(`<path d="${d}" fill="${fg}"/>`);
       break;
     }
