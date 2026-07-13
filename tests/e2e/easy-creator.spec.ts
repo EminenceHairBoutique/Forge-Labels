@@ -123,6 +123,27 @@ test.describe("easy editor", () => {
     await expect(page.getByLabel(/product name/i)).toHaveValue("Roundtrip Serum");
   });
 
+  test("material changes after creation, with an honest holographic intensity control", async ({
+    page,
+  }) => {
+    await runWizard(page, {
+      vial: /10 mL vial/i,
+      material: /plain/i,
+      product: "Switcher",
+    });
+    await page.getByRole("button", { name: /change material/i }).click();
+    // Plain has no varying effect — no intensity control.
+    await expect(page.getByText(/how much holographic effect/i)).toHaveCount(0);
+
+    await page.getByRole("button", { name: /holographic/i }).first().click();
+    await expect(page.getByText(/how much holographic effect/i)).toBeVisible();
+    await expect(page.getByText(/simulation/i).first()).toBeVisible();
+    await page.getByRole("button", { name: /^maximum$/i }).click();
+    // The engine pass lands as a document change (undo becomes available).
+    await page.waitForTimeout(600);
+    await expect(page.getByRole("button", { name: /^undo$/i })).toBeEnabled();
+  });
+
   test("advanced-only projects redirect to the Advanced Editor", async ({ page }) => {
     // Created through the classic dialog — no Easy metadata.
     await page.goto("/dashboard");

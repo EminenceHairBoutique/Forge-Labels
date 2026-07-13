@@ -6,9 +6,10 @@ import { loadFont } from "@/lib/fonts/registry";
 import { measureTextHeightMm } from "@/lib/render/text-measure";
 import type { EasyMeta, LabelDocument, LabelObject } from "@/lib/document/schema";
 import { getEasyPalette } from "./palettes";
-import { getMaterial, getMaterialOption, type Intensity } from "./materials";
+import { getMaterial, getMaterialOption } from "./materials";
 import { getEasyTemplate, type EasyTemplateDef } from "./templates";
 import { buildEasyLabel, mergeEasyObjects } from "./instantiate";
+import { nextEasyMeta, type EasyChange } from "./meta";
 import { isSlotId, SLOTS, type SlotId } from "./slots";
 
 /**
@@ -53,14 +54,7 @@ export function readEasyState(doc: LabelDocument): EasyState | null {
   return { meta: doc.easy, fields, enabled, stash };
 }
 
-export interface EasyChange {
-  field?: { slot: SlotId; value: string };
-  toggle?: { slot: SlotId; on: boolean };
-  paletteId?: string;
-  templateId?: string;
-  material?: { materialId: string; optionId: string };
-  intensity?: Intensity;
-}
+export type { EasyChange } from "./meta";
 
 /** Load the fonts a template needs before measuring with real metrics. */
 export async function ensureEasyFonts(template: EasyTemplateDef): Promise<void> {
@@ -91,14 +85,7 @@ async function applyEasyChangeNow(change: EasyChange): Promise<string[]> {
   const state = readEasyState(doc);
   if (!state) return [];
 
-  const meta: EasyMeta = { ...state.meta };
-  if (change.paletteId) meta.paletteId = change.paletteId;
-  if (change.templateId) meta.templateId = change.templateId;
-  if (change.intensity) meta.intensity = change.intensity;
-  if (change.material) {
-    meta.materialId = change.material.materialId;
-    meta.materialOptionId = change.material.optionId;
-  }
+  const meta = nextEasyMeta(state.meta, change);
 
   const template = getEasyTemplate(meta.templateId);
   const material = getMaterial(meta.materialId);

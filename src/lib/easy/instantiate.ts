@@ -65,6 +65,7 @@ interface EffectPlan {
   finishBackground: boolean;
   heroPanel: boolean;
   footerPanel: boolean;
+  heroAccentPanel: boolean;
 }
 
 function effectPlan(
@@ -82,6 +83,10 @@ function effectPlan(
     heroPanel:
       material.rules.contrastPanelOnFullEffect && coverage === "panel" && hasFinish,
     footerPanel: material.rules.contrastPanelOnFullEffect && fullEffectBg,
+    // Finish-less materials (neon) at high intensity: the hero sits on an
+    // accent-colored panel with onAccent text — loud, but still readable.
+    heroAccentPanel:
+      !hasFinish && (coverage === "panel" || coverage === "background"),
   };
 }
 
@@ -276,7 +281,14 @@ export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
       letterSpacingEm: row.letterSpacingEm ?? 0,
       align: template.align === "center" && !isFooter ? "center" : template.align,
       textTransform: row.casing === "uppercase" ? "uppercase" : "none",
-      fill: { type: "solid", color: roleColor(palette, row.color) },
+      fill: {
+        type: "solid",
+        color: roleColor(
+          palette,
+          // Hero text sits on the accent panel at high neon intensity.
+          plan.heroAccentPanel && row.zone === "hero" ? "onAccent" : row.color,
+        ),
+      },
       autoFit: false,
     };
 
@@ -350,7 +362,7 @@ export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
   if (heroRows.length > 0) {
     const heroTop = Math.min(...heroRows.map((o) => o.yMm - o.heightMm / 2));
     const heroBottom = Math.max(...heroRows.map((o) => o.yMm + o.heightMm / 2));
-    if (plan.heroPanel) {
+    if (plan.heroPanel || plan.heroAccentPanel) {
       const pad = 1.6 * scaleH;
       objects.push(rect({
         slot: "accent:hero-panel",
@@ -358,7 +370,12 @@ export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
         yMm: MM((heroTop + heroBottom) / 2),
         widthMm: MM(Math.min(safeW + pad, widthMm - 2)),
         heightMm: MM(heroBottom - heroTop + pad * 2),
-        fill: { type: "solid", color: palette.bg ?? (palette.dark ? "#141418" : "#ffffff") },
+        fill: {
+          type: "solid",
+          color: plan.heroAccentPanel
+            ? palette.accent
+            : (palette.bg ?? (palette.dark ? "#141418" : "#ffffff")),
+        },
         cornerRadiusMm: 1,
       }));
     }

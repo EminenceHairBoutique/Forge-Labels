@@ -8,7 +8,7 @@ import { loadDocument, undo } from "@/lib/document/commands";
 import { ensureFinishesRegistered } from "@/lib/finishes";
 import { loadFontsForDocument } from "@/lib/fonts/registry";
 import { getEasyPalette } from "@/lib/easy/palettes";
-import { getMaterial } from "@/lib/easy/materials";
+import { getMaterial, getMaterialOption } from "@/lib/easy/materials";
 import { applyEasyChange } from "@/lib/easy/fields";
 import { getStorageAdapter } from "@/lib/storage";
 import { useCanUndoRedo, useDoc } from "@/stores/document-store";
@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toaster";
 import { ContentForm } from "./content-form";
+import { MaterialPicker } from "./material-picker";
 import { VialStage } from "./vial-stage";
 import { cn } from "@/lib/utils";
 
@@ -110,6 +111,9 @@ export function EasyEditor({ projectId }: { projectId: string }) {
   }
 
   const material = getMaterial(doc.easy.materialId);
+  const option = material
+    ? getMaterialOption(material, doc.easy.materialOptionId)
+    : undefined;
   const palettes = material?.paletteIds.map(getEasyPalette) ?? [];
 
   return (
@@ -209,6 +213,16 @@ export function EasyEditor({ projectId }: { projectId: string }) {
             </section>
           )}
 
+          <MaterialSection
+            materialName={material?.name}
+            optionName={option?.name}
+            selection={{
+              materialId: doc.easy.materialId,
+              optionId: doc.easy.materialOptionId,
+              intensity: doc.easy.intensity ?? material?.defaultIntensity ?? "balanced",
+            }}
+          />
+
           <section aria-label="Label information" className="space-y-2">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Label information
@@ -232,6 +246,52 @@ export function EasyEditor({ projectId }: { projectId: string }) {
 
       <ExportDialog doc={doc} open={exportOpen} onOpenChange={setExportOpen} />
     </div>
+  );
+}
+
+function MaterialSection({
+  materialName,
+  optionName,
+  selection,
+}: {
+  materialName?: string;
+  optionName?: string;
+  selection: { materialId: string; optionId: string; intensity: "subtle" | "balanced" | "bold" | "maximum" };
+}) {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <section aria-label="Material" className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Material
+        </p>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 text-xs text-primary"
+          onClick={() => setOpen((o) => !o)}
+        >
+          {open ? "Done" : "Change material"}
+        </Button>
+      </div>
+      {!open ? (
+        <p className="text-sm text-muted-foreground">
+          {materialName ?? "Material"}
+          {optionName ? ` — ${optionName}` : ""}
+        </p>
+      ) : (
+        <MaterialPicker
+          compact
+          value={selection}
+          onChange={(next) => {
+            void applyEasyChange({
+              material: { materialId: next.materialId, optionId: next.optionId },
+              intensity: next.intensity,
+            });
+          }}
+        />
+      )}
+    </section>
   );
 }
 

@@ -9,6 +9,7 @@ import { getMaterial } from "./materials";
 import { EASY_TEMPLATES } from "./templates";
 import { recommendTemplates } from "./recommend";
 import { approximateMeasure, fitRow, squeezeFactor, stackZones } from "./layout";
+import { nextEasyMeta } from "./meta";
 import type { SlotId } from "./slots";
 
 function textObjects(objects: readonly LabelObject[]): TextObject[] {
@@ -146,6 +147,80 @@ describe("buildEasyDocument", () => {
       expect(qr.bgColor).toBe("#ffffff"); // opaque backing on busy material
       expect(qr.fgColor).toBe("#000000");
     }
+  });
+});
+
+describe("material-aware rules", () => {
+  it("neon at maximum intensity puts the hero on an accent panel with readable text", () => {
+    const doc = buildEasyDocument(
+      spec({
+        materialId: "neon",
+        materialOptionId: "neon-pink",
+        paletteId: "neon-cyan-magenta",
+        intensity: "maximum",
+      }),
+    );
+    const panel = doc.objects.find((o) => o.slot === "accent:hero-panel");
+    expect(panel?.type).toBe("rect");
+    if (panel?.type === "rect" && panel.fill.type === "solid") {
+      expect(panel.fill.color).toBe("#e11ec9"); // the palette accent
+    }
+    const name = textObjects(doc.objects).find((o) => o.slot === "product-name")!;
+    expect(name.fill).toEqual({ type: "solid", color: "#ffffff" }); // onAccent
+  });
+
+  it("neon at subtle intensity keeps the plain background and no panel", () => {
+    const doc = buildEasyDocument(
+      spec({
+        materialId: "neon",
+        materialOptionId: "neon-pink",
+        paletteId: "neon-cyan-magenta",
+        intensity: "subtle",
+      }),
+    );
+    expect(doc.objects.some((o) => o.slot === "accent:hero-panel")).toBe(false);
+    expect(doc.background.type).toBe("solid");
+  });
+
+  it("declares sheen only for glossy and matte (preview-only property)", () => {
+    expect(getMaterial("glossy")!.rules.sheen).toBe("gloss");
+    expect(getMaterial("matte")!.rules.sheen).toBe("matte");
+    expect(getMaterial("plain")!.rules.sheen).toBeUndefined();
+    expect(getMaterial("holographic")!.rules.sheen).toBeUndefined();
+  });
+});
+
+describe("nextEasyMeta (material switching)", () => {
+  const base = {
+    templateId: "clinical-frame",
+    materialId: "holographic",
+    materialOptionId: "rainbow-prism",
+    intensity: "bold" as const,
+    paletteId: "holo-black",
+  };
+
+  it("keeps the palette when the new material offers it", () => {
+    const meta = nextEasyMeta(
+      { ...base, paletteId: "silver-black" },
+      { material: { materialId: "metallic", optionId: "gold-metallic" } },
+    );
+    expect(meta.paletteId).toBe("silver-black"); // metallic offers it too
+    expect(meta.materialOptionId).toBe("gold-metallic");
+  });
+
+  it("falls back to the new material's default palette and intensity", () => {
+    const meta = nextEasyMeta(base, {
+      material: { materialId: "plain", optionId: "plain-white" },
+    });
+    expect(meta.paletteId).toBe("white-black");
+    expect(meta.intensity).toBe("subtle"); // plain's default, not holo's bold
+  });
+
+  it("revalidates an option id that belongs to the old material", () => {
+    const meta = nextEasyMeta(base, {
+      material: { materialId: "neon", optionId: "rainbow-prism" },
+    });
+    expect(meta.materialOptionId).toBe("neon-pink"); // neon's default
   });
 });
 

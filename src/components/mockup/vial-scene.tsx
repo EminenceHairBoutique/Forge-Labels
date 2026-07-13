@@ -40,6 +40,11 @@ interface VialSceneProps {
    * drag freely afterwards.
    */
   viewAzimuthDeg?: number;
+  /**
+   * Simulated surface finish of the label STOCK (glossy laminate, matte
+   * film) — affects reflectivity only, never the artwork colors.
+   */
+  labelSheen?: "gloss" | "matte" | "standard";
 }
 
 /** Applies view-button jumps to the (makeDefault) OrbitControls. */
@@ -174,12 +179,22 @@ function Cap({ vial }: { vial: VialSpec }) {
   }
 }
 
+const SHEEN_PRESETS = {
+  gloss: { roughness: 0.12, clearcoat: 0.9, clearcoatRoughness: 0.08 },
+  matte: { roughness: 0.92, clearcoat: 0, clearcoatRoughness: 0 },
+  standard: { roughness: 0.6, clearcoat: 0, clearcoatRoughness: 0 },
+} as const;
+
 function VialModel({
   vial,
   labelWidthMm,
   labelHeightMm,
   labelCanvas,
-}: Pick<VialSceneProps, "vial" | "labelWidthMm" | "labelHeightMm" | "labelCanvas">) {
+  labelSheen = "standard",
+}: Pick<
+  VialSceneProps,
+  "vial" | "labelWidthMm" | "labelHeightMm" | "labelCanvas" | "labelSheen"
+>) {
   const invalidate = useThree((s) => s.invalidate);
   const bodyR = vial.diameterMm / 2;
   const bodyH = Math.max(
@@ -268,10 +283,12 @@ function VialModel({
               thetaLength,
             ]}
           />
-          <meshStandardMaterial
+          <meshPhysicalMaterial
             map={texture}
             transparent
-            roughness={0.6}
+            roughness={SHEEN_PRESETS[labelSheen].roughness}
+            clearcoat={SHEEN_PRESETS[labelSheen].clearcoat}
+            clearcoatRoughness={SHEEN_PRESETS[labelSheen].clearcoatRoughness}
             metalness={0.02}
             side={THREE.FrontSide}
             polygonOffset
@@ -303,6 +320,7 @@ export const VialScene = React.forwardRef<VialSceneHandle, VialSceneProps>(
       settings = DEFAULT_MOCKUP_SETTINGS,
       className,
       viewAzimuthDeg,
+      labelSheen,
     },
     ref,
   ) {
@@ -350,6 +368,7 @@ export const VialScene = React.forwardRef<VialSceneHandle, VialSceneProps>(
             labelWidthMm={labelWidthMm}
             labelHeightMm={labelHeightMm}
             labelCanvas={labelCanvas}
+            labelSheen={labelSheen}
           />
           <OrbitControls
             makeDefault

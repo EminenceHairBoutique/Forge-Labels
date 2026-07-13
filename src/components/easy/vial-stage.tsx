@@ -4,6 +4,7 @@ import * as React from "react";
 import dynamic from "next/dynamic";
 import { Moon, RectangleHorizontal, Rotate3d, Sun } from "lucide-react";
 import type { LabelDocument } from "@/lib/document/schema";
+import { getMaterial } from "@/lib/easy/materials";
 import { useLabelTexture } from "@/components/mockup/use-label-texture";
 import {
   DEFAULT_MOCKUP_SETTINGS,
@@ -63,6 +64,11 @@ export function VialStage({
   };
 
   const show3d = webgl && !flat;
+  // Glossy/matte materials change the label's REFLECTIVITY on the vial,
+  // never the artwork colors — the "finish vs. design color" separation.
+  const sheen = doc.easy
+    ? (getMaterial(doc.easy.materialId)?.rules.sheen ?? "standard")
+    : "standard";
 
   return (
     <div className={cn("flex flex-col gap-2", className)}>
@@ -77,6 +83,7 @@ export function VialStage({
             // The imperceptible nonce offset re-triggers the snap effect on
             // repeat clicks of the same view button.
             viewAzimuthDeg={view ? view.azimuth + view.nonce * 1e-4 : undefined}
+            labelSheen={sheen}
             className="h-full w-full"
           />
         ) : (

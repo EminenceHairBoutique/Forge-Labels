@@ -52,6 +52,11 @@ export interface MaterialRules {
   transparentSubstrate: boolean;
   /** Plain-language note about white ink on clear/metallic stock. */
   whiteInkNote?: string;
+  /**
+   * Surface sheen simulated on the 3D vial preview (never in the artwork —
+   * "material finish" stays separate from "design color").
+   */
+  sheen?: "gloss" | "matte";
 }
 
 export interface MaterialDef {
@@ -234,7 +239,7 @@ export const MATERIALS: readonly MaterialDef[] = [
     defaultOptionId: "high-gloss",
     defaultPaletteId: "gloss-black-gold",
     defaultIntensity: "balanced",
-    rules: { ...NO_EFFECT_RULES },
+    rules: { ...NO_EFFECT_RULES, sheen: "gloss" },
   },
   {
     id: "plain",
@@ -271,7 +276,7 @@ export const MATERIALS: readonly MaterialDef[] = [
     defaultOptionId: "matte-soft",
     defaultPaletteId: "white-black",
     defaultIntensity: "subtle",
-    rules: { ...NO_EFFECT_RULES },
+    rules: { ...NO_EFFECT_RULES, sheen: "matte" },
   },
   {
     id: "clear",
