@@ -39,6 +39,7 @@ type ExportFormat =
   | "pdf"
   | "pdf-vector"
   | "svg"
+  | "tiff"
   | "separations"
   | "zip";
 
@@ -49,6 +50,7 @@ const FORMAT_LABELS: Record<ExportFormat, string> = {
   pdf: "PDF — print-ready (TrimBox + BleedBox)",
   "pdf-vector": "PDF — vector art (text outlined, editable)",
   svg: "SVG — vector (text outlined)",
+  tiff: "TIFF — print artwork with bleed (LZW)",
   separations: "Separations — one PNG per print layer (ZIP)",
   zip: "ZIP — every format bundled",
 };
@@ -94,9 +96,26 @@ export function ExportDialog({ doc, open, onOpenChange }: ExportDialogProps) {
       const base = `${sanitizeFileName(projectName)}-${doc.label.widthMm.toFixed(0)}x${doc.label.heightMm.toFixed(0)}mm`;
       let fileName: string;
       let blob: Blob;
-      let kind: "png" | "jpg" | "pdf" | "svg" | "zip" | "separations";
+      let kind: "png" | "jpg" | "pdf" | "svg" | "zip" | "separations" | "tiff";
 
-      if (format === "separations") {
+      if (format === "tiff") {
+        // Render the DPI-exact PNG client-side, transcode server-side.
+        const raster = await exportRaster(doc, { dpi, mode: "print", format: "png" });
+        const res = await fetch(`/api/export/tiff?dpi=${dpi}`, {
+          method: "POST",
+          headers: { "Content-Type": "image/png" },
+          body: raster.blob,
+        });
+        if (!res.ok) {
+          const detail = (await res.json().catch(() => null)) as {
+            error?: string;
+          } | null;
+          throw new Error(detail?.error ?? `TIFF conversion failed (HTTP ${res.status}).`);
+        }
+        blob = await res.blob();
+        fileName = `${base}-print-${dpi}dpi.tiff`;
+        kind = "tiff";
+      } else if (format === "separations") {
         const { exportSeparations } = await import("@/lib/export/separations");
         const result = await exportSeparations(doc, { baseName: base, dpi: 600 });
         blob = result.blob;
