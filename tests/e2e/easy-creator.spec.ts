@@ -244,6 +244,85 @@ test.describe("design variations and product family", () => {
   });
 });
 
+test.describe("plain-language print experience", () => {
+  test("exports a home-print sheet from a plain white label", async ({ page }) => {
+    await runWizard(page, {
+      vial: /10 mL vial/i,
+      material: /plain/i,
+      product: "Home Print Serum",
+    });
+    await page.getByRole("button", { name: /download \/ print/i }).click();
+    await expect(page.getByText(/how will you use your label\?/i)).toBeVisible();
+    await page.getByRole("button", { name: /print at home/i }).click();
+    await page.getByRole("button", { name: /US Letter/i }).click();
+
+    const download = page.waitForEvent("download");
+    await page.getByRole("button", { name: /make my print sheet/i }).click();
+    const file = await download;
+    expect(file.suggestedFilename()).toMatch(/print-sheet\.pdf$/);
+    const stream = await file.createReadStream();
+    const first = await new Promise<Buffer>((resolve) => {
+      stream.once("data", (chunk) => resolve(chunk as Buffer));
+    });
+    expect(first.subarray(0, 5).toString()).toBe("%PDF-");
+  });
+
+  test("warns in plain language and one-click fixes the QR size", async ({ page }) => {
+    await runWizard(page, {
+      vial: /10 mL vial/i,
+      material: /plain/i,
+      product: "QR Serum",
+    });
+    // Enable a QR — on a small vial its modules start below the floor.
+    await page.getByRole("switch", { name: /show qr code/i }).click();
+    await page.getByLabel("QR code", { exact: true }).fill("https://example.com");
+    await page.waitForTimeout(900);
+
+    await page.getByRole("button", { name: /download \/ print/i }).click();
+    await expect(page.getByText(/too small to scan reliably/i)).toBeVisible();
+    // No jargon anywhere in the checks list.
+    await expect(page.getByText(/module/i)).toHaveCount(0);
+
+    await page.getByRole("button", { name: /make the qr code bigger/i }).click();
+    await expect(page.getByText(/too small to scan reliably/i)).toHaveCount(0, {
+      timeout: 10_000,
+    });
+  });
+
+  test("professional package bundles the PDF with a specification sheet", async ({
+    page,
+  }) => {
+    await runWizard(page, {
+      vial: /10 mL vial/i,
+      material: /plain/i,
+      product: "Pro Pack Serum",
+    });
+    await page.getByRole("button", { name: /download \/ print/i }).click();
+    await page.getByRole("button", { name: /professional printer/i }).click();
+    const download = page.waitForEvent("download");
+    await page.getByRole("button", { name: /download printer package/i }).click();
+    expect((await download).suggestedFilename()).toMatch(/for-printer\.zip$/);
+  });
+});
+
+test.describe("onboarding", () => {
+  test("welcomes first-time visitors once, with a plain 5-step promise", async ({
+    page,
+  }) => {
+    await page.goto("/dashboard");
+    await page.evaluate(() => window.localStorage.removeItem("forge-labels:onboarded:v1"));
+    await page.reload();
+    await expect(page.getByText(/welcome to forge labels/i)).toBeVisible();
+    await expect(page.getByText(/you don't need design experience/i)).toBeVisible();
+    await page.getByRole("button", { name: /skip for now/i }).click();
+    await expect(page.getByText(/welcome to forge labels/i)).toHaveCount(0);
+    await page.reload();
+    // The first-run check is deferred a tick — give it time to (not) fire.
+    await page.waitForTimeout(1200);
+    await expect(page.getByText(/welcome to forge labels/i)).toHaveCount(0);
+  });
+});
+
 test.describe("beginner dashboard", () => {
   test("empty state asks what to make and leads with the guided flow", async ({
     page,

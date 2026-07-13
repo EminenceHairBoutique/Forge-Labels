@@ -23,6 +23,17 @@ export default defineConfig({
   use: {
     baseURL: BASE_URL,
     trace: "on-first-retry",
+    // Pre-mark first-run onboarding as seen so the welcome dialog doesn't
+    // block unrelated flows; the onboarding spec clears this itself.
+    storageState: {
+      cookies: [],
+      origins: [
+        {
+          origin: BASE_URL,
+          localStorage: [{ name: "forge-labels:onboarded:v1", value: "1" }],
+        },
+      ],
+    },
   },
   projects: [
     {

@@ -413,6 +413,8 @@ export const EasyMetaSchema = z.object({
       tight: z.boolean().optional(),
       /** Larger small print (Easier to read). */
       textBoost: z.boolean().optional(),
+      /** Larger QR code (fix for "too small to scan"). */
+      qrBoost: z.boolean().optional(),
     })
     .optional(),
 });

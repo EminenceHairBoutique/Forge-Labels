@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toaster";
 import { ContentForm } from "./content-form";
+import { ExportWizard } from "./export-wizard";
 import { MaterialPicker } from "./material-picker";
 import { MatchingLabelDialog } from "./matching-label-dialog";
 import { VialStage } from "./vial-stage";
@@ -39,6 +40,7 @@ export function EasyEditor({ projectId }: { projectId: string }) {
   const router = useRouter();
   const [loadState, setLoadState] = React.useState<LoadState>("loading");
   const [exportOpen, setExportOpen] = React.useState(false);
+  const [advancedExportOpen, setAdvancedExportOpen] = React.useState(false);
   const [matchingOpen, setMatchingOpen] = React.useState(false);
   const doc = useDoc();
   const projectName = useProjectSessionStore((s) => s.projectName);
@@ -261,7 +263,17 @@ export function EasyEditor({ projectId }: { projectId: string }) {
         </div>
       </main>
 
-      <ExportDialog doc={doc} open={exportOpen} onOpenChange={setExportOpen} />
+      <ExportWizard
+        doc={doc}
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        onAdvanced={() => setAdvancedExportOpen(true)}
+      />
+      <ExportDialog
+        doc={doc}
+        open={advancedExportOpen}
+        onOpenChange={setAdvancedExportOpen}
+      />
       <MatchingLabelDialog
         doc={doc}
         open={matchingOpen}

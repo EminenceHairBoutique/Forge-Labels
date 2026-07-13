@@ -38,6 +38,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toaster";
 import { NewLabelDialog } from "@/components/studio/new-label-dialog";
+import { Onboarding } from "@/components/easy/onboarding";
 
 function timeAgo(ts: number): string {
   const seconds = Math.floor((Date.now() - ts) / 1000);
@@ -156,6 +157,7 @@ export function ProjectsView() {
 
   return (
     <div className="space-y-6">
+      <Onboarding />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-display text-2xl font-bold tracking-tight">Your labels</h1>

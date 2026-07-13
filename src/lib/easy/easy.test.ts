@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { migrateDocument } from "@/lib/document/migrate";
+import { runPreflight } from "@/lib/preflight/rules";
 import { createDocument } from "@/lib/document/defaults";
 import { parseLabelDocument, type LabelObject, type TextObject } from "@/lib/document/schema";
 import { getVialPreset } from "@/lib/vials/presets";
@@ -16,6 +17,8 @@ import { EASY_TEMPLATES, getEasyTemplate } from "./templates";
 import { recommendTemplates } from "./recommend";
 import { approximateMeasure, fitRow, squeezeFactor, stackZones } from "./layout";
 import { nextEasyMeta } from "./meta";
+import { toPlainIssues } from "./plain-preflight";
+import { buildSpecSheet } from "./spec-sheet";
 import type { SlotId } from "./slots";
 
 function textObjects(objects: readonly LabelObject[]): TextObject[] {
@@ -355,6 +358,88 @@ describe("product-family generator", () => {
     expect(suggestPaletteForStrength("20 mg", material)?.id).toBe("gray-red");
     expect(suggestPaletteForStrength("no number", material)).toBeNull();
     expect(parseStrengthMg("0.5% · 10 mg")).toBe(0.5);
+  });
+});
+
+describe("plain-language preflight (§10/§17)", () => {
+  const qrSpec = (extra: Record<string, unknown> = {}) =>
+    spec({
+      fields: defaultEasyFields({ qr: "https://example.com" }),
+      enabled: new Set<SlotId>([...DEFAULT_ENABLED, "qr"]),
+      ...extra,
+    });
+
+  it("translates technical rules and offers a working QR fix", () => {
+    const doc = buildEasyDocument(qrSpec());
+    const issues = runPreflight(doc);
+    expect(issues.some((i) => i.ruleId === "qr-module-small")).toBe(true);
+
+    const plain = toPlainIssues(issues, doc);
+    const qrIssue = plain.find((p) => p.ruleId === "qr-module-small")!;
+    expect(qrIssue.message).toMatch(/too small to scan/i);
+    expect(qrIssue.message).not.toMatch(/module/i); // no jargon
+    expect(qrIssue.fix?.change).toEqual({ tweaks: { qrBoost: true } });
+
+    // Applying the fix genuinely enlarges the code.
+    const qrBefore = doc.objects.find((o) => o.slot === "qr")!;
+    const material = getMaterial("plain")!;
+    const build = buildEasyLabel({
+      template: getEasyTemplate("clinical-frame")!,
+      widthMm: doc.label.widthMm,
+      heightMm: doc.label.heightMm,
+      bleedMm: doc.label.bleedMm,
+      safeMm: doc.label.safeMm,
+      material,
+      option: getMaterialOption(material, "plain-white"),
+      intensity: "subtle",
+      palette: getEasyPalette("white-black"),
+      fields: defaultEasyFields({ qr: "https://example.com" }),
+      enabled: new Set<SlotId>([...DEFAULT_ENABLED, "qr"]),
+      tweaks: { qrBoost: true },
+    });
+    const qrAfter = build.objects.find((o) => o.slot === "qr")!;
+    expect(qrAfter.widthMm).toBeGreaterThan(qrBefore.widthMm);
+  });
+
+  it("collapses repeated issues and falls back to technical text for unknown rules", () => {
+    const doc = buildEasyDocument(spec());
+    const plain = toPlainIssues(
+      [
+        { ruleId: "font-small", severity: "warning", message: "a" },
+        { ruleId: "font-small", severity: "warning", message: "b" },
+        { ruleId: "brand-new-rule", severity: "info", message: "Technical detail here." },
+      ],
+      doc,
+    );
+    expect(plain.filter((p) => p.ruleId === "font-small")).toHaveLength(1);
+    expect(plain.find((p) => p.ruleId === "brand-new-rule")!.message).toBe(
+      "Technical detail here.",
+    );
+  });
+});
+
+describe("printer specification sheet (§11)", () => {
+  it("states size, shape, material, and container in printer language", () => {
+    const doc = buildEasyDocument(spec());
+    const sheet = buildSpecSheet(doc, "Retinol Serum");
+    expect(sheet).toContain("Size: 74.0 mm × 26.0 mm");
+    expect(sheet).toMatch(/Rectangle with 1\.5 mm rounded corners/);
+    expect(sheet).toContain("Bleed: 2.0 mm per side");
+    expect(sheet).toContain("Plain — White (White polypropylene)");
+    expect(sheet).toMatch(/Container: cylindrical, ⌀ 24\.5 mm/);
+    expect(sheet).toContain("Gap between label ends");
+  });
+
+  it("requires white ink for light artwork on clear film", () => {
+    const doc = buildEasyDocument(
+      spec({
+        materialId: "clear",
+        materialOptionId: "clear-film",
+        paletteId: "clear-white", // white print on transparent film
+      }),
+    );
+    const sheet = buildSpecSheet(doc, "Clear Label");
+    expect(sheet).toMatch(/White ink: REQUIRED/);
   });
 });
 
