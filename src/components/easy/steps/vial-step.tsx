@@ -3,6 +3,7 @@
 import * as React from "react";
 import { calculateLabel } from "@/lib/geometry/label-calculator";
 import { getVialPreset, VIAL_PRESETS, type VialPreset } from "@/lib/vials/presets";
+import type { GlassId } from "@/lib/easy/templates";
 import type { WizardDraft } from "@/lib/easy/draft";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,14 @@ import { cn } from "@/lib/utils";
  * language (wrap a string around the vial — no diameters, no formulas).
  * Technical dimensions stay behind a quiet disclosure.
  */
+
+const GLASS_CHOICES: { id: GlassId; label: string; swatch: string }[] = [
+  { id: "clear", label: "Clear", swatch: "linear-gradient(135deg,#f3f6f9,#dfe6ec)" },
+  { id: "amber", label: "Amber", swatch: "linear-gradient(135deg,#b4651a,#7c3f0d)" },
+  { id: "frosted", label: "Frosted", swatch: "linear-gradient(135deg,#eef1f4,#cfd6dd)" },
+  { id: "cobalt", label: "Blue", swatch: "linear-gradient(135deg,#2148a8,#122a66)" },
+  { id: "opaque", label: "White", swatch: "linear-gradient(135deg,#ffffff,#e8e8ec)" },
+];
 
 const CARD_PRESETS: { presetId: string; title: string; subtitle: string }[] = [
   { presetId: "10ml-serum", title: "10 mL vial", subtitle: "Small serum / peptide vial" },
@@ -130,6 +139,41 @@ export function VialStep({
           );
         })}
       </ul>
+
+      {preset && (
+        <div className="space-y-2">
+          <p className="text-sm font-medium">What color is your container?</p>
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Container color">
+            {GLASS_CHOICES.map((choice) => {
+              const selected = (draft.glass ?? preset.defaultGlass) === choice.id;
+              return (
+                <button
+                  key={choice.id}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => update({ glass: choice.id })}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-xs transition-colors",
+                    selected
+                      ? "border-primary bg-primary-subtle/40"
+                      : "border-border hover:border-primary/40",
+                  )}
+                >
+                  <span
+                    aria-hidden
+                    className="size-3.5 rounded-full border border-border"
+                    style={{ background: choice.swatch }}
+                  />
+                  {choice.label}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Helps us match designs and preview colors — the label fits either way.
+          </p>
+        </div>
+      )}
 
       {preset && (
         <div className="space-y-3 rounded-xl border border-border bg-surface p-4">

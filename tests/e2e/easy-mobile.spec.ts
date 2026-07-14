@@ -37,6 +37,10 @@ test.describe("iPhone-sized beginner flow", () => {
     await page.getByLabel(/brand name/i).fill("VOLT LABS");
     await page.getByLabel(/product name/i).fill("Surge Serum");
     await expectNoHorizontalScroll(page, "style step");
+    await page.getByRole("button", { name: /^continue$/i }).click();
+
+    await expectNoHorizontalScroll(page, "needs step");
+    await page.getByRole("switch", { name: /i want a qr code/i }).click();
     await page.getByRole("button", { name: /show my designs/i }).click();
 
     await page
@@ -88,6 +92,7 @@ test.describe("iPhone-sized beginner flow", () => {
     await page.getByRole("button", { name: /10 mL vial/i }).click();
     await page.getByRole("button", { name: /^continue$/i }).click();
     await page.getByRole("button", { name: /holographic/i }).first().click();
+    await page.getByRole("button", { name: /^continue$/i }).click();
     await page.getByRole("button", { name: /^continue$/i }).click();
     await page.getByRole("button", { name: /show my designs/i }).click();
     await page

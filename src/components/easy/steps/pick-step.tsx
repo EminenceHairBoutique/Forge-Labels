@@ -53,11 +53,25 @@ export function PickStep({
     if (!preset || !material) return;
     let alive = true;
     (async () => {
+      // Real label dimensions so templates that need more room are skipped.
+      const { createDocument } = await import("@/lib/document/defaults");
+      const probe = createDocument({
+        preset,
+        diameterMm: draft.diameterMm,
+        straightWallHeightMm: draft.straightWallHeightMm,
+      });
       const recs = recommendTemplates({
         styleId: draft.styleId,
         preferDark: draft.preferDark ?? null,
         material,
-        count: draft.auto ? 3 : 4,
+        count: draft.auto ? 3 : 6,
+        density: draft.density,
+        wantsQr: draft.wantsQr,
+        wantsBarcode: draft.wantsBarcode,
+        hasLogo: draft.hasLogo,
+        glass: draft.glass,
+        labelWidthMm: probe.label.widthMm,
+        labelHeightMm: probe.label.heightMm,
       });
       const option = getMaterialOption(
         material,
@@ -103,6 +117,10 @@ export function PickStep({
     draft.preferDark,
     draft.diameterMm,
     draft.straightWallHeightMm,
+    draft.density,
+    draft.wantsQr,
+    draft.wantsBarcode,
+    draft.glass,
   ]);
 
   const selected = candidates?.find((c) => c.rec.template.id === selectedId);
@@ -162,7 +180,7 @@ export function PickStep({
                 )}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <Badge variant={isSelected || candidate.rec.tag === "Recommended" ? "default" : "secondary"}>
+                  <Badge variant={isSelected || candidate.rec.tag === "Best match" ? "default" : "secondary"}>
                     {candidate.rec.tag}
                   </Badge>
                   <span className="text-xs text-muted-foreground">
@@ -177,6 +195,9 @@ export function PickStep({
                     className="max-h-full max-w-full rounded-sm object-contain shadow-md"
                   />
                 </div>
+                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                  {candidate.rec.reason}
+                </p>
               </button>
             </li>
           );

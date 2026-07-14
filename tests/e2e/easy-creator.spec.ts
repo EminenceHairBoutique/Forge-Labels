@@ -8,7 +8,13 @@ import { expect, test, type Page } from "@playwright/test";
 
 async function runWizard(
   page: Page,
-  options: { vial: RegExp; material: RegExp; style?: RegExp; product?: string },
+  options: {
+    vial: RegExp;
+    material: RegExp;
+    style?: RegExp;
+    product?: string;
+    density?: RegExp;
+  },
 ): Promise<void> {
   await page.goto("/create");
   await page.getByRole("button", { name: options.vial }).click();
@@ -22,6 +28,13 @@ async function runWizard(
   }
   if (options.product) {
     await page.getByLabel(/product name/i).fill(options.product);
+  }
+  await page.getByRole("button", { name: /^continue$/i }).click();
+
+  // "What needs to fit?" — the standard amount is the default.
+  await expect(page.getByText(/what needs to fit\?/i)).toBeVisible();
+  if (options.density) {
+    await page.getByRole("button", { name: options.density }).click();
   }
   await page.getByRole("button", { name: /show my designs/i }).click();
 

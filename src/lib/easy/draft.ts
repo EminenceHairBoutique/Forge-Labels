@@ -2,6 +2,7 @@
 
 import type { Intensity } from "./materials";
 import type { SlotId } from "./slots";
+import type { ContentDensity, GlassId } from "./templates";
 
 /**
  * Wizard draft persistence: every step writes here, so a refresh (or an
@@ -23,6 +24,13 @@ export interface WizardDraft {
   intensity?: Intensity;
   styleId?: string;
   preferDark?: boolean | null;
+  /** Vial glass color ("What color is your container?"). */
+  glass?: GlassId;
+  /** How much information must fit (§7). */
+  density?: ContentDensity;
+  wantsQr?: boolean;
+  wantsBarcode?: boolean;
+  hasLogo?: boolean;
   fields?: Partial<Record<SlotId, string>>;
   templateId?: string;
   paletteId?: string;

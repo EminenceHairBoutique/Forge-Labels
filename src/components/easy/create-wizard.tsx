@@ -10,6 +10,7 @@ import { AutoStep } from "./steps/auto-step";
 import { VialStep } from "./steps/vial-step";
 import { MaterialStep } from "./steps/material-step";
 import { StyleStep } from "./steps/style-step";
+import { NeedsStep } from "./steps/needs-step";
 import { PickStep } from "./steps/pick-step";
 
 /**
@@ -23,13 +24,19 @@ const STEPS = [
   { id: 0, title: "What are you labeling?" },
   { id: 1, title: "Choose your label material" },
   { id: 2, title: "How should it feel?" },
-  { id: 3, title: "Pick your design" },
+  { id: 3, title: "What needs to fit?" },
+  { id: 4, title: "Pick your design" },
 ] as const;
+
+const PICK_STEP = 4;
 
 export function CreateWizard() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const step = Math.min(Math.max(Number(searchParams.get("step") ?? 0) || 0, 0), 3);
+  const step = Math.min(
+    Math.max(Number(searchParams.get("step") ?? 0) || 0, 0),
+    PICK_STEP,
+  );
   const auto = searchParams.get("auto") === "1";
 
   const [draft, setDraft] = React.useState<WizardDraft>(() => ({
@@ -101,19 +108,19 @@ export function CreateWizard() {
     return (
       <div className="mx-auto flex min-h-[calc(100dvh-3.5rem)] w-full max-w-3xl flex-col px-4 pb-28 pt-6 sm:px-6">
         <h1 className="font-display text-2xl font-bold tracking-tight sm:text-3xl">
-          {step === 3 ? "Your label, three ways" : "Make my label for me"}
+          {step === PICK_STEP ? "Your label, three ways" : "Make my label for me"}
         </h1>
-        {step !== 3 && (
+        {step !== PICK_STEP && (
           <p className="mt-1 text-sm text-muted-foreground">
             Answer once — we&apos;ll design three complete labels you can use
             immediately.
           </p>
         )}
         <div className="mt-6 flex-1">
-          {step === 3 ? (
+          {step === PICK_STEP ? (
             <PickStep draft={draft} update={update} />
           ) : (
-            <AutoStep draft={draft} update={update} onContinue={() => goTo(3)} />
+            <AutoStep draft={draft} update={update} onContinue={() => goTo(PICK_STEP)} />
           )}
         </div>
       </div>
@@ -172,7 +179,8 @@ export function CreateWizard() {
           <MaterialStep draft={draft} update={update} onContinue={() => goTo(2)} />
         )}
         {step === 2 && <StyleStep draft={draft} update={update} onContinue={() => goTo(3)} />}
-        {step === 3 && <PickStep draft={draft} update={update} />}
+        {step === 3 && <NeedsStep draft={draft} update={update} onContinue={() => goTo(4)} />}
+        {step === PICK_STEP && <PickStep draft={draft} update={update} />}
       </div>
     </div>
   );

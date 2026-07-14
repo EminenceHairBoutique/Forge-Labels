@@ -1,13 +1,16 @@
 "use client";
 
 import * as React from "react";
+import { ImagePlus, X } from "lucide-react";
 import type { LabelDocument } from "@/lib/document/schema";
 import {
   applyEasyChange,
   readEasyState,
   toggleableSlots,
 } from "@/lib/easy/fields";
+import { fileToEasyLogo } from "@/lib/easy/logo";
 import { SLOTS, SLOT_ORDER, type SlotId } from "@/lib/easy/slots";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -83,9 +86,11 @@ export function ContentForm({ doc }: { doc: LabelDocument }) {
   };
 
   const toggleable = new Set(toggleableSlots());
+  const logoSrc = state.fields.logo;
 
   return (
     <div className="space-y-4">
+      <LogoField src={logoSrc} onNotes={surfaceNotes} />
       {SLOT_ORDER.map((slot) => {
         const info = SLOTS[slot];
         if (info.kind === "logo") return null;
@@ -228,5 +233,92 @@ function FieldTextarea({
         onCommit(slot, e.target.value);
       }}
     />
+  );
+}
+
+/**
+ * Logo upload (§9 of the brief): PNG/JPG downscaled into the document,
+ * placed by the layout engine in the reserved `logo` slot — the rest of
+ * the design reflows around it, and removing it is one click (undoable).
+ */
+function LogoField({
+  src,
+  onNotes,
+}: {
+  src: string | undefined;
+  onNotes: (notes: string[]) => void;
+}) {
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = React.useState(false);
+
+  const pick = async (file: File | undefined) => {
+    if (!file) return;
+    setBusy(true);
+    try {
+      const logo = await fileToEasyLogo(file);
+      const notes = await applyEasyChange({ logo });
+      onNotes(notes);
+    } catch (err) {
+      toast.error(
+        "Couldn't add the logo",
+        err instanceof Error ? err.message : undefined,
+      );
+    } finally {
+      setBusy(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  };
+
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor="easy-logo">Logo</Label>
+      <div className="flex items-center gap-3">
+        {src ? (
+          <span className="flex h-12 w-20 items-center justify-center overflow-hidden rounded-md border border-border bg-canvas-backdrop p-1">
+            {/* eslint-disable-next-line @next/next/no-img-element -- user upload preview */}
+            <img src={src} alt="Your logo" className="max-h-full max-w-full object-contain" />
+          </span>
+        ) : (
+          <span className="flex h-12 w-20 items-center justify-center rounded-md border border-dashed border-border text-muted-foreground">
+            <ImagePlus className="size-4" aria-hidden />
+          </span>
+        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs"
+            disabled={busy}
+            onClick={() => inputRef.current?.click()}
+          >
+            {busy ? "Adding…" : src ? "Replace logo" : "Add your logo"}
+          </Button>
+          {src && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-8 text-xs text-muted-foreground"
+              onClick={() => void applyEasyChange({ logo: null }).then(onNotes)}
+            >
+              <X className="size-3.5" aria-hidden />
+              Remove
+            </Button>
+          )}
+        </div>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        PNG or JPG works best. The design makes room for it automatically.
+      </p>
+      <input
+        ref={inputRef}
+        id="easy-logo"
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        className="sr-only"
+        onChange={(e) => void pick(e.target.files?.[0])}
+      />
+    </div>
   );
 }

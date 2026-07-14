@@ -493,11 +493,12 @@ describe("curated palettes protect contrast", () => {
 });
 
 describe("recommendTemplates", () => {
-  it("returns distinct families with the top pick tagged Recommended", () => {
+  it("returns distinct families with the top pick tagged Best match", () => {
     const material = getMaterial("plain")!;
     const picks = recommendTemplates({ styleId: "luxury", material, preferDark: true });
     expect(picks.length).toBeGreaterThanOrEqual(3);
-    expect(picks[0]!.tag).toBe("Recommended");
+    expect(picks[0]!.tag).toBe("Best match");
+    for (const pick of picks) expect(pick.reason).toMatch(/^Recommended because .+\.$/);
     expect(picks[0]!.template.id).toBe("luxury-center");
     const families = picks.map((p) => p.template.family);
     expect(new Set(families).size).toBe(families.length);

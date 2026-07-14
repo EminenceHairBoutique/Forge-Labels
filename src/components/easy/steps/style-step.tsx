@@ -148,7 +148,7 @@ export function StyleStep({
         </div>
       </div>
 
-      <StickyContinue onClick={onContinue} label="Show my designs" />
+      <StickyContinue onClick={onContinue} label="Continue" />
     </div>
   );
 }

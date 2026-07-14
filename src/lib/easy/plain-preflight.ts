@@ -1,5 +1,6 @@
 import type { LabelDocument } from "@/lib/document/schema";
 import type { PreflightIssue } from "@/lib/preflight/rules";
+import { getMaterial } from "./materials";
 import type { EasyChange } from "./meta";
 
 /**
@@ -20,7 +21,9 @@ export interface PlainIssue {
 
 interface RuleMapping {
   message: string | ((issue: PreflightIssue) => string);
-  fix?: { label: string; change: EasyChange };
+  fix?:
+    | { label: string; change: EasyChange }
+    | ((doc: LabelDocument) => { label: string; change: EasyChange } | undefined);
 }
 
 const BALANCE: RuleMapping["fix"] = {
@@ -51,6 +54,17 @@ const RULE_MAP: Record<string, RuleMapping> = {
   },
   "low-contrast": {
     message: "Some text doesn't stand out enough from its background.",
+    // §13 "Fix contrast": the material's default palette is contrast-safe
+    // by construction — offer it when the user isn't already on it.
+    fix: (doc) => {
+      if (!doc.easy) return undefined;
+      const material = getMaterial(doc.easy.materialId);
+      if (!material || doc.easy.paletteId === material.defaultPaletteId) return undefined;
+      return {
+        label: "Fix contrast",
+        change: { paletteId: material.defaultPaletteId },
+      };
+    },
   },
   "out-of-gamut": {
     message: "A very bright screen color may print duller than it looks here.",
@@ -128,7 +142,7 @@ export function toPlainIssues(
     seen.add(key);
     // Balance-layout fixes only help engine-owned objects; free objects
     // (Advanced Editor additions) need manual attention — drop the button.
-    let fix = mapping?.fix;
+    let fix = typeof mapping?.fix === "function" ? mapping.fix(doc) : mapping?.fix;
     if (fix?.change.relayout && issue.objectId) {
       const owned = findIsSlotObject(doc, issue.objectId);
       if (!owned) fix = undefined;

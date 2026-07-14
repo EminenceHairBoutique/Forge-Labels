@@ -3,15 +3,18 @@ import type { MaterialDef } from "./materials";
 import {
   EASY_TEMPLATES,
   templatePrefersDark,
+  type ContentDensity,
   type EasyTemplateDef,
+  type GlassId,
   type VibeTag,
 } from "./templates";
 
 /**
- * Template recommendations: turn the wizard's style answers into 3–6
- * scored picks instead of a wall of thumbnails. Deterministic and
- * data-driven — every card the user sees is already rendered with their
- * vial size, material, and brand text.
+ * Template recommendations (§7): deterministic, metadata-driven scoring
+ * turns the wizard's answers into six labeled picks — best match, most
+ * professional, most minimal, most bold, most premium, and an alternative
+ * style — each with a one-sentence plain-language reason. Every card the
+ * user sees is already rendered with their vial size, material, and words.
  */
 
 export interface StyleChoice {
@@ -42,36 +45,36 @@ export function getStyleChoice(id: string): StyleChoice | undefined {
   return STYLE_CHOICES.find((s) => s.id === id);
 }
 
+export interface RecommendOptions {
+  styleId?: string;
+  preferDark?: boolean | null;
+  material: MaterialDef;
+  count?: number;
+  /** How much information must fit (§7). */
+  density?: ContentDensity;
+  wantsQr?: boolean;
+  wantsBarcode?: boolean;
+  hasLogo?: boolean;
+  /** Vial glass color, for glass-tuned templates. */
+  glass?: GlassId;
+  /** Actual label dimensions — templates that need more room are skipped. */
+  labelWidthMm?: number;
+  labelHeightMm?: number;
+}
+
 export interface Recommendation {
   template: EasyTemplateDef;
   palette: EasyPalette;
-  /** Card label: "Recommended", "More minimal", "More bold", "More premium". */
+  /** Card label: "Best match", "Most professional", "Most bold"… */
   tag: string;
   score: number;
+  /** One sentence explaining the pick, in plain language. */
+  reason: string;
 }
 
-const TAG_BY_VIBE: Partial<Record<VibeTag, string>> = {
-  minimal: "More minimal",
-  bold: "More bold",
-  luxury: "More premium",
-  premium: "More premium",
-  futuristic: "More futuristic",
-  clinical: "More clinical",
-  botanical: "Softer",
-};
-
-/** A template's strongest vibe tag (deterministic tie-break by tag name). */
-function dominantVibe(template: EasyTemplateDef): VibeTag | undefined {
-  const entries = Object.entries(template.vibe) as [VibeTag, number][];
-  entries.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-  return entries[0]?.[0];
-}
-
-function scoreTemplate(
-  template: EasyTemplateDef,
-  style: StyleChoice | undefined,
-  preferDark: boolean | null,
-): number {
+function scoreTemplate(template: EasyTemplateDef, options: RecommendOptions): number {
+  const style = options.styleId ? getStyleChoice(options.styleId) : undefined;
+  const preferDark = options.preferDark ?? null;
   let score = 1;
   if (style) {
     for (const [tag, weight] of Object.entries(style.vibes)) {
@@ -79,6 +82,21 @@ function scoreTemplate(
     }
   }
   if (preferDark !== null && templatePrefersDark(template) === preferDark) score += 2;
+  if (options.density) {
+    if (template.density === options.density) score += 2.5;
+    else if (
+      (template.density === "standard") !==
+      (options.density === "standard")
+    ) {
+      // minimal vs detailed are opposite ends — penalize the mismatch.
+      score -= 1;
+    }
+  }
+  if (options.wantsQr && (template.qrScale ?? 1) > 1) score += 1.5;
+  if (options.wantsQr && template.codePlacement === "side") score += 1.5;
+  if (options.wantsBarcode && template.density !== "minimal") score += 0.5;
+  if (options.glass && template.recommendedGlass.includes(options.glass)) score += 1.5;
+  if (template.featured) score += 0.25;
   return score;
 }
 
@@ -93,43 +111,137 @@ export function pickPalette(
   return candidates.find((p) => p.dark === wantDark) ?? candidates[0]!;
 }
 
-export function recommendTemplates(options: {
-  styleId?: string;
-  preferDark?: boolean | null;
-  material: MaterialDef;
-  count?: number;
-}): Recommendation[] {
-  const style = options.styleId ? getStyleChoice(options.styleId) : undefined;
-  const preferDark = options.preferDark ?? null;
-  const count = options.count ?? 4;
+/** One plain-language sentence for why a template was picked (§7). */
+export function recommendationReason(
+  template: EasyTemplateDef,
+  options: RecommendOptions,
+): string {
+  const clauses: string[] = [];
+  const material = options.material;
+  const hasFinish = material.options.some((o) => o.finishId);
+  if (hasFinish && material.rules.contrastPanelOnFullEffect) {
+    clauses.push(
+      `its solid panels keep your text readable over the ${material.name.toLowerCase()} film`,
+    );
+  } else if (material.id === "neon") {
+    clauses.push("its high-contrast type carries bright neon color safely");
+  }
+  if (options.density && template.density === options.density) {
+    clauses.push(
+      options.density === "minimal"
+        ? "it keeps to the essentials you asked for"
+        : options.density === "detailed"
+          ? "it is designed to carry every detail you plan to include"
+          : "it fits your information comfortably",
+    );
+  }
+  if (options.wantsQr && ((template.qrScale ?? 1) > 1 || template.codePlacement === "side")) {
+    clauses.push("it gives your QR code real prominence");
+  }
+  if (options.glass && template.recommendedGlass.includes(options.glass)) {
+    clauses.push(`it was tuned for ${options.glass} glass`);
+  }
+  if (options.preferDark != null && templatePrefersDark(template) === options.preferDark) {
+    clauses.push(`it reads beautifully ${options.preferDark ? "dark" : "light"}`);
+  }
+  if (clauses.length === 0) {
+    clauses.push(
+      `its ${template.familyName} layout suits ${material.name.toLowerCase()} labels`,
+    );
+  }
+  const sentence = clauses.slice(0, 2).join(" and ");
+  return `Recommended because ${sentence}.`;
+}
 
-  const eligible = EASY_TEMPLATES.filter(
-    (t) => t.materials === "all" || t.materials.includes(options.material.id),
-  );
+/** The six §7 roles, in presentation order. */
+const ROLES: { tag: string; key: (t: EasyTemplateDef) => number }[] = [
+  {
+    tag: "Most professional",
+    key: (t) => (t.vibe.clinical ?? 0) * 2 + (t.vibe.minimal ?? 0) + (t.vibe.premium ?? 0),
+  },
+  { tag: "Most minimal", key: (t) => t.vibe.minimal ?? 0 },
+  { tag: "Most bold", key: (t) => t.vibe.bold ?? 0 },
+  { tag: "Most premium", key: (t) => (t.vibe.premium ?? 0) + (t.vibe.luxury ?? 0) },
+];
+
+export function recommendTemplates(options: RecommendOptions): Recommendation[] {
+  const count = options.count ?? 6;
+  const preferDark = options.preferDark ?? null;
+
+  const eligible = EASY_TEMPLATES.filter((t) => {
+    if (t.materials !== "all" && !t.materials.includes(options.material.id)) return false;
+    if (options.labelHeightMm && t.minHeightMm && options.labelHeightMm < t.minHeightMm) return false;
+    if (options.labelWidthMm && t.minWidthMm && options.labelWidthMm < t.minWidthMm) return false;
+    return true;
+  });
 
   const scored = eligible
     .map((template) => ({
       template,
-      score: scoreTemplate(template, style, preferDark),
+      score: scoreTemplate(template, options),
       palette: pickPalette(options.material, template, preferDark),
     }))
     .sort((a, b) => b.score - a.score || a.template.id.localeCompare(b.template.id));
+  if (scored.length === 0) return [];
 
-  // One per family so the picks feel genuinely different.
-  const seen = new Set<string>();
+  const usedFamilies = new Set<string>();
+  const usedIds = new Set<string>();
   const picks: Recommendation[] = [];
-  for (const entry of scored) {
-    if (seen.has(entry.template.family)) continue;
-    seen.add(entry.template.family);
-    const vibe = dominantVibe(entry.template);
+  const take = (
+    entry: (typeof scored)[number] | undefined,
+    tag: string,
+  ): void => {
+    if (!entry) return;
+    usedFamilies.add(entry.template.family);
+    usedIds.add(entry.template.id);
     picks.push({
       ...entry,
-      tag:
-        picks.length === 0
-          ? "Recommended"
-          : ((vibe && TAG_BY_VIBE[vibe]) ?? "Different take"),
+      tag,
+      reason: recommendationReason(entry.template, options),
     });
+  };
+  const available = () =>
+    scored.filter(
+      (e) => !usedIds.has(e.template.id) && !usedFamilies.has(e.template.family),
+    );
+
+  // 1. Best match: the top overall score.
+  take(scored[0], "Best match");
+
+  // 2–5. Role picks: strongest of each role among what's left, but only
+  //      when the role genuinely applies (key > 0).
+  for (const role of ROLES) {
     if (picks.length >= count) break;
+    const pool = available()
+      .slice()
+      .sort(
+        (a, b) =>
+          role.key(b.template) - role.key(a.template) ||
+          b.score - a.score ||
+          a.template.id.localeCompare(b.template.id),
+      );
+    const top = pool[0];
+    if (top && role.key(top.template) > 0) take(top, role.tag);
   }
-  return picks;
+
+  // 6. Alternative style: the best remaining pick that LOOKS different
+  //    from the best match (different alignment or decor language).
+  if (picks.length < count) {
+    const best = picks[0]!.template;
+    const signature = (t: EasyTemplateDef) =>
+      `${t.align}/${t.split ? "split" : "stack"}/${t.decor.map((d) => d.kind).sort().join(",")}`;
+    const alt =
+      available().find((e) => signature(e.template) !== signature(best)) ??
+      available()[0];
+    take(alt, "Alternative style");
+  }
+
+  // Fill any remaining slots by score (larger counts, small libraries).
+  while (picks.length < count) {
+    const next = available()[0];
+    if (!next) break;
+    take(next, "Different take");
+  }
+
+  return picks.slice(0, count);
 }
