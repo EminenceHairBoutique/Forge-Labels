@@ -30,6 +30,11 @@ export function migrateDocument(raw: unknown): LabelDocument {
     // documents need only the version stamp.
     data.schemaVersion = 2;
   }
+  if (version < 3) {
+    // v3 added optional easy-meta fields (pairingId, placement, logoAspect)
+    // — pure additions again; stamp only.
+    data.schemaVersion = 3;
+  }
 
   return parseLabelDocument(data);
 }

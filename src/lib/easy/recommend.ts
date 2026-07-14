@@ -1,6 +1,11 @@
 import { getEasyPalette, type EasyPalette } from "./palettes";
 import type { MaterialDef } from "./materials";
-import { EASY_TEMPLATES, type EasyTemplateDef, type VibeTag } from "./templates";
+import {
+  EASY_TEMPLATES,
+  templatePrefersDark,
+  type EasyTemplateDef,
+  type VibeTag,
+} from "./templates";
 
 /**
  * Template recommendations: turn the wizard's style answers into 3–6
@@ -45,14 +50,22 @@ export interface Recommendation {
   score: number;
 }
 
-const TAG_BY_FAMILY: Record<string, string> = {
+const TAG_BY_VIBE: Partial<Record<VibeTag, string>> = {
   minimal: "More minimal",
   bold: "More bold",
   luxury: "More premium",
+  premium: "More premium",
   futuristic: "More futuristic",
   clinical: "More clinical",
   botanical: "Softer",
 };
+
+/** A template's strongest vibe tag (deterministic tie-break by tag name). */
+function dominantVibe(template: EasyTemplateDef): VibeTag | undefined {
+  const entries = Object.entries(template.vibe) as [VibeTag, number][];
+  entries.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  return entries[0]?.[0];
+}
 
 function scoreTemplate(
   template: EasyTemplateDef,
@@ -65,7 +78,7 @@ function scoreTemplate(
       score += (template.vibe[tag as VibeTag] ?? 0) * (weight ?? 0);
     }
   }
-  if (preferDark !== null && template.prefersDark === preferDark) score += 2;
+  if (preferDark !== null && templatePrefersDark(template) === preferDark) score += 2;
   return score;
 }
 
@@ -76,7 +89,7 @@ export function pickPalette(
   preferDark: boolean | null,
 ): EasyPalette {
   const candidates = material.paletteIds.map(getEasyPalette);
-  const wantDark = preferDark ?? template.prefersDark;
+  const wantDark = preferDark ?? templatePrefersDark(template);
   return candidates.find((p) => p.dark === wantDark) ?? candidates[0]!;
 }
 
@@ -108,12 +121,13 @@ export function recommendTemplates(options: {
   for (const entry of scored) {
     if (seen.has(entry.template.family)) continue;
     seen.add(entry.template.family);
+    const vibe = dominantVibe(entry.template);
     picks.push({
       ...entry,
       tag:
         picks.length === 0
           ? "Recommended"
-          : (TAG_BY_FAMILY[entry.template.family] ?? "Different take"),
+          : ((vibe && TAG_BY_VIBE[vibe]) ?? "Different take"),
     });
     if (picks.length >= count) break;
   }

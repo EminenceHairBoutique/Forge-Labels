@@ -43,16 +43,24 @@ function spec(overrides: Record<string, unknown> = {}) {
   };
 }
 
-describe("schema v2 migration", () => {
+describe("schema migration", () => {
   it("upgrades a stored v1 document with only a version stamp", () => {
     const v1 = JSON.parse(JSON.stringify({ ...createDocument(), schemaVersion: 1 }));
     delete v1.easy;
     const migrated = migrateDocument(v1);
-    expect(migrated.schemaVersion).toBe(2);
+    expect(migrated.schemaVersion).toBe(3);
     expect(migrated.easy).toBeUndefined();
   });
 
-  it("round-trips v2 documents with slots and easy metadata", () => {
+  it("upgrades a v2 easy document without touching its meta", () => {
+    const v2 = JSON.parse(JSON.stringify({ ...buildEasyDocument(spec()), schemaVersion: 2 }));
+    const migrated = migrateDocument(v2);
+    expect(migrated.schemaVersion).toBe(3);
+    expect(migrated.easy?.templateId).toBe(v2.easy.templateId);
+    expect(migrated.easy?.pairingId).toBeUndefined();
+  });
+
+  it("round-trips v3 documents with slots and easy metadata", () => {
     const doc = buildEasyDocument(spec());
     const restored = migrateDocument(JSON.parse(JSON.stringify(doc)));
     expect(restored).toEqual(doc);
@@ -172,7 +180,7 @@ describe("material-aware rules", () => {
     const panel = doc.objects.find((o) => o.slot === "accent:hero-panel");
     expect(panel?.type).toBe("rect");
     if (panel?.type === "rect" && panel.fill.type === "solid") {
-      expect(panel.fill.color).toBe("#e11ec9"); // the palette accent
+      expect(panel.fill.color).toBe("#cb16b4"); // the palette accent
     }
     const name = textObjects(doc.objects).find((o) => o.slot === "product-name")!;
     expect(name.fill).toEqual({ type: "solid", color: "#ffffff" }); // onAccent
@@ -280,12 +288,13 @@ describe("nextEasyMeta (material switching)", () => {
 describe("template families", () => {
   it("ships at least 12 genuinely distinct layout archetypes", () => {
     expect(EASY_TEMPLATES.length).toBeGreaterThanOrEqual(12);
-    const families = new Set(EASY_TEMPLATES.map((t) => t.family));
-    expect(families.size).toBe(EASY_TEMPLATES.length); // one per family — no color swaps
-    // Distinct DNA: no two templates share font pair + alignment + decor shape.
+    const ids = new Set(EASY_TEMPLATES.map((t) => t.id));
+    expect(ids.size).toBe(EASY_TEMPLATES.length);
+    // Distinct DNA: no two templates share pairing + alignment + layout +
+    // decor shape + row structure — color swaps alone can't pass this.
     const dna = EASY_TEMPLATES.map(
       (t) =>
-        `${t.fonts.display}/${t.fonts.body}/${t.align}/${t.decor.map((d) => d.kind).sort().join(",")}`,
+        `${t.pairingId}/${t.align}/${t.split ? "split" : "stack"}/${t.verticalRow?.edge ?? "-"}/${t.codePlacement ?? "corner"}/${t.decor.map((d) => d.kind).sort().join(",")}/${t.rows.map((r) => `${r.slot}:${r.zone}${r.chip ? ":chip" : ""}${r.monogram ? ":mono" : ""}`).join("|")}`,
     );
     expect(new Set(dna).size).toBe(dna.length);
   });
@@ -484,15 +493,15 @@ describe("recommendTemplates", () => {
     const picks = recommendTemplates({ styleId: "luxury", material, preferDark: true });
     expect(picks.length).toBeGreaterThanOrEqual(3);
     expect(picks[0]!.tag).toBe("Recommended");
-    expect(picks[0]!.template.family).toBe("luxury");
+    expect(picks[0]!.template.id).toBe("luxury-center");
     const families = picks.map((p) => p.template.family);
     expect(new Set(families).size).toBe(families.length);
   });
 
-  it("matches futuristic style to the futuristic family", () => {
+  it("matches futuristic style to the futuristic archetype", () => {
     const material = getMaterial("neon")!;
     const picks = recommendTemplates({ styleId: "futuristic", material });
-    expect(picks[0]!.template.family).toBe("futuristic");
+    expect(picks[0]!.template.id).toBe("futuristic-band");
   });
 });
 

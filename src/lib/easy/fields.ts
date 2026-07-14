@@ -7,7 +7,12 @@ import { measureTextHeightMm } from "@/lib/render/text-measure";
 import { getEasyPalette } from "./palettes";
 import { getMaterial, getMaterialOption } from "./materials";
 import { getEasyTemplate, type EasyTemplateDef } from "./templates";
-import { buildEasyLabel, mergeEasyObjects } from "./instantiate";
+import { getPairing } from "./typography";
+import {
+  buildEasyLabel,
+  mergeEasyObjects,
+  type EffectPlacement,
+} from "./instantiate";
 import {
   nextEasyMeta,
   readEasyContent as readEasyState,
@@ -28,12 +33,28 @@ export { readEasyContent as readEasyState, type EasyContent as EasyState } from 
 
 export type { EasyChange } from "./meta";
 
-/** Load the fonts a template needs before measuring with real metrics. */
-export async function ensureEasyFonts(template: EasyTemplateDef): Promise<void> {
-  await Promise.all([
-    loadFont(template.fonts.display, template.fonts.displayWeight).catch(() => {}),
-    loadFont(template.fonts.body, template.fonts.bodyWeight).catch(() => {}),
-  ]);
+/**
+ * Load the fonts a template (or its pairing override) needs before
+ * measuring with real metrics — every declared weight of every role
+ * family, so weight variants inside rows never fall back mid-layout.
+ */
+export async function ensureEasyFonts(
+  template: EasyTemplateDef,
+  pairingId?: string,
+): Promise<void> {
+  const pairing = getPairing(pairingId ?? template.pairingId);
+  const loads: Promise<void>[] = [];
+  const load = (family: string, weights: number[]) => {
+    for (const weight of weights) {
+      loads.push(loadFont(family, weight).catch(() => {}));
+    }
+  };
+  load(pairing.displayFamily, pairing.displayWeights);
+  load(pairing.bodyFamily, pairing.bodyWeights);
+  if (pairing.technicalFamily) {
+    load(pairing.technicalFamily, pairing.technicalWeights ?? pairing.bodyWeights);
+  }
+  await Promise.all(loads);
 }
 
 /**
@@ -87,6 +108,16 @@ async function applyEasyChangeNow(change: EasyChange): Promise<string[]> {
       delete fields[slot];
     }
   }
+  if (change.logo !== undefined) {
+    if (change.logo) {
+      fields.logo = change.logo.src;
+      enabled.add("logo");
+    } else {
+      enabled.delete("logo");
+      delete fields.logo;
+      delete stash.logo;
+    }
+  }
   if (change.simplify) {
     // "Simplify design": nice-to-have fields go off, values stashed —
     // toggling them back on restores the text.
@@ -100,7 +131,7 @@ async function applyEasyChangeNow(change: EasyChange): Promise<string[]> {
   }
   meta.stash = Object.keys(stash).length > 0 ? stash : undefined;
 
-  await ensureEasyFonts(template);
+  await ensureEasyFonts(template, meta.pairingId);
 
   const build = buildEasyLabel({
     template,
@@ -116,6 +147,9 @@ async function applyEasyChangeNow(change: EasyChange): Promise<string[]> {
     enabled,
     measure: measureTextHeightMm,
     tweaks: meta.tweaks,
+    pairingId: meta.pairingId,
+    placement: meta.placement as EffectPlacement | undefined,
+    logoAspect: meta.logoAspect,
   });
 
   withGesture(() => {

@@ -20,6 +20,7 @@ export type SlotId =
   | "lot"
   | "expiry"
   | "website"
+  | "verification"
   | "qr"
   | "barcode";
 
@@ -166,6 +167,16 @@ export const SLOTS: Record<SlotId, SlotInfo> = {
     defaultOn: false,
     maxChars: 60,
   },
+  verification: {
+    id: "verification",
+    label: "Verification code",
+    placeholder: "e.g. VERIFY X7K2-99B1",
+    kind: "line",
+    optional: true,
+    defaultOn: false,
+    maxChars: 40,
+    hint: "A short code customers can check on your site — pairs well with a QR code.",
+  },
   qr: {
     id: "qr",
     label: "QR code",
@@ -202,6 +213,7 @@ export const SLOT_ORDER: readonly SlotId[] = [
   "lot",
   "expiry",
   "website",
+  "verification",
   "qr",
   "barcode",
 ];

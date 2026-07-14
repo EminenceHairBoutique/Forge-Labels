@@ -15,7 +15,7 @@ import { z } from "zod";
  *   changes; never silently break stored documents.
  */
 
-export const DOCUMENT_SCHEMA_VERSION = 2;
+export const DOCUMENT_SCHEMA_VERSION = 3;
 
 // ---------------------------------------------------------------------------
 // Shared primitives
@@ -390,11 +390,11 @@ export const BackgroundSchema = z.discriminatedUnion("type", [
 export type Background = z.infer<typeof BackgroundSchema>;
 
 /**
- * Easy Creator metadata (v2). Content itself lives in the slot objects —
- * this block records the choices that generated the layout (template,
- * material, palette) plus stashed values of toggled-off optional fields so
- * re-enabling them restores the text. Absent on documents authored purely
- * in the Advanced Editor.
+ * Easy Creator metadata (v2, extended in v3). Content itself lives in the
+ * slot objects — this block records the choices that generated the layout
+ * (template, material, palette) plus stashed values of toggled-off optional
+ * fields so re-enabling them restores the text. Absent on documents
+ * authored purely in the Advanced Editor.
  */
 export const EasyMetaSchema = z.object({
   templateId: z.string(),
@@ -403,6 +403,12 @@ export const EasyMetaSchema = z.object({
   intensity: z.enum(["subtle", "balanced", "bold", "maximum"]).optional(),
   paletteId: z.string(),
   styleId: z.string().optional(),
+  /** v3: font-pairing override ("Try another font") — template default when absent. */
+  pairingId: z.string().optional(),
+  /** v3: effect placement override ("auto" = intensity-driven) for effect materials. */
+  placement: z.string().optional(),
+  /** v3: uploaded logo aspect ratio (w/h) — the image itself is the `logo` slot object. */
+  logoAspect: z.number().positive().optional(),
   stash: z.record(z.string(), z.string()).optional(),
   /** One-click fix adjustments — persist so later edits keep the fix. */
   tweaks: z

@@ -19,6 +19,12 @@ export interface EasyChange {
   templateId?: string;
   material?: { materialId: string; optionId: string };
   intensity?: Intensity;
+  /** Font-pairing override ("Try another font") — null restores the template's. */
+  pairingId?: string | null;
+  /** Effect placement for holographic/neon/metallic ("auto" = intensity-driven). */
+  placement?: string;
+  /** Logo upload (data URL + aspect) — null removes the logo. */
+  logo?: { src: string; aspect: number } | null;
   /** One-click fixes: merged into meta.tweaks so later edits keep them. */
   tweaks?: Partial<EasyTweaks>;
   /** Turn off the nice-to-have fields (Simplify design) — values stashed. */
@@ -79,8 +85,22 @@ export function readEasyContent(doc: LabelDocument): EasyContent | null {
 export function nextEasyMeta(current: EasyMeta, change: EasyChange): EasyMeta {
   const meta: EasyMeta = { ...current };
   if (change.paletteId) meta.paletteId = change.paletteId;
-  if (change.templateId) meta.templateId = change.templateId;
+  if (change.templateId) {
+    meta.templateId = change.templateId;
+    // A template's curated pairing is part of its design — switching
+    // templates clears a font override so each layout shows its own voice.
+    meta.pairingId = undefined;
+  }
   if (change.intensity) meta.intensity = change.intensity;
+  if (change.pairingId !== undefined) {
+    meta.pairingId = change.pairingId ?? undefined;
+  }
+  if (change.placement) {
+    meta.placement = change.placement === "auto" ? undefined : change.placement;
+  }
+  if (change.logo !== undefined) {
+    meta.logoAspect = change.logo?.aspect;
+  }
   if (change.tweaks) {
     meta.tweaks = { ...meta.tweaks, ...change.tweaks };
   }
