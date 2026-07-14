@@ -40,6 +40,9 @@ export function ReactiveShine({
         ? (DeviceOrientationEvent as OrientationCtor)
         : null;
     if (!ctor || typeof ctor.requestPermission === "function") return;
+    // The shine layer is hidden under prefers-reduced-motion — skip the
+    // sensor listener entirely rather than animating an invisible layer.
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
     const onOrientation = (event: DeviceOrientationEvent) => {
       if (event.gamma === null || event.beta === null) return;

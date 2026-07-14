@@ -77,6 +77,11 @@ export function PickStep({
         material,
         draft.materialOptionId ?? material.defaultOptionId,
       );
+      // Optional extras the user already answered come along for the ride —
+      // an auto-flow QR link appears on all three finished designs.
+      const enabled = new Set(DEFAULT_ENABLED);
+      if (draft.fields?.qr?.trim()) enabled.add("qr");
+      if (draft.fields?.subtitle?.trim()) enabled.add("subtitle");
       const built: Candidate[] = [];
       for (const rec of recs) {
         await ensureEasyFonts(rec.template);
@@ -92,7 +97,7 @@ export function PickStep({
             paletteId: rec.palette.id,
             styleId: draft.styleId,
             fields: defaultEasyFields(draft.fields),
-            enabled: DEFAULT_ENABLED,
+            enabled,
           },
           measureTextHeightMm,
         );

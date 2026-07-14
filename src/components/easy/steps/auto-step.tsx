@@ -193,9 +193,38 @@ export function AutoStep({
         </div>
       </div>
 
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor="auto-volume">Net volume (optional)</Label>
+          <Input
+            id="auto-volume"
+            maxLength={30}
+            placeholder="e.g. 10 mL / 0.34 fl oz"
+            value={fields.volume ?? ""}
+            onChange={(e) => update({ fields: { ...fields, volume: e.target.value } })}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="auto-qr">QR code link (optional)</Label>
+          <Input
+            id="auto-qr"
+            inputMode="url"
+            maxLength={500}
+            placeholder="https://your-site.example"
+            value={fields.qr ?? ""}
+            onChange={(e) =>
+              update({
+                fields: { ...fields, qr: e.target.value },
+                wantsQr: Boolean(e.target.value.trim()),
+              })
+            }
+          />
+        </div>
+      </div>
+
       <p className="text-xs text-muted-foreground">
-        Have a logo? Add it later in the Advanced Editor — everything else is
-        handled here.
+        Have a logo? You can upload it on the very next screen after picking a
+        design — everything else is handled here.
       </p>
 
       <StickyContinue

@@ -74,6 +74,7 @@ test.describe("iPhone-sized beginner flow", () => {
     await page.getByLabel(/product name/i).fill("Auto Serum");
     await page.getByLabel(/strength or amount/i).fill("10 mg");
     await page.getByRole("button", { name: /holographic/i }).click();
+    await page.getByLabel(/qr code link/i).fill("https://aurelis.example/verify");
     await expectNoHorizontalScroll(page, "auto step");
     await page.getByRole("button", { name: /^make my label$/i }).click();
 
@@ -85,6 +86,10 @@ test.describe("iPhone-sized beginner flow", () => {
     await page.getByRole("button", { name: /use this design/i }).click();
     await page.waitForURL(/\/easy\/[\w-]+/, { timeout: 30_000 });
     await expect(page.getByLabel(/product name/i)).toHaveValue("Auto Serum");
+    // The QR question carried through — the finished label includes it.
+    await expect(page.getByLabel("QR code", { exact: true })).toHaveValue(
+      "https://aurelis.example/verify",
+    );
   });
 
   test("holographic material stays visible in the label preview", async ({ page }) => {
