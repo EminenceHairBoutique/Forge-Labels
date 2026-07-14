@@ -9,8 +9,21 @@ import type { LabelDocument } from "@/lib/document/schema";
 import { ensureFinishesRegistered } from "@/lib/finishes";
 import { loadFontsForDocument } from "@/lib/fonts/registry";
 import { getEasyPalette } from "@/lib/easy/palettes";
-import { getMaterial, getMaterialOption } from "@/lib/easy/materials";
-import { templatesForMaterial } from "@/lib/easy/templates";
+import {
+  getMaterial,
+  getMaterialOption,
+  placementChoices,
+  type EffectPlacement,
+} from "@/lib/easy/materials";
+import { getEasyTemplate, templatesForMaterial } from "@/lib/easy/templates";
+import {
+  getPairing,
+  pairingsForMood,
+  PERSONALITIES,
+  pairingsForPersonality,
+  type PersonalityId,
+} from "@/lib/easy/typography";
+import { fontCssFamily, loadFont } from "@/lib/fonts/registry";
 import { applyEasyChange } from "@/lib/easy/fields";
 import { getStorageAdapter } from "@/lib/storage";
 import { useCanUndoRedo, useDoc } from "@/stores/document-store";
@@ -230,11 +243,15 @@ export function EasyEditor({ projectId }: { projectId: string }) {
 
           <DesignSection doc={doc} />
 
+          <TypographySection doc={doc} />
+
           <QuickFixes doc={doc} />
 
           <MaterialSection
             materialName={material?.name}
             optionName={option?.name}
+            placement={(doc.easy.placement as EffectPlacement | undefined) ?? "auto"}
+            choices={material ? placementChoices(material) : null}
             selection={{
               materialId: doc.easy.materialId,
               optionId: doc.easy.materialOptionId,
@@ -332,6 +349,117 @@ function DesignSection({ doc }: { doc: LabelDocument }) {
 }
 
 /**
+ * Typography personalities (§9): no font dropdowns — pick a feel, get a
+ * curated pairing. "Try another font" cycles pairings that suit the
+ * current mood; the label itself is the live preview and every change is
+ * one undo step. Fonts load lazily so the pairing name renders in its own
+ * display face.
+ */
+function TypographySection({ doc }: { doc: LabelDocument }) {
+  const easy = doc.easy!;
+  const template = getEasyTemplate(easy.templateId);
+  const [personality, setPersonality] = React.useState<PersonalityId | null>(null);
+  if (!template) return null;
+  const pairing = getPairing(easy.pairingId ?? template.pairingId);
+  const overridden = Boolean(easy.pairingId) && easy.pairingId !== template.pairingId;
+
+  const cycle = () => {
+    const pool = personality
+      ? pairingsForPersonality(personality)
+      : pairingsForMood(pairing.mood);
+    if (pool.length === 0) return;
+    const index = pool.findIndex((p) => p.id === pairing.id);
+    const next = pool[(index + 1) % pool.length]!;
+    void applyEasyChange({ pairingId: next.id });
+  };
+
+  const pickPersonality = (id: PersonalityId) => {
+    setPersonality(id);
+    const pool = pairingsForPersonality(id);
+    const next = pool.find((p) => p.id !== pairing.id) ?? pool[0];
+    if (next) void applyEasyChange({ pairingId: next.id });
+  };
+
+  return (
+    <section aria-label="Typography" className="space-y-2">
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        Typography
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {PERSONALITIES.map((p) => (
+          <Button
+            key={p.id}
+            variant={
+              (personality ?? pairing.mood[0]) === p.id ? "primary" : "outline"
+            }
+            size="sm"
+            className="h-8 text-xs"
+            aria-pressed={(personality ?? pairing.mood[0]) === p.id}
+            title={p.blurb}
+            onClick={() => pickPersonality(p.id)}
+          >
+            {p.name}
+          </Button>
+        ))}
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <PairingName pairing={pairing} />
+        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={cycle}>
+          Try another font
+        </Button>
+        {overridden && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 text-xs text-primary"
+            onClick={() => {
+              setPersonality(null);
+              void applyEasyChange({ pairingId: null });
+            }}
+          >
+            Use this layout&apos;s font
+          </Button>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/** The pairing's name, rendered in its own display face once loaded. */
+function PairingName({ pairing }: { pairing: ReturnType<typeof getPairing> }) {
+  // Track WHICH pairing finished loading — comparing ids avoids a
+  // synchronous reset-setState in the effect (react-hooks rule).
+  const [loadedId, setLoadedId] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    let alive = true;
+    loadFont(pairing.displayFamily, pairing.displayWeights[0] ?? 400)
+      .then(() => {
+        if (alive) setLoadedId(pairing.id);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [pairing]);
+  const ready = loadedId === pairing.id;
+  return (
+    <span
+      className="text-sm"
+      style={
+        ready
+          ? {
+              fontFamily: `"${fontCssFamily(pairing.displayFamily)}", inherit`,
+              fontWeight: pairing.displayWeights[0] ?? 400,
+            }
+          : undefined
+      }
+    >
+      {pairing.name}
+    </span>
+  );
+}
+
+/**
  * §4 one-click corrections: controlled engine re-runs (all undoable).
  * "Fit everything" and "Easier to read" persist as tweaks so later edits
  * keep the fix; "Balance layout" simply regenerates — which also cleans up
@@ -347,8 +475,54 @@ function QuickFixes({ doc }: { doc: LabelDocument }) {
   const fix = (change: Parameters<typeof applyEasyChange>[0]) =>
     void applyEasyChange(change);
 
+  // "Make it more …" — deterministic: jump to the strongest template for
+  // that mood available on this material (content and colors carry over).
+  const easy = doc.easy!;
+  const material = getMaterial(easy.materialId);
+  const makeIt = (vibe: "premium" | "minimal" | "bold" | "clinical" | "futuristic") => {
+    if (!material) return;
+    const candidates = templatesForMaterial(material.id)
+      .filter((t) => t.id !== easy.templateId)
+      .sort(
+        (a, b) =>
+          (b.vibe[vibe] ?? 0) - (a.vibe[vibe] ?? 0) || a.id.localeCompare(b.id),
+      );
+    const next = candidates[0];
+    if (next && (next.vibe[vibe] ?? 0) > 0) fix({ templateId: next.id });
+  };
+  const effectChoices = material ? placementChoices(material) : null;
+  const INTENSITIES = ["subtle", "balanced", "bold", "maximum"] as const;
+  const intensity = easy.intensity ?? material?.defaultIntensity ?? "balanced";
+  const intensityIndex = INTENSITIES.indexOf(intensity);
+
   return (
     <section aria-label="Quick fixes" className="space-y-2">
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        Make it…
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        <FixButton onClick={() => makeIt("premium")}>More premium</FixButton>
+        <FixButton onClick={() => makeIt("minimal")}>Cleaner</FixButton>
+        <FixButton onClick={() => makeIt("bold")}>Bolder</FixButton>
+        <FixButton onClick={() => makeIt("clinical")}>More clinical</FixButton>
+        <FixButton onClick={() => makeIt("futuristic")}>More futuristic</FixButton>
+        {effectChoices && (
+          <>
+            <FixButton
+              disabled={intensityIndex >= INTENSITIES.length - 1}
+              onClick={() => fix({ intensity: INTENSITIES[intensityIndex + 1]! })}
+            >
+              More {material!.id === "neon" ? "neon" : "effect"}
+            </FixButton>
+            <FixButton
+              disabled={intensityIndex <= 0}
+              onClick={() => fix({ intensity: INTENSITIES[intensityIndex - 1]! })}
+            >
+              Less {material!.id === "neon" ? "neon" : "effect"}
+            </FixButton>
+          </>
+        )}
+      </div>
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
         Quick fixes
       </p>
@@ -425,10 +599,14 @@ function FixButton({
 function MaterialSection({
   materialName,
   optionName,
+  placement,
+  choices,
   selection,
 }: {
   materialName?: string;
   optionName?: string;
+  placement: EffectPlacement;
+  choices: ReturnType<typeof placementChoices>;
   selection: { materialId: string; optionId: string; intensity: "subtle" | "balanced" | "bold" | "maximum" };
 }) {
   const [open, setOpen] = React.useState(false);
@@ -463,6 +641,28 @@ function MaterialSection({
             });
           }}
         />
+      )}
+      {choices && (
+        <div className="space-y-1">
+          <p className="text-[11px] text-muted-foreground">
+            Where should the effect go?
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {choices.map((choice) => (
+              <Button
+                key={choice.id}
+                variant={placement === choice.id ? "primary" : "outline"}
+                size="sm"
+                className="h-8 text-xs"
+                aria-pressed={placement === choice.id}
+                title={choice.hint}
+                onClick={() => void applyEasyChange({ placement: choice.id })}
+              >
+                {choice.label}
+              </Button>
+            ))}
+          </div>
+        </div>
       )}
     </section>
   );

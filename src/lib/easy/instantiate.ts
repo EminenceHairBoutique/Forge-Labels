@@ -14,7 +14,12 @@ import type {
   TextObject,
 } from "@/lib/document/schema";
 import { paletteBorder, paletteQrColor, type EasyPalette } from "./palettes";
-import type { Intensity, MaterialDef, MaterialOption } from "./materials";
+import type {
+  EffectPlacement,
+  Intensity,
+  MaterialDef,
+  MaterialOption,
+} from "./materials";
 import type {
   ColorRole,
   DecorFill,
@@ -46,23 +51,10 @@ import {
  * Editor) untouched, in order, on top.
  */
 
-/** Effect placement override ("auto" = intensity-driven coverage). */
-export type EffectPlacement =
-  | "auto"
-  | "accents"
-  | "panel"
-  | "full"
-  | "border"
-  | "title";
-
-export const EFFECT_PLACEMENTS: readonly EffectPlacement[] = [
-  "auto",
-  "accents",
-  "panel",
-  "full",
-  "border",
-  "title",
-];
+export {
+  EFFECT_PLACEMENTS,
+  type EffectPlacement,
+} from "./materials";
 
 export interface EasyBuildInput {
   template: EasyTemplateDef;

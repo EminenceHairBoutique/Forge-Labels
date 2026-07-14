@@ -345,6 +345,63 @@ export const MATERIALS: readonly MaterialDef[] = [
   },
 ] as const;
 
+/**
+ * Where a material's effect is applied (§12). "auto" follows the intensity
+ * slider; the rest override it. The engine adds readability protection
+ * (panels/chips) automatically wherever the effect goes.
+ */
+export type EffectPlacement =
+  | "auto"
+  | "accents"
+  | "panel"
+  | "full"
+  | "border"
+  | "title";
+
+export const EFFECT_PLACEMENTS: readonly EffectPlacement[] = [
+  "auto",
+  "accents",
+  "panel",
+  "full",
+  "border",
+  "title",
+];
+
+export interface PlacementChoice {
+  id: EffectPlacement;
+  label: string;
+  hint: string;
+}
+
+/**
+ * Placement choices for a material, in beginner words — or null when the
+ * material has no effect to place (plain, matte, kraft, glossy: gloss is a
+ * surface finish, not artwork).
+ */
+export function placementChoices(material: MaterialDef): PlacementChoice[] | null {
+  const hasFinishOptions = material.options.some((o) => o.finishId);
+  if (material.id === "neon") {
+    return [
+      { id: "auto", label: "Automatic", hint: "Follows the intensity setting" },
+      { id: "accents", label: "Color accents", hint: "Neon details on a calm base" },
+      { id: "panel", label: "Bright panel", hint: "The product name sits on a neon block" },
+      { id: "full", label: "Full bright", hint: "Maximum energy, still readable" },
+      { id: "border", label: "Neon border", hint: "A glowing frame around the label" },
+      { id: "title", label: "Neon title", hint: "Only the product name goes neon" },
+    ];
+  }
+  if (!hasFinishOptions) return null;
+  const noun = material.id === "metallic" ? "metal" : material.name.toLowerCase();
+  return [
+    { id: "auto", label: "Automatic", hint: "Follows the intensity setting" },
+    { id: "accents", label: "Accents only", hint: `Small ${noun} details` },
+    { id: "panel", label: "Background + text panel", hint: `${material.name} background with a solid panel for text` },
+    { id: "full", label: `Full ${noun}`, hint: "Effect everywhere; text gets protective chips" },
+    { id: "border", label: `${material.name} border`, hint: `A ${noun} frame around the edge` },
+    { id: "title", label: `${material.name} title`, hint: `The product name itself turns ${noun}` },
+  ];
+}
+
 export function getMaterial(id: string): MaterialDef | undefined {
   return MATERIALS.find((m) => m.id === id);
 }
