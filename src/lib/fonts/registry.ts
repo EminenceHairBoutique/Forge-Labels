@@ -39,6 +39,11 @@ export function availableWeights(id: string): number[] {
   return (getFontFamily(id)?.files ?? []).map((f) => f.weight);
 }
 
+/** Exact-weight check — validation uses this, rendering uses resolveWeight. */
+export function hasWeight(id: string, weight: number): boolean {
+  return availableWeights(id).includes(weight);
+}
+
 /** Closest bundled weight to the requested one. */
 export function resolveWeight(id: string, weight: number): number {
   const weights = availableWeights(id);

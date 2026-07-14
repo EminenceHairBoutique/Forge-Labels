@@ -181,5 +181,513 @@
         "bytes": 112092
       }
     ]
+  },
+  {
+    "id": "manrope",
+    "name": "Manrope",
+    "category": "sans",
+    "files": [
+      {
+        "weight": 400,
+        "file": "manrope-400.ttf",
+        "bytes": 94972
+      },
+      {
+        "weight": 600,
+        "file": "manrope-600.ttf",
+        "bytes": 95096
+      },
+      {
+        "weight": 800,
+        "file": "manrope-800.ttf",
+        "bytes": 95688
+      }
+    ]
+  },
+  {
+    "id": "plus-jakarta-sans",
+    "name": "Plus Jakarta Sans",
+    "category": "sans",
+    "files": [
+      {
+        "weight": 400,
+        "file": "plus-jakarta-sans-400.ttf",
+        "bytes": 63336
+      },
+      {
+        "weight": 600,
+        "file": "plus-jakarta-sans-600.ttf",
+        "bytes": 63412
+      },
+      {
+        "weight": 700,
+        "file": "plus-jakarta-sans-700.ttf",
+        "bytes": 63336
+      }
+    ]
+  },
+  {
+    "id": "dm-sans",
+    "name": "DM Sans",
+    "category": "sans",
+    "files": [
+      {
+        "weight": 400,
+        "file": "dm-sans-400.ttf",
+        "bytes": 48280
+      },
+      {
+        "weight": 500,
+        "file": "dm-sans-500.ttf",
+        "bytes": 48308
+      },
+      {
+        "weight": 700,
+        "file": "dm-sans-700.ttf",
+        "bytes": 48200
+      }
+    ]
+  },
+  {
+    "id": "sora",
+    "name": "Sora",
+    "category": "sans",
+    "files": [
+      {
+        "weight": 400,
+        "file": "sora-400.ttf",
+        "bytes": 46040
+      },
+      {
+        "weight": 600,
+        "file": "sora-600.ttf",
+        "bytes": 46216
+      }
+    ]
+  },
+  {
+    "id": "archivo",
+    "name": "Archivo",
+    "category": "sans",
+    "files": [
+      {
+        "weight": 400,
+        "file": "archivo-400.ttf",
+        "bytes": 110708
+      },
+      {
+        "weight": 600,
+        "file": "archivo-600.ttf",
+        "bytes": 111872
+      },
+      {
+        "weight": 800,
+        "file": "archivo-800.ttf",
+        "bytes": 111948
+      }
+    ]
+  },
+  {
+    "id": "work-sans",
+    "name": "Work Sans",
+    "category": "sans",
+    "files": [
+      {
+        "weight": 400,
+        "file": "work-sans-400.ttf",
+        "bytes": 114144
+      },
+      {
+        "weight": 500,
+        "file": "work-sans-500.ttf",
+        "bytes": 114612
+      },
+      {
+        "weight": 600,
+        "file": "work-sans-600.ttf",
+        "bytes": 115376
+      }
+    ]
+  },
+  {
+    "id": "nunito-sans",
+    "name": "Nunito Sans",
+    "category": "sans",
+    "files": [
+      {
+        "weight": 400,
+        "file": "nunito-sans-400.ttf",
+        "bytes": 106700
+      },
+      {
+        "weight": 600,
+        "file": "nunito-sans-600.ttf",
+        "bytes": 106832
+      },
+      {
+        "weight": 700,
+        "file": "nunito-sans-700.ttf",
+        "bytes": 106792
+      }
+    ]
+  },
+  {
+    "id": "quicksand",
+    "name": "Quicksand",
+    "category": "sans",
+    "files": [
+      {
+        "weight": 400,
+        "file": "quicksand-400.ttf",
+        "bytes": 73224
+      },
+      {
+        "weight": 600,
+        "file": "quicksand-600.ttf",
+        "bytes": 73140
+      }
+    ]
+  },
+  {
+    "id": "raleway",
+    "name": "Raleway",
+    "category": "sans",
+    "files": [
+      {
+        "weight": 400,
+        "file": "raleway-400.ttf",
+        "bytes": 138808
+      },
+      {
+        "weight": 500,
+        "file": "raleway-500.ttf",
+        "bytes": 138808
+      },
+      {
+        "weight": 700,
+        "file": "raleway-700.ttf",
+        "bytes": 138748
+      }
+    ]
+  },
+  {
+    "id": "bodoni-moda",
+    "name": "Bodoni Moda",
+    "category": "serif",
+    "files": [
+      {
+        "weight": 400,
+        "file": "bodoni-moda-400.ttf",
+        "bytes": 44752
+      },
+      {
+        "weight": 600,
+        "file": "bodoni-moda-600.ttf",
+        "bytes": 44880
+      },
+      {
+        "weight": 700,
+        "file": "bodoni-moda-700.ttf",
+        "bytes": 44844
+      }
+    ]
+  },
+  {
+    "id": "libre-baskerville",
+    "name": "Libre Baskerville",
+    "category": "serif",
+    "files": [
+      {
+        "weight": 400,
+        "file": "libre-baskerville-400.ttf",
+        "bytes": 106728
+      },
+      {
+        "weight": 700,
+        "file": "libre-baskerville-700.ttf",
+        "bytes": 106752
+      }
+    ]
+  },
+  {
+    "id": "prata",
+    "name": "Prata",
+    "category": "serif",
+    "files": [
+      {
+        "weight": 400,
+        "file": "prata-400.ttf",
+        "bytes": 96016
+      }
+    ]
+  },
+  {
+    "id": "marcellus",
+    "name": "Marcellus",
+    "category": "serif",
+    "files": [
+      {
+        "weight": 400,
+        "file": "marcellus-400.ttf",
+        "bytes": 43288
+      }
+    ]
+  },
+  {
+    "id": "fraunces",
+    "name": "Fraunces",
+    "category": "serif",
+    "files": [
+      {
+        "weight": 400,
+        "file": "fraunces-400.ttf",
+        "bytes": 71580
+      },
+      {
+        "weight": 600,
+        "file": "fraunces-600.ttf",
+        "bytes": 71632
+      }
+    ]
+  },
+  {
+    "id": "lora",
+    "name": "Lora",
+    "category": "serif",
+    "files": [
+      {
+        "weight": 400,
+        "file": "lora-400.ttf",
+        "bytes": 132188
+      },
+      {
+        "weight": 600,
+        "file": "lora-600.ttf",
+        "bytes": 132672
+      }
+    ]
+  },
+  {
+    "id": "instrument-serif",
+    "name": "Instrument Serif",
+    "category": "serif",
+    "files": [
+      {
+        "weight": 400,
+        "file": "instrument-serif-400.ttf",
+        "bytes": 62284
+      }
+    ]
+  },
+  {
+    "id": "anton",
+    "name": "Anton",
+    "category": "display",
+    "files": [
+      {
+        "weight": 400,
+        "file": "anton-400.ttf",
+        "bytes": 130324
+      }
+    ]
+  },
+  {
+    "id": "oswald",
+    "name": "Oswald",
+    "category": "display",
+    "files": [
+      {
+        "weight": 400,
+        "file": "oswald-400.ttf",
+        "bytes": 86068
+      },
+      {
+        "weight": 600,
+        "file": "oswald-600.ttf",
+        "bytes": 86444
+      }
+    ]
+  },
+  {
+    "id": "archivo-narrow",
+    "name": "Archivo Narrow",
+    "category": "display",
+    "files": [
+      {
+        "weight": 400,
+        "file": "archivo-narrow-400.ttf",
+        "bytes": 58360
+      },
+      {
+        "weight": 700,
+        "file": "archivo-narrow-700.ttf",
+        "bytes": 58340
+      }
+    ]
+  },
+  {
+    "id": "barlow-condensed",
+    "name": "Barlow Condensed",
+    "category": "display",
+    "files": [
+      {
+        "weight": 400,
+        "file": "barlow-condensed-400.ttf",
+        "bytes": 80968
+      },
+      {
+        "weight": 600,
+        "file": "barlow-condensed-600.ttf",
+        "bytes": 86636
+      }
+    ]
+  },
+  {
+    "id": "league-spartan",
+    "name": "League Spartan",
+    "category": "display",
+    "files": [
+      {
+        "weight": 400,
+        "file": "league-spartan-400.ttf",
+        "bytes": 52872
+      },
+      {
+        "weight": 700,
+        "file": "league-spartan-700.ttf",
+        "bytes": 53028
+      }
+    ]
+  },
+  {
+    "id": "exo-2",
+    "name": "Exo 2",
+    "category": "sans",
+    "files": [
+      {
+        "weight": 400,
+        "file": "exo-2-400.ttf",
+        "bytes": 143780
+      },
+      {
+        "weight": 700,
+        "file": "exo-2-700.ttf",
+        "bytes": 143896
+      }
+    ]
+  },
+  {
+    "id": "rajdhani",
+    "name": "Rajdhani",
+    "category": "display",
+    "files": [
+      {
+        "weight": 400,
+        "file": "rajdhani-400.ttf",
+        "bytes": 351464
+      },
+      {
+        "weight": 600,
+        "file": "rajdhani-600.ttf",
+        "bytes": 362824
+      },
+      {
+        "weight": 700,
+        "file": "rajdhani-700.ttf",
+        "bytes": 372568
+      }
+    ]
+  },
+  {
+    "id": "chakra-petch",
+    "name": "Chakra Petch",
+    "category": "display",
+    "files": [
+      {
+        "weight": 400,
+        "file": "chakra-petch-400.ttf",
+        "bytes": 70260
+      },
+      {
+        "weight": 700,
+        "file": "chakra-petch-700.ttf",
+        "bytes": 70140
+      }
+    ]
+  },
+  {
+    "id": "oxanium",
+    "name": "Oxanium",
+    "category": "display",
+    "files": [
+      {
+        "weight": 400,
+        "file": "oxanium-400.ttf",
+        "bytes": 28376
+      },
+      {
+        "weight": 700,
+        "file": "oxanium-700.ttf",
+        "bytes": 28332
+      }
+    ]
+  },
+  {
+    "id": "michroma",
+    "name": "Michroma",
+    "category": "display",
+    "files": [
+      {
+        "weight": 400,
+        "file": "michroma-400.ttf",
+        "bytes": 61440
+      }
+    ]
+  },
+  {
+    "id": "audiowide",
+    "name": "Audiowide",
+    "category": "display",
+    "files": [
+      {
+        "weight": 400,
+        "file": "audiowide-400.ttf",
+        "bytes": 46972
+      }
+    ]
+  },
+  {
+    "id": "space-mono",
+    "name": "Space Mono",
+    "category": "mono",
+    "files": [
+      {
+        "weight": 400,
+        "file": "space-mono-400.ttf",
+        "bytes": 81124
+      },
+      {
+        "weight": 700,
+        "file": "space-mono-700.ttf",
+        "bytes": 79904
+      }
+    ]
+  },
+  {
+    "id": "ibm-plex-mono",
+    "name": "IBM Plex Mono",
+    "category": "mono",
+    "files": [
+      {
+        "weight": 400,
+        "file": "ibm-plex-mono-400.ttf",
+        "bytes": 128812
+      },
+      {
+        "weight": 600,
+        "file": "ibm-plex-mono-600.ttf",
+        "bytes": 133444
+      }
+    ]
   }
 ]

@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "fonts:fetch": "node scripts/fetch-fonts.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.111.0",
