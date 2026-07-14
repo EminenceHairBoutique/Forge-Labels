@@ -37,6 +37,7 @@ import { ContentForm } from "./content-form";
 import { ExportWizard } from "./export-wizard";
 import { MaterialPicker } from "./material-picker";
 import { MatchingLabelDialog } from "./matching-label-dialog";
+import { TemplateBrowser } from "./template-browser";
 import { VialStage } from "./vial-stage";
 import { cn } from "@/lib/utils";
 
@@ -307,9 +308,24 @@ export function EasyEditor({ projectId }: { projectId: string }) {
  */
 function DesignSection({ doc }: { doc: LabelDocument }) {
   const easy = doc.easy!;
+  const [browserOpen, setBrowserOpen] = React.useState(false);
   const material = getMaterial(easy.materialId);
   if (!material) return null;
-  const layouts = templatesForMaterial(material.id);
+  const eligible = templatesForMaterial(material.id).filter(
+    (t) =>
+      (!t.minHeightMm || doc.label.heightMm >= t.minHeightMm) &&
+      (!t.minWidthMm || doc.label.widthMm >= t.minWidthMm),
+  );
+  // A short curated strip (featured first) — the full library lives in the
+  // browser so 45+ templates never become 45 buttons.
+  const current = eligible.find((t) => t.id === easy.templateId);
+  const quick = [
+    ...(current ? [current] : []),
+    ...eligible.filter(
+      (t) => t.id !== easy.templateId && t.featured,
+    ),
+    ...eligible.filter((t) => t.id !== easy.templateId && !t.featured),
+  ].slice(0, 6);
   const currentPalette = getEasyPalette(easy.paletteId);
   const oppositeTone = material.paletteIds
     .map(getEasyPalette)
@@ -321,7 +337,7 @@ function DesignSection({ doc }: { doc: LabelDocument }) {
         Layout
       </p>
       <div className="flex flex-wrap gap-1.5">
-        {layouts.map((layout) => (
+        {quick.map((layout) => (
           <Button
             key={layout.id}
             variant={layout.id === easy.templateId ? "primary" : "outline"}
@@ -333,6 +349,14 @@ function DesignSection({ doc }: { doc: LabelDocument }) {
             {layout.name}
           </Button>
         ))}
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 text-xs"
+          onClick={() => setBrowserOpen(true)}
+        >
+          Browse all templates ({eligible.length})
+        </Button>
         {oppositeTone && (
           <Button
             variant="outline"
@@ -344,6 +368,7 @@ function DesignSection({ doc }: { doc: LabelDocument }) {
           </Button>
         )}
       </div>
+      <TemplateBrowser open={browserOpen} onOpenChange={setBrowserOpen} doc={doc} />
     </section>
   );
 }

@@ -237,12 +237,16 @@ export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
           : inset,
       0,
     );
-  // Edge bands push the content zones inward the same way.
+  // Edge bands push the content zones inward the same way. Inset bands
+  // start at the safe margin, so their occupied depth is safe + height.
   const bandInset = (edge: "top" | "bottom") =>
     decorActive.reduce(
       (inset, d) =>
-        d.kind === "band" && d.edge === edge && !d.inset
-          ? Math.max(inset, heightMm * d.heightFactor + 1)
+        d.kind === "band" && d.edge === edge
+          ? Math.max(
+              inset,
+              heightMm * d.heightFactor + (d.inset ? safeMm + 0.8 : 1),
+            )
           : inset,
       0,
     );
@@ -279,7 +283,7 @@ export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
   // The QR grows with the label but never dominates it: at most ~half the
   // usable height (more when the template or a fix explicitly asks for a
   // bigger code — the placement fallbacks still guard the layout).
-  const qrIntent = (template.qrScale ?? 1) * (tweaks.qrBoost ? 1.25 : 1);
+  const qrIntent = (template.qrScale ?? 1) * (tweaks.qrBoost ? 1.35 : 1);
   const qrEdge = qrWanted
     ? MM(
         Math.min(
@@ -342,9 +346,15 @@ export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
   let qrSide = qrEdge; // side placement may shrink the QR toward the 9 mm floor
   let qrMode: "corner" | "side" | "center" | "center-stack" | "off" = "off";
   if (qrWanted && !template.split) {
-    if (codePlacement === "footer-center") qrMode = "center";
-    else if (codePlacement === "side") qrMode = "side";
-    else if (cornerFits(qrEdge) && qrEdge + gap + MIN_TEXT_W <= roughTextW) {
+    const wantCenter = codePlacement === "footer-center";
+    if (codePlacement === "side") qrMode = "side";
+    else if (wantCenter && centerFits(qrEdge) && qrEdge + 2 <= roughTextW) {
+      qrMode = "center";
+    } else if (
+      !wantCenter &&
+      cornerFits(qrEdge) &&
+      qrEdge + gap + MIN_TEXT_W <= roughTextW
+    ) {
       qrMode = "corner";
     } else if (centerFits(qrEdge) && qrEdge + 2 <= roughTextW) {
       qrMode = "center";
@@ -362,13 +372,38 @@ export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
       }
     }
   } else if (qrWanted) {
-    qrMode = "corner"; // split layouts anchor codes in the right column
+    // Split layouts anchor codes at the right column's bottom; the QR
+    // shrinks to the column (never below 9 mm) or is honestly left off.
+    qrMode = "corner";
+    const rightColWEst =
+      (roughTextW - 2.2) * (1 - (template.split?.ratio ?? 0.56));
+    if (qrEdge > rightColWEst) {
+      qrSide = MM(Math.max(9, rightColWEst - 0.5));
+      if (qrSide > rightColWEst) {
+        qrMode = "off";
+        hiddenCodes.push("qr");
+        notes.push(
+          "This label is too small for a scannable QR code — it was left off. Use a bigger label to include it.",
+        );
+      }
+    } else {
+      qrSide = qrEdge;
+    }
   }
   let barcodeMode: "corner" | "side" | "center" | "center-stack" | "off" = "off";
   if (barcodeWanted && !template.split) {
-    if (codePlacement === "footer-center") barcodeMode = "center";
-    else if (
+    const wantCenter = codePlacement === "footer-center";
+    const centerPairW = (qrMode === "center" ? qrEdge + gap : 0) + barcodeW;
+    if (
+      wantCenter &&
+      qrMode !== "corner" &&
+      centerFits(barcodeH) &&
+      centerPairW + 2 <= roughTextW
+    ) {
+      barcodeMode = "center";
+    } else if (
       (qrMode === "corner" || qrMode === "off" || qrMode === "side") &&
+      !wantCenter &&
       cornerFits(barcodeH) &&
       barcodeW + gap + MIN_TEXT_W + (qrMode === "corner" ? qrEdge + gap : 0) <=
         roughTextW
@@ -415,12 +450,21 @@ export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
     }
   } else if (barcodeWanted) {
     barcodeMode = "corner";
+    const rightColWEst =
+      (roughTextW - 2.2) * (1 - (template.split?.ratio ?? 0.56));
+    if (barcodeW > rightColWEst) {
+      barcodeMode = "off";
+      hiddenCodes.push("barcode");
+      notes.push(
+        "This label is too small for a readable barcode — it was left off. Use a bigger label to include it.",
+      );
+    }
   }
 
   const qrOn = qrWanted && qrMode !== "off";
   const barcodeOn = barcodeWanted && barcodeMode !== "off";
   const sideQr = qrOn && qrMode === "side";
-  const qrBox = sideQr ? qrSide : qrEdge;
+  const qrBox = sideQr || template.split ? qrSide : qrEdge;
   const sideBarcode = barcodeOn && barcodeMode === "side";
   const bottomCenterCodes =
     (qrOn && (qrMode === "center" || qrMode === "center-stack")) ||
@@ -680,7 +724,9 @@ export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
       row.casing ??
       (pairing.uppercaseRoles.includes(row.font) ? ("uppercase" as const) : undefined);
     const onAccentText =
-      row.chip === "fill" || (plan.heroAccentPanel && row.zone === "hero");
+      row.chip === "fill" ||
+      // The accent panel only spans the LEFT column's hero.
+      (plan.heroAccentPanel && row.zone === "hero" && !isRight(row));
     // Text on loud accent surfaces is always at least semibold — bold small
     // print keeps its legibility at lower contrast ratios. `emphasis` rows
     // take the pairing's heaviest declared weight for the role.
@@ -791,7 +837,7 @@ export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
       Math.max(leftFooterH, cornerCodeH > 0 ? cornerCodeH + gap * 0.5 : 0);
     const rightCodesH =
       split && (qrOn || barcodeOn) && !sideQr && !bottomCenterCodes
-        ? Math.max(qrOn ? qrBox : 0, barcodeOn ? barcodeH : 0) + gap
+        ? (qrOn ? qrBox + gap : 0) + (barcodeOn ? barcodeH + gap : 0)
         : 0;
     const rightTotal = columnHeight(rows.filter((r) => isRight(r.def))) + rightCodesH;
     return Math.max(leftTotal, rightTotal);
@@ -870,7 +916,7 @@ export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
   // Right-column codes (split layouts) raise the right column's floor.
   const splitCodesH =
     split && (qrOn || barcodeOn) && !sideQr && !bottomCenterCodes
-      ? Math.max(qrOn ? qrBox : 0, barcodeOn ? barcodeH : 0) + gap
+      ? (qrOn ? qrBox + gap : 0) + (barcodeOn ? barcodeH + gap : 0)
       : 0;
 
   // Corner codes taller than the footer text stack would let the centered
@@ -942,17 +988,23 @@ export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
   // --- Contrast protection (chips on effect backgrounds) ------------------------
   if (plan.finishBackground) {
     // Any text on the reflective film that is NOT already covered by the
-    // footer panel or hero panel gets a tight opaque chip: at "full"
-    // placement that's header + hero rows, at "panel" placement the
-    // header (and split right column) rows the hero panel doesn't reach.
+    // footer panel, the hero panel, or its own row chip gets a tight
+    // opaque chip: at "full" placement that's header + hero rows, at
+    // "panel" placement the header (and split right column) rows the hero
+    // panel doesn't reach.
     const footerIds = new Set(
       [...leftZones.footer, ...rightZones.footer].map((r) => r.obj.id),
     );
     const heroPanelIds = plan.heroPanel
       ? new Set(leftZones.hero.map((r) => r.obj.id))
       : new Set<string>();
+    // Only FILL chips are opaque — outline chips still need protection.
+    const ownChipIds = new Set(
+      laid.filter((r) => r.def.chip === "fill").map((r) => r.obj.id),
+    );
     for (const row of placed) {
       if (footerIds.has(row.id) || heroPanelIds.has(row.id)) continue;
+      if (ownChipIds.has(row.id)) continue;
       chips.push(readabilityChip(row, panelColor(palette), scaleH));
     }
   }
@@ -1202,7 +1254,7 @@ export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
       y = codeBottom - qrBox / 2;
     } else if (split) {
       x = rightColLeft + qrBox / 2;
-      y = zoneBottom - qrBox / 2;
+      y = zoneBottom - (barcodeOn ? barcodeH + gap : 0) - qrBox / 2;
     } else {
       x = codeRight ? safeRight - qrBox / 2 : safeLeft + qrBox / 2;
       y = codeBottom - qrBox / 2;
@@ -1243,7 +1295,7 @@ export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
     } else if (bottomCenterCodes) {
       x = widthMm / 2 + (qrOn && qrMode !== "side" ? (qrBox + gap) / 2 : 0);
     } else if (split) {
-      x = rightColLeft + rightColW - barcodeW / 2;
+      x = rightColLeft + Math.min(barcodeW, rightColW) / 2;
       y = zoneBottom - barcodeH / 2;
     } else {
       x = barcodeOnLeft ? safeLeft + barcodeW / 2 : safeRight - barcodeW / 2;

@@ -313,6 +313,7 @@ export function validateTemplate(t: EasyTemplateDef): TemplateIssue[] {
 
   for (const size of sizes) {
     if (t.minHeightMm && size.heightMm < t.minHeightMm) continue; // honestly hidden at this size
+    if (t.minWidthMm && size.widthMm < t.minWidthMm) continue;
     for (const scenario of VALIDATION_SCENARIOS) {
       // The material axis runs on the three real sizes with the core
       // scenarios; edge sizes always run on plain to keep the matrix sane.

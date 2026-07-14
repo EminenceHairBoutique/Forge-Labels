@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   FolderOpen,
   Image as ImageIcon,
+  LayoutTemplate,
   Palette,
   Settings,
   Download,
@@ -17,6 +18,7 @@ import { SkipLink } from "@/components/ui/skip-link";
 
 const STUDIO_NAV = [
   { href: "/dashboard", label: "Projects", icon: FolderOpen },
+  { href: "/library", label: "Templates", icon: LayoutTemplate },
   { href: "/brand-kits", label: "Brand kits", icon: Palette },
   { href: "/assets", label: "Assets", icon: ImageIcon },
   { href: "/team", label: "Team", icon: Users },

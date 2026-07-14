@@ -149,6 +149,8 @@ export interface EasyTemplateDef {
   recommendedGlass: GlassId[];
   /** Detailed layouts need vertical room; hidden below this height. */
   minHeightMm?: number;
+  /** Split/side layouts need horizontal room; hidden below this width. */
+  minWidthMm?: number;
   /** All Easy templates lay out automatically. */
   difficulty: "automatic";
   premium: boolean;

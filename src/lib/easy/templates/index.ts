@@ -1,5 +1,10 @@
 import type { MaterialId } from "../materials";
 import { CORE_TEMPLATES } from "./core";
+import { LUXURY_TEMPLATES } from "./luxury";
+import { CLINICAL_TEMPLATES } from "./clinical";
+import { LABORATORY_TEMPLATES } from "./laboratory";
+import { EFFECT_TEMPLATES } from "./effects";
+import { EVERYDAY_TEMPLATES } from "./everyday";
 import type { EasyTemplateDef, TemplateCategory } from "./types";
 
 /**
@@ -10,7 +15,14 @@ import type { EasyTemplateDef, TemplateCategory } from "./types";
 
 export * from "./types";
 
-const ALL: EasyTemplateDef[] = [...CORE_TEMPLATES];
+const ALL: EasyTemplateDef[] = [
+  ...CORE_TEMPLATES,
+  ...LUXURY_TEMPLATES,
+  ...CLINICAL_TEMPLATES,
+  ...LABORATORY_TEMPLATES,
+  ...EFFECT_TEMPLATES,
+  ...EVERYDAY_TEMPLATES,
+];
 
 export const EASY_TEMPLATES: readonly EasyTemplateDef[] = ALL;
 

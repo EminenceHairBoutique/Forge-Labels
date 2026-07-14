@@ -89,10 +89,14 @@ describe("buildEasyDocument", () => {
           spec({ preset, templateId: template.id }),
         );
         for (const obj of textObjects(doc.objects)) {
-          expect(obj.xMm - obj.widthMm / 2).toBeGreaterThanOrEqual(-0.01);
-          expect(obj.xMm + obj.widthMm / 2).toBeLessThanOrEqual(doc.label.widthMm + 0.01);
-          expect(obj.yMm - obj.heightMm / 2).toBeGreaterThanOrEqual(-0.01);
-          expect(obj.yMm + obj.heightMm / 2).toBeLessThanOrEqual(doc.label.heightMm + 0.01);
+          // Rotated (vertical) rows swap their extents around the center.
+          const rotated = obj.rotationDeg % 180 !== 0;
+          const w = rotated ? obj.heightMm : obj.widthMm;
+          const h = rotated ? obj.widthMm : obj.heightMm;
+          expect(obj.xMm - w / 2).toBeGreaterThanOrEqual(-0.01);
+          expect(obj.xMm + w / 2).toBeLessThanOrEqual(doc.label.widthMm + 0.01);
+          expect(obj.yMm - h / 2).toBeGreaterThanOrEqual(-0.01);
+          expect(obj.yMm + h / 2).toBeLessThanOrEqual(doc.label.heightMm + 0.01);
         }
       }
     },
@@ -296,7 +300,8 @@ describe("template families", () => {
       (t) =>
         `${t.pairingId}/${t.align}/${t.split ? "split" : "stack"}/${t.verticalRow?.edge ?? "-"}/${t.codePlacement ?? "corner"}/${t.decor.map((d) => d.kind).sort().join(",")}/${t.rows.map((r) => `${r.slot}:${r.zone}${r.chip ? ":chip" : ""}${r.monogram ? ":mono" : ""}`).join("|")}`,
     );
-    expect(new Set(dna).size).toBe(dna.length);
+    const dupes = dna.filter((d, i) => dna.indexOf(d) !== i);
+    expect(dupes, `duplicate layout DNA:\n${dupes.join("\n")}`).toEqual([]);
   });
 
   it("gives QR-focused layouts a larger code", () => {
@@ -498,10 +503,10 @@ describe("recommendTemplates", () => {
     expect(new Set(families).size).toBe(families.length);
   });
 
-  it("matches futuristic style to the futuristic archetype", () => {
+  it("matches futuristic style to a strongly futuristic archetype", () => {
     const material = getMaterial("neon")!;
     const picks = recommendTemplates({ styleId: "futuristic", material });
-    expect(picks[0]!.template.id).toBe("futuristic-band");
+    expect(picks[0]!.template.vibe.futuristic ?? 0).toBeGreaterThanOrEqual(3);
   });
 });
 

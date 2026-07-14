@@ -206,14 +206,18 @@ test.describe("design variations and product family", () => {
       material: /plain/i,
       product: "Variant Serum",
     });
-    // Switch to a different layout family — the words survive.
-    await page.getByRole("button", { name: /type stack/i }).click();
-    await page.waitForTimeout(700);
+    // Switch to a different layout family through the template browser —
+    // the words survive and the picked layout becomes current.
+    await page.getByRole("button", { name: /browse all templates/i }).click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await page.getByRole("button", { name: /^Type stack — / }).click();
+    await page.getByRole("button", { name: /use this template/i }).click();
+    await page.waitForTimeout(900);
+    await expect(page.getByRole("dialog")).toHaveCount(0);
     await expect(page.getByLabel(/product name/i)).toHaveValue("Variant Serum");
-    await expect(page.getByRole("button", { name: /type stack/i })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    await expect(
+      page.getByRole("button", { name: "Type stack", exact: true }),
+    ).toHaveAttribute("aria-pressed", "true");
     // Tone flip is offered and applies (start tone depends on the pick).
     const flip = page.getByRole("button", { name: /try a (dark|light) version/i });
     const before = (await flip.textContent()) ?? "";
