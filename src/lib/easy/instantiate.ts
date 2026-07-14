@@ -164,6 +164,16 @@ function decorFill(fill: DecorFill, palette: EasyPalette, finishId?: string): Fi
   if ("effect" in fill && finishId) {
     return { type: "finish", finishId, intensity: 0.85, scale: 1, angleDeg: 0 };
   }
+  if ("gradient" in fill) {
+    return {
+      type: "linear-gradient",
+      angleDeg: 90,
+      stops: [
+        { offset: 0, color: palette.accent },
+        { offset: 1, color: panelColor(palette) },
+      ],
+    };
+  }
   const role = "role" in fill ? fill.role : "accent";
   return { type: "solid", color: roleColor(palette, role) };
 }
@@ -1239,11 +1249,14 @@ export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
   }
 
   // --- QR / barcode objects --------------------------------------------------------
+  // Side codes sit inside any right-edge vertical-brand gutter.
+  const sideCodeRight =
+    widthMm - safeMm - stripeInset("right") - (vr?.edge === "right" && vrValue ? vrGutter : 0);
   if (qrOn) {
     let x: number;
     let y: number;
     if (sideQr) {
-      x = widthMm - safeMm - qrBox / 2;
+      x = sideCodeRight - qrBox / 2;
       const pairTop = zoneTop + Math.max((zoneBottom - zoneTop - sidePairH) / 2, 0);
       y = pairTop + qrBox / 2;
     } else if (stackedCenter) {
@@ -1287,7 +1300,7 @@ export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
     let x: number;
     let y = codeBottom - barcodeH / 2;
     if (sideBarcode) {
-      x = widthMm - safeMm - barcodeW / 2;
+      x = sideCodeRight - barcodeW / 2;
       const pairTop = zoneTop + Math.max((zoneBottom - zoneTop - sidePairH) / 2, 0);
       y = pairTop + (sideQr ? qrBox + gap : 0) + barcodeH / 2;
     } else if (stackedCenter) {

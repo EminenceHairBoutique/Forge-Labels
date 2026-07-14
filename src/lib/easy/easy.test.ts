@@ -291,7 +291,8 @@ describe("nextEasyMeta (material switching)", () => {
 
 describe("template families", () => {
   it("ships at least 12 genuinely distinct layout archetypes", () => {
-    expect(EASY_TEMPLATES.length).toBeGreaterThanOrEqual(12);
+    // §4 of the overhaul brief: at least 120 genuinely distinct layouts.
+    expect(EASY_TEMPLATES.length).toBeGreaterThanOrEqual(120);
     const ids = new Set(EASY_TEMPLATES.map((t) => t.id));
     expect(ids.size).toBe(EASY_TEMPLATES.length);
     // Distinct DNA: no two templates share pairing + alignment + layout +

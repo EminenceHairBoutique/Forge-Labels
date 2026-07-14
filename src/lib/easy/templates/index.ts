@@ -5,6 +5,9 @@ import { CLINICAL_TEMPLATES } from "./clinical";
 import { LABORATORY_TEMPLATES } from "./laboratory";
 import { EFFECT_TEMPLATES } from "./effects";
 import { EVERYDAY_TEMPLATES } from "./everyday";
+import { LUXE_EXPANSION } from "./expansion-luxe";
+import { LAB_EXPANSION } from "./expansion-lab";
+import { EFFECTS_EXPANSION } from "./expansion-effects";
 import type { EasyTemplateDef, TemplateCategory } from "./types";
 
 /**
@@ -22,6 +25,9 @@ const ALL: EasyTemplateDef[] = [
   ...LABORATORY_TEMPLATES,
   ...EFFECT_TEMPLATES,
   ...EVERYDAY_TEMPLATES,
+  ...LUXE_EXPANSION,
+  ...LAB_EXPANSION,
+  ...EFFECTS_EXPANSION,
 ];
 
 export const EASY_TEMPLATES: readonly EasyTemplateDef[] = ALL;

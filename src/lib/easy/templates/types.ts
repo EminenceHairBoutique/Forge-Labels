@@ -106,7 +106,11 @@ export interface VerticalRowDef {
   casing?: "uppercase";
 }
 
-export type DecorFill = { role: ColorRole } | { effect: true };
+export type DecorFill =
+  | { role: ColorRole }
+  | { effect: true }
+  /** Accent fading into the background (soft gradient bands). */
+  | { gradient: true };
 
 export type DecorDef =
   | { kind: "band"; edge: "top" | "bottom"; heightFactor: number; fill: DecorFill; inset?: boolean; minLabelHeightMm?: number }
