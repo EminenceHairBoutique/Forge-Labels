@@ -17,6 +17,8 @@ react-konva editor, optional Supabase/Stripe. Full design rationale:
 - `npm run lint` · `npm run typecheck` · `npm test` (Vitest) ·
   `npm run test:e2e` (Playwright; needs `npm run build` first — the web
   server runs `next start` on port 3100)
+- `npm run validate:templates` (verbose §21 quality-gate report) ·
+  `npm run fonts:fetch` (re-download/verify the bundled font library)
 
 ## Load-bearing invariants (do not break)
 
@@ -66,6 +68,16 @@ react-konva editor, optional Supabase/Stripe. Full design rationale:
     the slot objects (single source of truth); `easy.stash` only holds
     toggled-off values. All Easy writes go through `applyEasyChange`
     (serialized + live-store reads — never pass a doc prop into it).
+13. **No template ships unvalidated.** Every Easy template (120 in
+    `src/lib/easy/templates/`) must pass `src/lib/easy/validate.ts` —
+    sizes × content scenarios × material cases with contrast, overlap,
+    print-floor, quiet-zone, and font checks — plus the layout-DNA
+    uniqueness test (no color-swap padding). `npm test` runs both; fix the
+    template or the engine, never the gate. Fonts are pairing-driven
+    (`src/lib/easy/typography.ts`): templates reference `pairingId`, rows
+    reference roles, and every family/weight must exist in
+    `public/fonts/manifest.json` (regenerate via `npm run fonts:fetch`,
+    never hand-edit binaries).
 
 ## Gotchas discovered in this codebase
 

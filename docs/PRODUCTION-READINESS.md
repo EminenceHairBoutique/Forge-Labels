@@ -13,6 +13,7 @@ All gates must pass locally and in CI before deploying:
 | Lint | `npm run lint` (`eslint .`) |
 | Types | `npm run typecheck` (`tsc --noEmit`, strict) |
 | Unit tests | `npm test` (`vitest run`; geometry, exports, commands are property/unit tested) |
+| Template quality gate | `npm run validate:templates` (all 120 Easy templates × sizes × content × materials; also enforced inside `npm test`) |
 | E2E | `npm run test:e2e` (`playwright test`) |
 | Build | `npm run build` (`next build`) |
 

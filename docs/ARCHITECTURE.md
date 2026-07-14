@@ -162,20 +162,31 @@ The beginner layer is ADDITIVE: one document model, two editors. Schema v2
 adds an optional semantic `slot` on objects ("brand", "product-name",
 "qr"…) and an `easy` block on the document (template/material/palette
 choices, stashed values of toggled-off fields, one-click-fix tweaks);
-content itself lives in the slot objects, so autosave, undo, exports, and
-the Advanced Editor all see ordinary objects.
+schema v3 adds optional `pairingId`/`placement`/`logoAspect` to that
+block. Content itself lives in the slot objects, so autosave, undo,
+exports, and the Advanced Editor all see ordinary objects.
 
-- **Templates are layout programs, not documents** (`templates.ts`):
-  twelve archetype families defined as slot rows with zone/size/casing
-  rules — size-responsive across 10/20/30 mL by construction and
+- **Templates are layout programs, not documents**
+  (`src/lib/easy/templates/`): 120 validated definitions across named
+  families, defined as slot rows with zone/size/casing rules plus split
+  columns, vertical brand rails, monograms, chips, and decor programs —
+  size-responsive across 10/20/30 mL and edge shapes by construction and
   material-aware. `instantiate.ts` turns a definition + geometry +
   material + palette + field values into real objects: auto-fit
   (`layout.ts`, injectable text measurer), header/hero/footer zone
-  stacking, global squeeze on overflow, decorative bands/stripes/borders
-  that inset the text zones, automatic contrast panels on reflective
-  materials, and QR/barcode space reservation with scannable defaults.
-  Engine-owned objects are identified by `slot`; regeneration replaces
-  exactly those and leaves free objects on top.
+  stacking, iterative shrink-to-fit with per-role print floors, honest
+  degradation ladders (codes relocate corner→center→side→off with
+  plain-language notes; optional fields collapse in a fixed drop order —
+  never silently), decorative bands/stripes/borders that inset the text
+  zones, automatic contrast panels on reflective materials, and
+  QR/barcode space reservation with scannable defaults. Engine-owned
+  objects are identified by `slot`; regeneration replaces exactly those
+  and leaves free objects on top. Every template must pass the quality
+  gate in `validate.ts` (sizes × content × material matrix; run
+  `npm run validate:templates` for the report) plus a layout-DNA
+  uniqueness test. Typography is pairing-driven (`typography.ts`): 27
+  curated pairings over 38 bundled families behind 10 personalities —
+  templates and rows reference roles, never font names.
 - **Materials** (`materials.ts`) bundle substrate + finish usage +
   curated palettes (`palettes.ts`, contrast-guaranteed) + per-intensity
   coverage rules; glossy/matte set a preview-only `sheen` on the vial

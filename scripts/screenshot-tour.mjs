@@ -35,7 +35,7 @@ async function shoot(name, viewport, fn) {
 const desktop = { width: 1440, height: 900 };
 const iphone = { width: 390, height: 844 };
 
-async function runWizardToPick(page) {
+async function runWizardToNeeds(page) {
   await page.goto(`${base}/create`);
   await page.getByRole("button", { name: /10 mL vial/i }).click();
   await page.getByRole("button", { name: /^continue$/i }).click();
@@ -45,6 +45,12 @@ async function runWizardToPick(page) {
   await page.getByLabel(/brand name/i).fill("VANTA RESEARCH");
   await page.getByLabel(/product name/i).fill("Peptide Complex");
   await page.getByLabel(/amount or strength/i).fill("10 mg");
+  await page.getByRole("button", { name: /^continue$/i }).click();
+  await page.getByText(/what needs to fit/i).waitFor();
+}
+
+async function runWizardToPick(page) {
+  await runWizardToNeeds(page);
   await page.getByRole("button", { name: /show my designs/i }).click();
   await page.locator('img[alt*="design preview"]').first().waitFor({ timeout: 30000 });
   await page.waitForTimeout(2000);
@@ -85,11 +91,37 @@ await shoot("wizard-material-desktop", desktop, async (page) => {
   await page.waitForTimeout(600);
 });
 
+await shoot("wizard-needs-desktop", desktop, async (page) => {
+  await runWizardToNeeds(page);
+  await page.getByRole("switch", { name: /qr code/i }).click();
+  await page.waitForTimeout(400);
+});
+
 await shoot("wizard-pick-desktop", desktop, runWizardToPick);
 
 await shoot("easy-editor-desktop", desktop, openEasyEditor);
 
 await shoot("easy-editor-iphone", iphone, openEasyEditor);
+
+await shoot("typography-desktop", desktop, async (page) => {
+  await openEasyEditor(page);
+  const section = page.locator('section[aria-label="Typography"]');
+  await section.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(1500);
+});
+
+await shoot("template-browser-desktop", desktop, async (page) => {
+  await openEasyEditor(page);
+  await page.getByRole("button", { name: /browse all templates/i }).click();
+  await page.locator('img[alt*="preview"]').first().waitFor({ timeout: 30000 });
+  await page.waitForTimeout(3000);
+});
+
+await shoot("library-iphone", iphone, async (page) => {
+  await page.goto(`${base}/library`);
+  await page.locator('img[alt*="preview"]').first().waitFor({ timeout: 30000 });
+  await page.waitForTimeout(3000);
+});
 
 await shoot("export-wizard", desktop, async (page) => {
   await openEasyEditor(page);

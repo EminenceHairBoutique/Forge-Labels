@@ -12,13 +12,31 @@ Both edit the same document; switching modes never loses work.
 - **Easy Creator** (`/create`) — a visual wizard with no design jargon:
   vial cards drawn from real proportions, measure-with-a-string sizing,
   animated material cards (holographic, neon, glossy, plain, matte, clear,
-  metallic, kraft), style questions, and 3–6 recommended designs rendered
-  with your brand and product names already in place. The editor that
-  follows is a simple form beside a live 3D vial: type and the label
-  relays itself — auto-fit, reflow, contrast protection, and one-click
-  fixes ("Fit everything", "Bigger product name", "Simplify") included.
+  metallic, kraft), a "what needs to fit?" step (QR, barcode, logo, how
+  much text), the container's glass color, and six recommended designs —
+  each labeled (Best match, Most professional, Most minimal…) with a
+  one-sentence reason, rendered with your brand and product names already
+  in place. The editor that follows is a simple form beside a live 3D
+  vial: type and the label relays itself — auto-fit, reflow, contrast
+  protection, and one-click fixes ("Fit everything", "Bigger product
+  name", "Simplify", "Make it more premium/cleaner/bolder") included.
   "Make my label for me" compresses the whole thing to one screen and
   three finished options.
+- **120 validated templates + template browser** — structurally distinct,
+  size-responsive layout programs across luxury, clinical, laboratory,
+  holographic, neon, minimal, botanical, and transparent families, browsable
+  at `/library` (and inside the Easy editor) as engine-rendered mockup
+  cards using your own words, with favorites, filters, and a 3D detail
+  preview. Every template passes an automated quality gate
+  (`npm run validate:templates`): print floors, overlap, QR quiet zones,
+  contrast against actual backings, and font checks across sizes ×
+  content stress × material rules.
+- **Typography without font menus** — 38 bundled font families (static
+  OFL TTFs, lazily loaded, license-audited by `scripts/fetch-fonts.mjs`)
+  behind 27 curated pairings and 10 plain-language typography
+  personalities (Clean, Luxury, Technical…). Beginners pick a feel; the
+  pairing sets display/body/technical faces, weights, tracking, and
+  minimum print sizes.
 - **Plain-language printing** — "How will you use your label?" produces a
   home-print sheet, a professional printer package (print-ready PDF +
   specification sheet), or a PNG, with print checks written for humans
@@ -48,8 +66,9 @@ Both edit the same document; switching modes never loses work.
   and ZIP bundles. A preflight panel checks resolution, font sizes, safe
   zones, code scannability, and contrast before anything is exported.
 - **Projects & brand kits** — autosave, version snapshots, thumbnails,
-  tags, brand palettes/logos/fonts, and a template library of 16 fictional
-  brand designs to start from.
+  tags, brand palettes/logos/fonts, logo upload in Easy mode
+  (engine-placed and reflowed), and an Advanced-Editor template gallery of
+  16 fictional brand designs alongside the 120-template Easy library.
 
 ## Quickstart (zero configuration)
 
@@ -77,6 +96,8 @@ adding Stripe keys enables subscriptions. Step-by-step: [docs/SETUP.md](docs/SET
 | `npm run typecheck` | `tsc --noEmit` (strict)                         |
 | `npm test`          | Vitest unit suites (geometry, document, print…) |
 | `npm run test:e2e`  | Playwright end-to-end suite                     |
+| `npm run validate:templates` | Verbose template quality-gate report (also enforced in `npm test`) |
+| `npm run fonts:fetch` | Re-download + license-verify the bundled font library |
 
 CI (`.github/workflows/ci.yml`) runs lint, typecheck, unit tests, a
 production build, and the Playwright suite on every push.
@@ -98,7 +119,11 @@ render identically. Details: [docs/PRINT-ACCURACY.md](docs/PRINT-ACCURACY.md).
 | [docs/SETUP.md](docs/SETUP.md)                             | Supabase + Stripe configuration, admin grant, seeding |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)                   | Deploying to Vercel (and any Node host)              |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)               | System design: document model, rendering, storage    |
+| [docs/EASY-CREATOR-ARCHITECTURE.md](docs/EASY-CREATOR-ARCHITECTURE.md) | Beginner layer: slots, templates, typography, validation |
+| [docs/EASY-CREATOR-GUIDE.md](docs/EASY-CREATOR-GUIDE.md)   | User guide for the Easy Creator                      |
 | [docs/PRINT-ACCURACY.md](docs/PRINT-ACCURACY.md)           | Dimensional guarantees + pre-print checklist         |
+| [docs/PERFORMANCE.md](docs/PERFORMANCE.md)                 | Font loading, thumbnail caching, engine numbers      |
+| [docs/ACCESSIBILITY.md](docs/ACCESSIBILITY.md)             | Keyboard, screen-reader, contrast, reduced motion    |
 | [docs/PRODUCTION-READINESS.md](docs/PRODUCTION-READINESS.md) | Go-live checklist and security review              |
 | [docs/ROADMAP.md](docs/ROADMAP.md)                         | Phased roadmap                                       |
 | [docs/deferred.md](docs/deferred.md)                       | Honest ledger of intentionally deferred features     |
@@ -121,7 +146,7 @@ src/lib/            geometry document render export codes preflight
                     finishes print templates storage supabase stripe
 src/stores/         document (undoable) · editor-ui · auth
 supabase/           migrations (schema + RLS + seeds)
-public/fonts        bundled OFL fonts (browser + PDF embedding)
+public/fonts        38 bundled OFL font families + manifest + licenses
 tests/e2e           Playwright: exports, parity, modes, perf, a11y
 docs/               setup, deployment, architecture, print accuracy…
 ```

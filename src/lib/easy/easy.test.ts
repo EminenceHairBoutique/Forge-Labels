@@ -510,6 +510,58 @@ describe("recommendTemplates", () => {
     const picks = recommendTemplates({ styleId: "futuristic", material });
     expect(picks[0]!.template.vibe.futuristic ?? 0).toBeGreaterThanOrEqual(3);
   });
+
+  it("labels the six §7 roles", () => {
+    const picks = recommendTemplates({ material: getMaterial("plain")!, count: 6 });
+    expect(picks).toHaveLength(6);
+    expect(picks.map((p) => p.tag)).toEqual([
+      "Best match",
+      "Most professional",
+      "Most minimal",
+      "Most bold",
+      "Most premium",
+      "Alternative style",
+    ]);
+  });
+
+  it("steers toward the asked content density and says so", () => {
+    const picks = recommendTemplates({
+      material: getMaterial("plain")!,
+      density: "detailed",
+      count: 6,
+    });
+    const detailed = picks.filter((p) => p.template.density === "detailed");
+    expect(detailed.length).toBeGreaterThanOrEqual(1);
+    expect(
+      detailed.some((p) => p.reason.includes("every detail you plan to include")),
+    ).toBe(true);
+  });
+
+  it("boosts QR-forward layouts when a QR code is wanted", () => {
+    const withQr = recommendTemplates({
+      material: getMaterial("plain")!,
+      wantsQr: true,
+      count: 6,
+    });
+    expect(
+      withQr.some(
+        (p) => (p.template.qrScale ?? 1) > 1 || p.template.codePlacement === "side",
+      ),
+    ).toBe(true);
+  });
+
+  it("never recommends a template the label is too small for", () => {
+    const picks = recommendTemplates({
+      material: getMaterial("plain")!,
+      count: 12,
+      labelWidthMm: 40,
+      labelHeightMm: 14,
+    });
+    for (const pick of picks) {
+      expect(pick.template.minHeightMm ?? 0).toBeLessThanOrEqual(14);
+      expect(pick.template.minWidthMm ?? 0).toBeLessThanOrEqual(40);
+    }
+  });
 });
 
 describe("layout primitives", () => {

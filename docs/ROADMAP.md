@@ -105,6 +105,47 @@ flow verified end-to-end on iPhone/iPad/laptop/desktop viewports. Details:
 [EASY-CREATOR-ARCHITECTURE.md](./EASY-CREATOR-ARCHITECTURE.md) and the
 user guide in [EASY-CREATOR-GUIDE.md](./EASY-CREATOR-GUIDE.md).
 
+## Template, typography & material overhaul — Shipped
+
+Built on the Easy Creator layer without touching the print kernel:
+
+- **120 validated templates** across the named families of the brief
+  (Obsidian Gold, Medical Index, Data Matrix, Prism Frame, Acid Signal,
+  Modern Apothecary, Floating Type…), each a size-responsive layout
+  program passing an automated quality-gate matrix
+  (`npm run validate:templates`): real vial geometries plus edge shapes ×
+  stress content × material rules, checking print floors, overlap, QR
+  quiet zones, contrast against actual backings, and font references. A
+  layout-DNA uniqueness test forbids color-swap padding.
+- **38 bundled font families** (9.3 MB of static OFL TTFs, lazily
+  loaded), fetched and license-verified by `scripts/fetch-fonts.mjs`, and
+  27 curated **font pairings** behind 10 typography personalities — no
+  font dropdowns anywhere in Easy mode.
+- **Richer layout vocabulary**: split data columns, vertical brands,
+  monogram medallions, strength chips, kicker subtitles, corner marks,
+  side rails, dividers, gradient/inset/full-bleed bands, effect frames,
+  and side/footer-center code placements with honest degradation ladders
+  (codes shrink, relocate, or step aside with a plain-language note —
+  never overlap).
+- **Effect placement controls** ("Where should the effect go?") for
+  holographic/metallic/neon with automatic readability protection, and
+  "Make it more premium / cleaner / bolder / more clinical / more
+  futuristic" one-click actions.
+- **Template browser** (`/library` and in-editor): engine-rendered
+  mockup cards with the user's own words, lazy cached thumbnails,
+  favorites, style/tone/density filters (bottom sheet on phones), and a
+  single interactive 3D preview in the detail view.
+- **Six-role recommendations** with one-sentence reasons, informed by
+  content density, QR/barcode needs, glass color, and label dimensions;
+  the wizard asks "What needs to fit?" and the container's glass color.
+- **Logo upload in Easy mode** (PNG/JPG → engine-placed, reflowed,
+  undoable) and a "Fix contrast" one-click preflight fix.
+
+Details: [TEMPLATE-TYPOGRAPHY-AUDIT.md](./TEMPLATE-TYPOGRAPHY-AUDIT.md)
+(the before-state audit),
+[EASY-CREATOR-ARCHITECTURE.md](./EASY-CREATOR-ARCHITECTURE.md),
+[PERFORMANCE.md](./PERFORMANCE.md), and [ACCESSIBILITY.md](./ACCESSIBILITY.md).
+
 ## Phase 3 — Partially shipped
 
 Shipped in this build:

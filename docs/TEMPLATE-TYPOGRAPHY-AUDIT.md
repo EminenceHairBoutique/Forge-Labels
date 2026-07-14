@@ -202,3 +202,39 @@ density.
 10. **Accessibility & performance**: reduced-motion gates, thumbnail
     caching, `content-visibility` for the 120-card grid, no startup
     font loading (already true — keep it that way).
+
+---
+
+## Outcome (post-overhaul addendum)
+
+Everything above shipped on this branch. Where the result differs from the
+plan, the difference is noted:
+
+- **Fonts:** 38 families / 85 static TTFs / 9.3 MB, license-verified from
+  upstream METADATA (OFL/Apache/UFL only) with per-family copyright lines
+  in `public/fonts/LICENSES.md`; `registry.test.ts` gates manifest ↔ disk
+  parity, byte drift, variable-font rejection, and glyph coverage.
+- **Typography:** 27 pairings / 10 personalities in
+  `src/lib/easy/typography.ts`; `easy.pairingId` override landed in
+  schema v3 exactly as planned.
+- **Templates:** 120 registered and validated (min counts of the brief
+  all exceeded), 116 distinct families, layout-DNA uniqueness enforced in
+  the unit suite. The 12 legacy archetypes kept their IDs.
+- **Validation:** the harness became the centerpiece — it surfaced ~15
+  real engine defects (aligned-anchor contrast sampling, code-corner fit
+  budgets, panel clamping, wrap-nonlinearity in squeeze) that were fixed
+  in `instantiate.ts` rather than waived in the gate. 0 errors across
+  ~3,300 build cases at ship time.
+- **Recommendations/browser/logo/placements:** shipped as specified
+  (six labeled roles with reasons; LRU + IntersectionObserver browser at
+  `/library` and in-editor; PNG/JPG logo with SVG deferred to the
+  Advanced Editor; effect placements with automatic readability
+  protection).
+- **Deliberate deviations:** decorative elements remained engine
+  pseudo-slots (`accent:*`) per the original design note; "Most popular"
+  stayed out (no analytics — see deferred.md); gloss remains a labeled
+  sheen simulation rather than a fake artwork effect.
+
+Reports: [PERFORMANCE.md](./PERFORMANCE.md) ·
+[ACCESSIBILITY.md](./ACCESSIBILITY.md) · user-facing summary in
+[ROADMAP.md](./ROADMAP.md).
