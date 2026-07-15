@@ -2,6 +2,8 @@ import { getEasyPalette, type EasyPalette } from "./palettes";
 import type { MaterialDef } from "./materials";
 import {
   EASY_TEMPLATES,
+  templateFitsVial,
+  templateIsVialSpecific,
   templatePrefersDark,
   type ContentDensity,
   type EasyTemplateDef,
@@ -60,6 +62,11 @@ export interface RecommendOptions {
   /** Actual label dimensions — templates that need more room are skipped. */
   labelWidthMm?: number;
   labelHeightMm?: number;
+  /**
+   * The vial preset in use — vial-locked templates only appear (and get a
+   * strong boost) when this matches their compatibility rules.
+   */
+  vialPresetId?: string | null;
 }
 
 export interface Recommendation {
@@ -96,6 +103,10 @@ function scoreTemplate(template: EasyTemplateDef, options: RecommendOptions): nu
   if (options.wantsQr && template.codePlacement === "side") score += 1.5;
   if (options.wantsBarcode && template.density !== "minimal") score += 0.5;
   if (options.glass && template.recommendedGlass.includes(options.glass)) score += 1.5;
+  // A template tuned to the user's exact vial beats generic fits.
+  if (templateIsVialSpecific(template) && templateFitsVial(template, options.vialPresetId)) {
+    score += 2.5;
+  }
   if (template.featured) score += 0.25;
   return score;
 }
@@ -118,6 +129,9 @@ export function recommendationReason(
 ): string {
   const clauses: string[] = [];
   const material = options.material;
+  if (templateIsVialSpecific(template) && templateFitsVial(template, options.vialPresetId)) {
+    clauses.push("it was designed for this exact vial");
+  }
   const hasFinish = material.options.some((o) => o.finishId);
   if (hasFinish && material.rules.contrastPanelOnFullEffect) {
     clauses.push(
@@ -170,6 +184,7 @@ export function recommendTemplates(options: RecommendOptions): Recommendation[] 
 
   const eligible = EASY_TEMPLATES.filter((t) => {
     if (t.materials !== "all" && !t.materials.includes(options.material.id)) return false;
+    if (!templateFitsVial(t, options.vialPresetId)) return false;
     if (options.labelHeightMm && t.minHeightMm && options.labelHeightMm < t.minHeightMm) return false;
     if (options.labelWidthMm && t.minWidthMm && options.labelWidthMm < t.minWidthMm) return false;
     return true;

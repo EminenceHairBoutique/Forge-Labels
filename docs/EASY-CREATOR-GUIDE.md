@@ -15,8 +15,11 @@ typing. Picking one there starts your label directly.
 
 ## 2. What are you labeling?
 
-Pick your vial from the pictures — 10 mL, 20 mL, 30 mL, dropper bottles, or
-"Something else" for any round container. Then tell us the **glass color**
+Pick your vial from the pictures — 10 mL, a 10 mL crimp-top injection
+vial (the kind with a metal seal and flip-off cap), 20 mL, 30 mL, dropper
+bottles, or "Something else" for any round container. Some designs are
+made for one specific vial — pick the crimp top and you'll also see a
+layout dimensioned exactly for it. Then tell us the **glass color**
 (clear, amber, frosted, cobalt, or opaque) — designs that flatter that
 glass get recommended first, and the 3D preview wears it.
 

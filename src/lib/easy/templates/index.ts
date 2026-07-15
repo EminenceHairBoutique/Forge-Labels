@@ -1,4 +1,5 @@
 import type { MaterialId } from "../materials";
+import { getVialPreset } from "@/lib/vials/presets";
 import { CORE_TEMPLATES } from "./core";
 import { LUXURY_TEMPLATES } from "./luxury";
 import { CLINICAL_TEMPLATES } from "./clinical";
@@ -8,6 +9,7 @@ import { EVERYDAY_TEMPLATES } from "./everyday";
 import { LUXE_EXPANSION } from "./expansion-luxe";
 import { LAB_EXPANSION } from "./expansion-lab";
 import { EFFECTS_EXPANSION } from "./expansion-effects";
+import { CRIMP_TEMPLATES } from "./crimp";
 import type { EasyTemplateDef, TemplateCategory } from "./types";
 
 /**
@@ -28,6 +30,7 @@ const ALL: EasyTemplateDef[] = [
   ...LUXE_EXPANSION,
   ...LAB_EXPANSION,
   ...EFFECTS_EXPANSION,
+  ...CRIMP_TEMPLATES,
 ];
 
 export const EASY_TEMPLATES: readonly EasyTemplateDef[] = ALL;
@@ -40,6 +43,41 @@ export function templatesForMaterial(materialId: MaterialId): EasyTemplateDef[] 
   return EASY_TEMPLATES.filter(
     (t) => t.materials === "all" || t.materials.includes(materialId),
   );
+}
+
+/**
+ * Vial compatibility (§3): most templates fit any container, but a
+ * template may lock itself to specific vial presets and/or nominal
+ * volumes. An unknown vial (custom measurements, no preset) never
+ * matches a restricted template — we can't promise a fit we can't
+ * verify. Restricted templates keep matching when the user fine-tunes
+ * the measurements of a known preset (it's still that vial, measured).
+ */
+export function templateFitsVial(
+  t: EasyTemplateDef,
+  presetId: string | null | undefined,
+): boolean {
+  if (t.compatibleVialTypes === "all" && t.compatibleVolumesMl === "all") {
+    return true;
+  }
+  const preset = presetId ? getVialPreset(presetId) : undefined;
+  if (!preset) return false;
+  if (t.compatibleVialTypes !== "all" && !t.compatibleVialTypes.includes(preset.id)) {
+    return false;
+  }
+  if (
+    t.compatibleVolumesMl !== "all" &&
+    (preset.nominalVolumeMl === null ||
+      !t.compatibleVolumesMl.includes(preset.nominalVolumeMl))
+  ) {
+    return false;
+  }
+  return true;
+}
+
+/** True when the template is tuned to specific vials (vs universal). */
+export function templateIsVialSpecific(t: EasyTemplateDef): boolean {
+  return t.compatibleVialTypes !== "all" || t.compatibleVolumesMl !== "all";
 }
 
 export function templatesInCategory(category: TemplateCategory): EasyTemplateDef[] {

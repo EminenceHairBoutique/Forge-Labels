@@ -1,7 +1,7 @@
 import { createDocument } from "@/lib/document/defaults";
 import type { LabelObject, TextObject } from "@/lib/document/schema";
 import { availableWeights, getFontFamily } from "@/lib/fonts/registry";
-import { getVialPreset } from "@/lib/vials/presets";
+import { getVialPreset, VIAL_PRESETS } from "@/lib/vials/presets";
 import { buildEasyLabel, type EasyBuildInput } from "./instantiate";
 import { contrastRatio, getEasyPalette, EASY_PALETTES } from "./palettes";
 import { getMaterial, getMaterialOption, MATERIALS, type MaterialDef } from "./materials";
@@ -32,31 +32,71 @@ interface SizeSpec {
   heightMm: number;
   bleedMm: number;
   safeMm: number;
+  /** A real vial geometry (drops/hidden codes here are design failures). */
+  real?: boolean;
+  /** The size where the declared content density must fit in full. */
+  densityAnchor?: boolean;
+}
+
+function sizeFromPreset(presetId: string): SizeSpec {
+  const preset = getVialPreset(presetId);
+  if (!preset) throw new Error(`Unknown vial preset ${presetId}`);
+  const doc = createDocument({ preset });
+  return {
+    id: presetId,
+    widthMm: doc.label.widthMm,
+    heightMm: doc.label.heightMm,
+    bleedMm: doc.label.bleedMm,
+    safeMm: doc.label.safeMm,
+    real: true,
+  };
 }
 
 /** Real geometries from the calculator + the §6 edge shapes. */
 export function validationSizes(): SizeSpec[] {
-  const fromPreset = (presetId: string): SizeSpec => {
-    const preset = getVialPreset(presetId);
-    if (!preset) throw new Error(`Unknown vial preset ${presetId}`);
-    const doc = createDocument({ preset });
-    return {
-      id: presetId,
-      widthMm: doc.label.widthMm,
-      heightMm: doc.label.heightMm,
-      bleedMm: doc.label.bleedMm,
-      safeMm: doc.label.safeMm,
-    };
-  };
   return [
-    fromPreset("10ml-serum"),
-    fromPreset("20ml-serum"),
-    fromPreset("30ml-serum"),
+    sizeFromPreset("10ml-serum"),
+    sizeFromPreset("20ml-serum"),
+    { ...sizeFromPreset("30ml-serum"), densityAnchor: true },
     { id: "narrow", widthMm: 30, heightMm: 20, bleedMm: 1.5, safeMm: 1.6 },
     { id: "wide-wrap", widthMm: 78, heightMm: 25, bleedMm: 1.5, safeMm: 1.6 },
     { id: "short", widthMm: 55, heightMm: 12, bleedMm: 1.5, safeMm: 1.4 },
     { id: "tall", widthMm: 30, heightMm: 40, bleedMm: 1.5, safeMm: 1.6 },
   ];
+}
+
+/**
+ * The geometries a template must survive. Universal templates run the
+ * full standard matrix; vial-locked templates (§3 compatibility) run on
+ * exactly the presets they can appear on — eligibility filtering keeps
+ * them off every other geometry, so validating there would gate nothing
+ * real. Their density anchor becomes the largest compatible label.
+ */
+export function sizesForTemplate(t: EasyTemplateDef): SizeSpec[] {
+  if (t.compatibleVialTypes === "all" && t.compatibleVolumesMl === "all") {
+    return validationSizes();
+  }
+  const ids =
+    t.compatibleVialTypes !== "all"
+      ? [...t.compatibleVialTypes]
+      : VIAL_PRESETS.filter((p) => !p.isCustom).map((p) => p.id);
+  const compatible = ids.filter((id) => {
+    const preset = getVialPreset(id);
+    if (!preset) return false;
+    return (
+      t.compatibleVolumesMl === "all" ||
+      (preset.nominalVolumeMl !== null &&
+        t.compatibleVolumesMl.includes(preset.nominalVolumeMl))
+    );
+  });
+  const sizes = compatible.map(sizeFromPreset);
+  if (sizes.length > 0) {
+    const largest = sizes.reduce((a, b) =>
+      b.widthMm * b.heightMm > a.widthMm * a.heightMm ? b : a,
+    );
+    largest.densityAnchor = true;
+  }
+  return sizes;
 }
 
 interface Scenario {
@@ -300,6 +340,17 @@ export function validateTemplateStatic(t: EasyTemplateDef): TemplateIssue[] {
       err(`Template limits itself to unknown material "${paletteRef}".`);
     }
   }
+  if (t.compatibleVialTypes !== "all") {
+    for (const id of t.compatibleVialTypes) {
+      if (!getVialPreset(id)) err(`Template targets unknown vial preset "${id}".`);
+    }
+  }
+  if (
+    (t.compatibleVialTypes !== "all" || t.compatibleVolumesMl !== "all") &&
+    sizesForTemplate(t).length === 0
+  ) {
+    err("Vial compatibility rules match no known vial preset — the template could never appear.");
+  }
   return issues;
 }
 
@@ -308,17 +359,17 @@ export function validateTemplate(t: EasyTemplateDef): TemplateIssue[] {
   const issues: TemplateIssue[] = [...validateTemplateStatic(t)];
   if (issues.some((i) => i.severity === "error")) return issues; // fonts broken — builds would lie
 
-  const sizes = validationSizes();
+  const sizes = sizesForTemplate(t);
   const materials = materialCases(t);
 
   for (const size of sizes) {
     if (t.minHeightMm && size.heightMm < t.minHeightMm) continue; // honestly hidden at this size
     if (t.minWidthMm && size.widthMm < t.minWidthMm) continue;
     for (const scenario of VALIDATION_SCENARIOS) {
-      // The material axis runs on the three real sizes with the core
+      // The material axis runs on the real vial sizes with the core
       // scenarios; edge sizes always run on plain to keep the matrix sane.
       const cases =
-        size.id.endsWith("-serum") && ["baseline", "detailed", "qr"].includes(scenario.id)
+        size.real && ["baseline", "detailed", "qr"].includes(scenario.id)
           ? materials
           : materials.slice(0, 1);
       for (const mc of cases) {
@@ -396,16 +447,16 @@ function checkBuild(
   //     template must hold the baseline scenario on real vials.
   if (
     t.density === "detailed" &&
-    size.id === "30ml-serum" &&
+    size.densityAnchor &&
     scenario.id === "detailed" &&
     build.hiddenSlots.length > 0
   ) {
     push(
       "error",
-      `Declares density "detailed" but hides ${build.hiddenSlots.join(", ")} in the detailed scenario at 30 mL.`,
+      `Declares density "detailed" but hides ${build.hiddenSlots.join(", ")} in the detailed scenario on ${size.id}.`,
     );
   }
-  if (size.id.endsWith("-serum") && scenario.id === "baseline" && build.hiddenSlots.length > 0) {
+  if (size.real && scenario.id === "baseline" && build.hiddenSlots.length > 0) {
     push("error", `Hides ${build.hiddenSlots.join(", ")} even in the baseline scenario.`);
   }
   if (enabled.has("qr") && scenario.fields.qr && !qr && !hidden.has("qr")) {
@@ -421,7 +472,7 @@ function checkBuild(
   }
   // Codes may only vanish on genuinely tiny labels — a real vial size that
   // hides a wanted code is a design failure, not an honest collapse.
-  if (size.id.endsWith("-serum")) {
+  if (size.real) {
     for (const code of ["qr", "barcode"] as const) {
       if (enabled.has(code) && scenario.fields[code] && hidden.has(code) && scenario.id !== "codes-detailed") {
         push("error", `The ${code === "qr" ? "QR code" : "barcode"} was dropped on a standard vial size.`);

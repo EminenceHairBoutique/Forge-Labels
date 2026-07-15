@@ -13,8 +13,9 @@ import {
 import { buildEasyLabel } from "./instantiate";
 import { contrastRatio, EASY_PALETTES, getEasyPalette } from "./palettes";
 import { getMaterial, getMaterialOption } from "./materials";
-import { EASY_TEMPLATES, getEasyTemplate } from "./templates";
+import { EASY_TEMPLATES, getEasyTemplate, templateFitsVial } from "./templates";
 import { recommendTemplates } from "./recommend";
+import { sizesForTemplate } from "./validate";
 import { approximateMeasure, fitRow, squeezeFactor, stackZones } from "./layout";
 import { nextEasyMeta } from "./meta";
 import { toPlainIssues } from "./plain-preflight";
@@ -561,6 +562,77 @@ describe("recommendTemplates", () => {
       expect(pick.template.minHeightMm ?? 0).toBeLessThanOrEqual(14);
       expect(pick.template.minWidthMm ?? 0).toBeLessThanOrEqual(40);
     }
+  });
+
+  it("surfaces vial-locked templates only on their vial — and says why", () => {
+    const material = getMaterial("plain")!;
+    // On the 10 mL crimp-top vial the purpose-built layout leads.
+    const onCrimp = recommendTemplates({
+      material,
+      count: 6,
+      vialPresetId: "10ml-crimp",
+      density: "detailed",
+    });
+    const crimpPick = onCrimp.find((p) => p.template.id === "crimp-dose");
+    expect(crimpPick).toBeDefined();
+    expect(crimpPick!.tag).toBe("Best match");
+    expect(crimpPick!.reason).toContain("designed for this exact vial");
+    // On other vials — or an unknown/custom container — it never appears.
+    for (const presetId of ["10ml-serum", "30ml-serum", null, undefined]) {
+      const picks = recommendTemplates({
+        material,
+        count: 12,
+        vialPresetId: presetId,
+        density: "detailed",
+      });
+      expect(picks.some((p) => p.template.id === "crimp-dose")).toBe(false);
+    }
+  });
+});
+
+describe("vial-locked templates", () => {
+  it("templateFitsVial enforces preset and volume compatibility", () => {
+    const crimp = getEasyTemplate("crimp-dose")!;
+    expect(templateFitsVial(crimp, "10ml-crimp")).toBe(true);
+    expect(templateFitsVial(crimp, "10ml-serum")).toBe(false);
+    expect(templateFitsVial(crimp, "20ml-injection")).toBe(false);
+    expect(templateFitsVial(crimp, null)).toBe(false);
+    expect(templateFitsVial(crimp, "no-such-preset")).toBe(false);
+    const universal = getEasyTemplate("clinical-blue")!;
+    expect(templateFitsVial(universal, "10ml-crimp")).toBe(true);
+    expect(templateFitsVial(universal, null)).toBe(true);
+  });
+
+  it("builds the crimp-top document at the vial's real wrap dimensions", () => {
+    const preset = getVialPreset("10ml-crimp")!;
+    const doc = buildEasyDocument({
+      preset,
+      templateId: "crimp-dose",
+      materialId: "plain",
+      materialOptionId: "plain-white",
+      paletteId: getMaterial("plain")!.defaultPaletteId,
+      fields: defaultEasyFields({ strength: "10 mg", volume: "10 mL" }),
+      enabled: DEFAULT_ENABLED,
+    });
+    // Full wrap: π × 23.75 − 3 mm seam gap ≈ 71.6 mm; wall 32 − 4 ≈ 28 mm.
+    expect(doc.label.widthMm).toBeCloseTo(Math.PI * preset.diameterMm - 3, 1);
+    expect(doc.label.heightMm).toBeCloseTo(preset.straightWallHeightMm - 4, 1);
+    expect(doc.vial.presetId).toBe("10ml-crimp");
+    expect(doc.vial.capStyle).toBe("crimp");
+    const slots = new Set(doc.objects.map((o) => o.slot));
+    expect(slots.has("brand")).toBe(true);
+    expect(slots.has("product-name")).toBe(true);
+  });
+
+  it("validates vial-locked templates on exactly their compatible geometries", () => {
+    const crimp = getEasyTemplate("crimp-dose")!;
+    const sizes = sizesForTemplate(crimp);
+    expect(sizes.map((s) => s.id)).toEqual(["10ml-crimp"]);
+    expect(sizes[0]!.real).toBe(true);
+    expect(sizes[0]!.densityAnchor).toBe(true);
+    // Universal templates keep the full matrix (3 vials + 4 edge shapes).
+    const universal = getEasyTemplate("clinical-blue")!;
+    expect(sizesForTemplate(universal).length).toBe(7);
   });
 });
 

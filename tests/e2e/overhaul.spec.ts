@@ -88,6 +88,38 @@ test.describe("template & typography overhaul", () => {
     await expect(page.getByLabel(/product name/i)).toHaveValue("Type Study");
   });
 
+  test("the 10 mL crimp-top vial gets its purpose-built template — and only that vial does", async ({
+    page,
+  }) => {
+    await startWizard(page, {
+      vial: /10 mL crimp top/i,
+      material: /plain/i,
+      product: "Bacteriostatic Water",
+      density: /lots of details/i,
+    });
+    // The vial-locked layout leads with an honest reason.
+    await expect(page.getByText("Best match")).toBeVisible();
+    await expect(page.getByText(/designed for this exact vial/i).first()).toBeVisible({
+      timeout: 15_000,
+    });
+
+    await pickFirst(page);
+    // The applied layout is the vial-locked one.
+    await expect(
+      page.getByRole("button", { name: "Crimp Dose", exact: true }),
+    ).toHaveAttribute("aria-pressed", "true");
+
+    // A different vial never sees the crimp-locked layout.
+    await startWizard(page, {
+      vial: /10 mL vial/i,
+      material: /plain/i,
+      product: "Control Sample",
+      density: /lots of details/i,
+    });
+    await expect(page.getByText("Best match")).toBeVisible();
+    await expect(page.getByText(/designed for this exact vial/i)).toHaveCount(0);
+  });
+
   test("transparent material with white print warns about the white backing layer", async ({
     page,
   }) => {

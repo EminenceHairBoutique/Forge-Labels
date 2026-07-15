@@ -7,6 +7,7 @@ import type { LabelDocument } from "@/lib/document/schema";
 import {
   EASY_TEMPLATES,
   TEMPLATE_CATEGORIES,
+  templateFitsVial,
   templatePrefersDark,
   type ContentDensity,
   type EasyTemplateDef,
@@ -284,6 +285,7 @@ export function TemplateBrowser({ open, onOpenChange, doc }: TemplateBrowserProp
   const { widthMm, heightMm } = ctx.baseDoc.label;
   const eligible = EASY_TEMPLATES.filter((t) => {
     if (t.materials !== "all" && !t.materials.includes(ctx.material.id)) return false;
+    if (!templateFitsVial(t, ctx.baseDoc.vial.presetId)) return false;
     if (t.minHeightMm && heightMm < t.minHeightMm) return false;
     if (t.minWidthMm && widthMm < t.minWidthMm) return false;
     return true;

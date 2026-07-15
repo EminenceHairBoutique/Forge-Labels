@@ -15,7 +15,7 @@ import {
   placementChoices,
   type EffectPlacement,
 } from "@/lib/easy/materials";
-import { getEasyTemplate, templatesForMaterial } from "@/lib/easy/templates";
+import { getEasyTemplate, templateFitsVial, templatesForMaterial } from "@/lib/easy/templates";
 import {
   getPairing,
   pairingsForMood,
@@ -313,6 +313,7 @@ function DesignSection({ doc }: { doc: LabelDocument }) {
   if (!material) return null;
   const eligible = templatesForMaterial(material.id).filter(
     (t) =>
+      templateFitsVial(t, doc.vial.presetId) &&
       (!t.minHeightMm || doc.label.heightMm >= t.minHeightMm) &&
       (!t.minWidthMm || doc.label.widthMm >= t.minWidthMm),
   );
@@ -507,7 +508,7 @@ function QuickFixes({ doc }: { doc: LabelDocument }) {
   const makeIt = (vibe: "premium" | "minimal" | "bold" | "clinical" | "futuristic") => {
     if (!material) return;
     const candidates = templatesForMaterial(material.id)
-      .filter((t) => t.id !== easy.templateId)
+      .filter((t) => t.id !== easy.templateId && templateFitsVial(t, doc.vial.presetId))
       .sort(
         (a, b) =>
           (b.vibe[vibe] ?? 0) - (a.vibe[vibe] ?? 0) || a.id.localeCompare(b.id),

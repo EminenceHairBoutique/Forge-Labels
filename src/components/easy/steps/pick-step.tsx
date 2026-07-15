@@ -72,6 +72,7 @@ export function PickStep({
         glass: draft.glass,
         labelWidthMm: probe.label.widthMm,
         labelHeightMm: probe.label.heightMm,
+        vialPresetId: probe.vial.presetId,
       });
       const option = getMaterialOption(
         material,

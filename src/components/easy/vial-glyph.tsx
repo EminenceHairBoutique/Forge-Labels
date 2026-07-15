@@ -29,6 +29,7 @@ export function VialGlyph({
   const bodyTop = bottom - bodyH;
   const isDropper = preset.capStyle === "dropper";
   const isPump = preset.capStyle === "pump";
+  const isCrimp = preset.capStyle === "crimp" || preset.capStyle === "flip-off";
 
   return (
     <svg
@@ -98,6 +99,13 @@ export function VialGlyph({
           <rect x={cx - capW / 2} y={bodyTop - capH * 0.45} width={capW} height={capH * 0.45} rx={2} fill="currentColor" opacity={0.8} />
           <rect x={cx - capW * 0.14} y={bodyTop - capH * 0.8} width={capW * 0.28} height={capH * 0.4} fill="currentColor" opacity={0.7} />
           <rect x={cx - capW * 0.14} y={bodyTop - capH * 0.85} width={capW * 0.5} height={capH * 0.14} rx={1} fill="currentColor" opacity={0.7} />
+        </>
+      ) : isCrimp ? (
+        <>
+          {/* Narrow crimp neck, aluminum band, flip-off disc */}
+          <rect x={cx - capW * 0.34} y={bodyTop - capH * 0.3} width={capW * 0.68} height={capH * 0.34} fill="currentColor" opacity={0.45} />
+          <rect x={cx - capW / 2} y={bodyTop - capH * 0.62} width={capW} height={capH * 0.4} rx={1.5} fill="currentColor" opacity={0.85} />
+          <rect x={cx - capW / 2} y={bodyTop - capH * 0.78} width={capW} height={capH * 0.2} rx={1} fill="currentColor" opacity={0.6} />
         </>
       ) : (
         <rect

@@ -243,6 +243,15 @@ every template (pairing, alignment, split/vertical structure, code
 placement, decor kinds, and the full row slot:zone:chip:monogram
 sequence) and fails on duplicates — color swaps cannot pad the count.
 
+Templates may also be **vial-locked** (`compatibleVialTypes` /
+`compatibleVolumesMl`, enforced by `templateFitsVial`): the recommender,
+browser, editor strip, and "Make it…" actions only offer them on
+matching vial presets (never on unknown/custom containers), the
+recommender boosts them as purpose-built ("designed for this exact
+vial"), and the validation matrix builds them on exactly the geometries
+they can appear on — e.g. `crimp-dose`, dimensioned for the 10 mL
+crimp-top vial's 71.6 × 28 mm wrap.
+
 ### 14.2 Typography (`typography.ts`)
 
 Fonts are **pairing-driven**. A `FontPairing` names a display, body, and

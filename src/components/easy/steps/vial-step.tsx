@@ -28,6 +28,7 @@ const GLASS_CHOICES: { id: GlassId; label: string; swatch: string }[] = [
 
 const CARD_PRESETS: { presetId: string; title: string; subtitle: string }[] = [
   { presetId: "10ml-serum", title: "10 mL vial", subtitle: "Small serum / peptide vial" },
+  { presetId: "10ml-crimp", title: "10 mL crimp top", subtitle: "Injection vial, metal seal" },
   { presetId: "20ml-serum", title: "20 mL vial", subtitle: "Mid-size serum vial" },
   { presetId: "30ml-serum", title: "30 mL bottle", subtitle: "1 oz skincare bottle" },
   { presetId: "10ml-dropper", title: "Dropper bottle", subtitle: "10 mL with dropper top" },
