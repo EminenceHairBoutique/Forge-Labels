@@ -1,8 +1,10 @@
+import { getIndustry, isResearchIndustry } from "./industries";
 import { getEasyPalette, type EasyPalette } from "./palettes";
 import type { MaterialDef } from "./materials";
 import {
   EASY_TEMPLATES,
   templateFitsVial,
+  templateHasSlot,
   templateIsVialSpecific,
   templatePrefersDark,
   type ContentDensity,
@@ -67,6 +69,8 @@ export interface RecommendOptions {
    * strong boost) when this matches their compatibility rules.
    */
   vialPresetId?: string | null;
+  /** Label purpose (§5) — steers categories, vibes, and the role list. */
+  industryId?: string;
 }
 
 export interface Recommendation {
@@ -89,6 +93,13 @@ function scoreTemplate(template: EasyTemplateDef, options: RecommendOptions): nu
     }
   }
   if (preferDark !== null && templatePrefersDark(template) === preferDark) score += 2;
+  const industry = options.industryId ? getIndustry(options.industryId) : undefined;
+  if (industry) {
+    if (template.category.some((c) => industry.categories.includes(c))) score += 2;
+    for (const [tag, weight] of Object.entries(industry.vibes)) {
+      score += (template.vibe[tag as VibeTag] ?? 0) * (weight ?? 0) * 0.5;
+    }
+  }
   if (options.density) {
     if (template.density === options.density) score += 2.5;
     else if (
@@ -155,6 +166,15 @@ export function recommendationReason(
   if (options.glass && template.recommendedGlass.includes(options.glass)) {
     clauses.push(`it was tuned for ${options.glass} glass`);
   }
+  const industry = options.industryId ? getIndustry(options.industryId) : undefined;
+  if (
+    industry &&
+    industry.categories.length > 0 &&
+    template.category.some((c) => industry.categories.includes(c)) &&
+    clauses.length < 2
+  ) {
+    clauses.push(`it is built for ${industry.name.toLowerCase()} labels`);
+  }
   if (options.preferDark != null && templatePrefersDark(template) === options.preferDark) {
     clauses.push(`it reads beautifully ${options.preferDark ? "dark" : "light"}`);
   }
@@ -167,7 +187,7 @@ export function recommendationReason(
   return `Recommended because ${sentence}.`;
 }
 
-/** The six §7 roles, in presentation order. */
+/** The six roles, in presentation order. */
 const ROLES: { tag: string; key: (t: EasyTemplateDef) => number }[] = [
   {
     tag: "Most professional",
@@ -178,13 +198,23 @@ const ROLES: { tag: string; key: (t: EasyTemplateDef) => number }[] = [
   { tag: "Most premium", key: (t) => (t.vibe.premium ?? 0) + (t.vibe.luxury ?? 0) },
 ];
 
+/** Research purposes swap "Most bold" for "Most clinical" (§27). */
+const RESEARCH_ROLES: typeof ROLES = [
+  { tag: "Most clinical", key: (t) => t.vibe.clinical ?? 0 },
+  ...ROLES.filter((r) => r.tag !== "Most bold"),
+];
+
 export function recommendTemplates(options: RecommendOptions): Recommendation[] {
   const count = options.count ?? 6;
   const preferDark = options.preferDark ?? null;
 
+  // Research purposes ship with a research-use notice — only recommend
+  // layouts that can actually place one (§7: keep notices visible).
+  const requireNotice = getIndustry(options.industryId)?.suggestsNotice ?? false;
   const eligible = EASY_TEMPLATES.filter((t) => {
     if (t.materials !== "all" && !t.materials.includes(options.material.id)) return false;
     if (!templateFitsVial(t, options.vialPresetId)) return false;
+    if (requireNotice && !templateHasSlot(t, "notice")) return false;
     if (options.labelHeightMm && t.minHeightMm && options.labelHeightMm < t.minHeightMm) return false;
     if (options.labelWidthMm && t.minWidthMm && options.labelWidthMm < t.minWidthMm) return false;
     return true;
@@ -225,7 +255,8 @@ export function recommendTemplates(options: RecommendOptions): Recommendation[] 
 
   // 2–5. Role picks: strongest of each role among what's left, but only
   //      when the role genuinely applies (key > 0).
-  for (const role of ROLES) {
+  const roles = isResearchIndustry(options.industryId) ? RESEARCH_ROLES : ROLES;
+  for (const role of roles) {
     if (picks.length >= count) break;
     const pool = available()
       .slice()

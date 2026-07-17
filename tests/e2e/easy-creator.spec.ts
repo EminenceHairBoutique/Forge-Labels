@@ -11,6 +11,7 @@ async function runWizard(
   options: {
     vial: RegExp;
     material: RegExp;
+    industry?: RegExp;
     style?: RegExp;
     product?: string;
     density?: RegExp;
@@ -18,6 +19,12 @@ async function runWizard(
 ): Promise<void> {
   await page.goto("/create");
   await page.getByRole("button", { name: options.vial }).click();
+  await page.getByRole("button", { name: /^continue$/i }).click();
+
+  // "What type of label are you creating?" — the purpose step.
+  await page
+    .getByRole("button", { name: options.industry ?? /general product/i })
+    .click();
   await page.getByRole("button", { name: /^continue$/i }).click();
 
   await page.getByRole("button", { name: options.material }).first().click();
@@ -66,6 +73,8 @@ test.describe("easy creator wizard", () => {
   test("wizard progress survives a refresh (draft persistence)", async ({ page }) => {
     await page.goto("/create");
     await page.getByRole("button", { name: /20 mL vial/i }).click();
+    await page.getByRole("button", { name: /^continue$/i }).click();
+    await page.getByRole("button", { name: /general product/i }).click();
     await page.getByRole("button", { name: /^continue$/i }).click();
     await page.getByRole("button", { name: /^neon/i }).first().click();
 

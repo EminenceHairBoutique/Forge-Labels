@@ -8,8 +8,12 @@ import {
   readEasyState,
   toggleableSlots,
 } from "@/lib/easy/fields";
+import { isResearchIndustry } from "@/lib/easy/industries";
 import { fileToEasyLogo } from "@/lib/easy/logo";
-import { SLOTS, SLOT_ORDER, type SlotId } from "@/lib/easy/slots";
+import { NOTICE_OPTIONS } from "@/lib/easy/notices";
+import { SLOTS, SLOT_ORDER, type SlotId, type SlotSection } from "@/lib/easy/slots";
+import { getEasyTemplate } from "@/lib/easy/templates";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -88,59 +92,146 @@ export function ContentForm({ doc }: { doc: LabelDocument }) {
   const toggleable = new Set(toggleableSlots());
   const logoSrc = state.fields.logo;
 
+  // Only offer fields the CURRENT layout can actually place — no dead
+  // inputs. Codes and the logo are engine-level (always placeable).
+  const template = getEasyTemplate(state.meta.templateId);
+  const supported = new Set<SlotId>([
+    ...(template?.rows.map((r) => r.slot) ?? []),
+    ...(template?.verticalRow ? [template.verticalRow.slot] : []),
+    "qr",
+    "barcode",
+    "logo",
+  ]);
+  const research = isResearchIndustry(state.meta.industry);
+  const unsupportedWithContent = SLOT_ORDER.filter(
+    (slot) =>
+      !supported.has(slot) &&
+      Boolean(state.fields[slot]?.trim() || state.stash[slot]?.trim()),
+  );
+
+  const renderField = (slot: SlotId) => {
+    const info = SLOTS[slot];
+    const isOn = !info.optional || state.enabled.has(slot) || pendingOn.has(slot);
+    const value = state.fields[slot] ?? "";
+    return (
+      <div key={slot} className="space-y-1.5">
+        <div className="flex items-center justify-between gap-2">
+          <Label htmlFor={`easy-${slot}`}>{info.label}</Label>
+          {info.optional && toggleable.has(slot) && (
+            <Switch
+              checked={isOn}
+              onCheckedChange={(on) => toggle(slot, on)}
+              aria-label={`Show ${info.label.toLowerCase()} on the label`}
+            />
+          )}
+        </div>
+        {isOn && (
+          <>
+            {slot === "notice" && (
+              <div className="flex flex-wrap gap-1.5 pb-0.5">
+                {NOTICE_OPTIONS.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    aria-pressed={state.meta.noticeId === option.id}
+                    onClick={() => void applyEasyChange({ noticeId: option.id }).then(surfaceNotes)}
+                    className={cn(
+                      "rounded-full border px-2.5 py-1 text-[11px] leading-none transition-colors",
+                      state.meta.noticeId === option.id
+                        ? "border-primary bg-primary-subtle/40 text-foreground"
+                        : "border-border text-muted-foreground hover:border-primary/40",
+                    )}
+                  >
+                    {option.text}
+                  </button>
+                ))}
+              </div>
+            )}
+            {info.kind === "multiline" ? (
+              <FieldTextarea
+                id={`easy-${slot}`}
+                slot={slot}
+                initial={value}
+                placeholder={info.placeholder}
+                maxLength={info.maxChars}
+                onCommit={commitField}
+              />
+            ) : (
+              <FieldInput
+                id={`easy-${slot}`}
+                slot={slot}
+                initial={value}
+                placeholder={info.placeholder}
+                maxLength={info.maxChars || undefined}
+                onCommit={commitField}
+              />
+            )}
+            {info.hint && (
+              <p className="text-[11px] leading-snug text-muted-foreground">
+                {info.hint}
+              </p>
+            )}
+          </>
+        )}
+      </div>
+    );
+  };
+
+  const sectionFields = (section: SlotSection): SlotId[] =>
+    SLOT_ORDER.filter(
+      (slot) =>
+        (SLOTS[slot].section ?? "identity") === section &&
+        SLOTS[slot].kind !== "logo" &&
+        supported.has(slot),
+    );
+
+  const sections: { id: SlotSection; title: string; note?: string }[] = [
+    { id: "identity", title: "" },
+    {
+      id: "science",
+      title: "Science data",
+      note: "Printed exactly as you type it, from YOUR documentation — Forge Labels cannot verify scientific values.",
+    },
+    { id: "details", title: "Details" },
+    { id: "compliance", title: "Research-use notice" },
+    { id: "batch", title: "Catalog & batch" },
+    { id: "links", title: "Links & contact" },
+    { id: "codes", title: "Codes" },
+  ];
+
   return (
     <div className="space-y-4">
       <LogoField src={logoSrc} onNotes={surfaceNotes} />
-      {SLOT_ORDER.map((slot) => {
-        const info = SLOTS[slot];
-        if (info.kind === "logo") return null;
-        const isOn =
-          !info.optional || state.enabled.has(slot) || pendingOn.has(slot);
-        const value = state.fields[slot] ?? "";
-
+      {sections.map(({ id, title, note }) => {
+        const fields = sectionFields(id);
+        if (fields.length === 0) return null;
         return (
-          <div key={slot} className="space-y-1.5">
-            <div className="flex items-center justify-between gap-2">
-              <Label htmlFor={`easy-${slot}`}>{info.label}</Label>
-              {info.optional && toggleable.has(slot) && (
-                <Switch
-                  checked={isOn}
-                  onCheckedChange={(on) => toggle(slot, on)}
-                  aria-label={`Show ${info.label.toLowerCase()} on the label`}
-                />
-              )}
-            </div>
-            {isOn && (
-              <>
-                {info.kind === "multiline" ? (
-                  <FieldTextarea
-                    id={`easy-${slot}`}
-                    slot={slot}
-                    initial={value}
-                    placeholder={info.placeholder}
-                    maxLength={info.maxChars}
-                    onCommit={commitField}
-                  />
-                ) : (
-                  <FieldInput
-                    id={`easy-${slot}`}
-                    slot={slot}
-                    initial={value}
-                    placeholder={info.placeholder}
-                    maxLength={info.maxChars || undefined}
-                    onCommit={commitField}
-                  />
-                )}
-                {info.hint && (
-                  <p className="text-[11px] leading-snug text-muted-foreground">
-                    {info.hint}
+          <React.Fragment key={id}>
+            {title && (
+              <div className="pt-1">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {title}
+                </p>
+                {note && (
+                  <p className="mt-0.5 text-[11px] leading-snug text-warning-foreground">
+                    {note}
                   </p>
                 )}
-              </>
+              </div>
             )}
-          </div>
+            {fields.map(renderField)}
+          </React.Fragment>
         );
       })}
+      {unsupportedWithContent.length > 0 && (
+        <p className="text-[11px] leading-snug text-muted-foreground">
+          This layout has no spot for{" "}
+          {unsupportedWithContent.map((s) => SLOTS[s].label.toLowerCase()).join(", ")}
+          {research
+            ? " — research layouts in Browse all templates carry them."
+            : " — other layouts in Browse all templates carry them."}
+        </p>
+      )}
     </div>
   );
 }

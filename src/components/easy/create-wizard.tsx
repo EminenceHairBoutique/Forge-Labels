@@ -8,6 +8,7 @@ import { loadDraft, saveDraft, type WizardDraft } from "@/lib/easy/draft";
 import { Button } from "@/components/ui/button";
 import { AutoStep } from "./steps/auto-step";
 import { VialStep } from "./steps/vial-step";
+import { IndustryStep } from "./steps/industry-step";
 import { MaterialStep } from "./steps/material-step";
 import { StyleStep } from "./steps/style-step";
 import { NeedsStep } from "./steps/needs-step";
@@ -22,13 +23,14 @@ import { PickStep } from "./steps/pick-step";
 
 const STEPS = [
   { id: 0, title: "What are you labeling?" },
-  { id: 1, title: "Choose your label material" },
-  { id: 2, title: "How should it feel?" },
-  { id: 3, title: "What needs to fit?" },
-  { id: 4, title: "Pick your design" },
+  { id: 1, title: "What type of label are you creating?" },
+  { id: 2, title: "Choose your label material" },
+  { id: 3, title: "How should it feel?" },
+  { id: 4, title: "What needs to fit?" },
+  { id: 5, title: "Pick your design" },
 ] as const;
 
-const PICK_STEP = 4;
+const PICK_STEP = 5;
 
 export function CreateWizard() {
   const router = useRouter();
@@ -83,7 +85,7 @@ export function CreateWizard() {
     void Promise.resolve().then(() => {
       if (!alive) return;
       if (step >= 1 && !draft.presetId) goTo(0);
-      else if (!auto && step >= 2 && !draft.materialId) goTo(1);
+      else if (!auto && step >= 3 && !draft.materialId) goTo(2);
     });
     return () => {
       alive = false;
@@ -176,10 +178,13 @@ export function CreateWizard() {
       <div className="mt-6 flex-1">
         {step === 0 && <VialStep draft={draft} update={update} onContinue={() => goTo(1)} />}
         {step === 1 && (
-          <MaterialStep draft={draft} update={update} onContinue={() => goTo(2)} />
+          <IndustryStep draft={draft} update={update} onContinue={() => goTo(2)} />
         )}
-        {step === 2 && <StyleStep draft={draft} update={update} onContinue={() => goTo(3)} />}
-        {step === 3 && <NeedsStep draft={draft} update={update} onContinue={() => goTo(4)} />}
+        {step === 2 && (
+          <MaterialStep draft={draft} update={update} onContinue={() => goTo(3)} />
+        )}
+        {step === 3 && <StyleStep draft={draft} update={update} onContinue={() => goTo(4)} />}
+        {step === 4 && <NeedsStep draft={draft} update={update} onContinue={() => goTo(5)} />}
         {step === PICK_STEP && <PickStep draft={draft} update={update} />}
       </div>
     </div>

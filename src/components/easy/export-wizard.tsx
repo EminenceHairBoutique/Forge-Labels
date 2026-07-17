@@ -15,6 +15,10 @@ import {
   Printer,
 } from "lucide-react";
 import type { LabelDocument } from "@/lib/document/schema";
+import { scanCompliance, findingSlotLabel, type ComplianceFinding } from "@/lib/easy/compliance";
+import { readEasyState } from "@/lib/easy/fields";
+import { NOTICE_REMINDER } from "@/lib/easy/notices";
+import type { SlotId } from "@/lib/easy/slots";
 import { exportRaster } from "@/lib/export/raster";
 import { createSingleLabelPdf } from "@/lib/export/pdf";
 import { createSheetPdf } from "@/lib/export/sheet-pdf";
@@ -83,6 +87,49 @@ export function ExportWizard({
     () => (open ? toPlainIssues(runPreflight(doc), doc) : []),
     [doc, open],
   );
+
+  // §7/§29 review gate: the research-use notice must be read before export,
+  // and flagged wording must be acknowledged (recorded on the project —
+  // nothing is ever deleted or reworded automatically).
+  const review = React.useMemo(() => {
+    if (!open) return null;
+    const state = readEasyState(doc);
+    if (!state) return null;
+    const onLabel: Partial<Record<SlotId, string>> = {};
+    for (const slot of state.enabled) {
+      const value = state.fields[slot];
+      if (value?.trim()) onLabel[slot] = value;
+    }
+    const acked = new Set(
+      (state.meta.complianceAck ?? []).map((a) => `${a.slot}|${a.phrase}`),
+    );
+    const findings = scanCompliance(onLabel).filter(
+      (f) => !acked.has(`${f.slot}|${f.phrase}`),
+    );
+    const noticeText = state.enabled.has("notice") ? state.fields.notice?.trim() : undefined;
+    const noticeNeedsReview = Boolean(noticeText) && !state.meta.noticeReviewedAt;
+    return { findings, noticeText, noticeNeedsReview };
+  }, [doc, open]);
+
+  const needsReview = Boolean(
+    review && (review.noticeNeedsReview || review.findings.length > 0),
+  );
+
+  const confirmReview = () => {
+    const now = Date.now();
+    void applyEasyChange({
+      ...(review?.noticeNeedsReview ? { noticeReviewed: now } : {}),
+      ...(review && review.findings.length > 0
+        ? {
+            acknowledge: review.findings.map((f: ComplianceFinding) => ({
+              slot: f.slot,
+              phrase: f.phrase,
+              at: now,
+            })),
+          }
+        : {}),
+    });
+  };
 
   const record = async (kind: "png" | "pdf" | "sheet-pdf" | "zip", fileName: string, byteSize: number, dpi: number | null) => {
     await getStorageAdapter().recordExport({
@@ -251,7 +298,50 @@ export function ExportWizard({
           </ul>
         )}
 
-        {mode === null && (
+        {mode === null && needsReview && review && (
+          <div className="space-y-3 rounded-xl border border-warning bg-warning/10 p-3">
+            <p className="text-sm font-medium">Before you print — a quick review</p>
+            {review.noticeNeedsReview && (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">
+                  Your label carries this notice:
+                </p>
+                <p className="rounded-md bg-surface px-2.5 py-1.5 text-xs font-semibold tracking-wide">
+                  {review.noticeText}
+                </p>
+                <p className="text-[11px] leading-snug text-muted-foreground">
+                  {NOTICE_REMINDER}
+                </p>
+              </div>
+            )}
+            {review.findings.length > 0 && (
+              <ul className="space-y-1.5">
+                {review.findings.map((f, i) => (
+                  <li key={i} className="flex items-start gap-2 text-xs">
+                    <AlertTriangle
+                      className="mt-0.5 size-3.5 shrink-0 text-warning-foreground"
+                      aria-hidden
+                    />
+                    <span>
+                      <span className="font-medium">{findingSlotLabel(f)}</span> contains
+                      “{f.phrase}” ({f.excerpt}). {f.message}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="text-[11px] leading-snug text-muted-foreground">
+              Nothing was changed or removed — your wording is yours. Forge
+              Labels is a design tool and doesn&apos;t provide legal or
+              regulatory review.
+            </p>
+            <Button size="sm" onClick={confirmReview}>
+              I&apos;ve reviewed this — continue
+            </Button>
+          </div>
+        )}
+
+        {mode === null && !needsReview && (
           <div className="grid gap-2">
             <ModeCard
               icon={Home}

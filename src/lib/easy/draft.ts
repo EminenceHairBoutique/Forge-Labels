@@ -1,5 +1,6 @@
 "use client";
 
+import type { IndustryId } from "./industries";
 import type { Intensity } from "./materials";
 import type { SlotId } from "./slots";
 import type { ContentDensity, GlassId } from "./templates";
@@ -22,6 +23,8 @@ export interface WizardDraft {
   materialId?: string;
   materialOptionId?: string;
   intensity?: Intensity;
+  /** Label purpose ("What type of label are you creating?"). */
+  industry?: IndustryId;
   styleId?: string;
   preferDark?: boolean | null;
   /** Vial glass color ("What color is your container?"). */

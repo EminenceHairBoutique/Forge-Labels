@@ -9,10 +9,20 @@ import { expect, test, type Page } from "@playwright/test";
 
 async function startWizard(
   page: Page,
-  options: { vial: RegExp; material: RegExp; product?: string; density?: RegExp },
+  options: {
+    vial: RegExp;
+    material: RegExp;
+    industry?: RegExp;
+    product?: string;
+    density?: RegExp;
+  },
 ): Promise<void> {
   await page.goto("/create");
   await page.getByRole("button", { name: options.vial }).click();
+  await page.getByRole("button", { name: /^continue$/i }).click();
+  await page
+    .getByRole("button", { name: options.industry ?? /general product/i })
+    .click();
   await page.getByRole("button", { name: /^continue$/i }).click();
   await page.getByRole("button", { name: options.material }).first().click();
   await page.getByRole("button", { name: /^continue$/i }).click();
@@ -118,6 +128,41 @@ test.describe("template & typography overhaul", () => {
     });
     await expect(page.getByText("Best match")).toBeVisible();
     await expect(page.getByText(/designed for this exact vial/i)).toHaveCount(0);
+  });
+
+  test("research peptide flow: notice on by default, reviewed before export, claims flagged", async ({
+    page,
+  }) => {
+    await startWizard(page, {
+      vial: /10 mL vial/i,
+      industry: /research peptide/i,
+      material: /plain/i,
+      // Wording that may imply medical use — flagged for review, never edited.
+      product: "Treats-All Recovery",
+      density: /lots of details/i,
+    });
+    await expect(page.getByText("Best match")).toBeVisible();
+    await pickFirst(page);
+
+    // The research-use notice arrived by default and is editable as a field —
+    // research recommendations only offer layouts that can place it.
+    const notice = page.getByLabel("Research-use notice", { exact: true });
+    await expect(notice).toHaveValue("FOR RESEARCH USE ONLY");
+
+    // Density modes switch field sets without deleting anything.
+    await expect(
+      page.getByRole("button", { name: "Detailed", exact: true }),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: /download \/ print/i }).click();
+    await expect(page.getByText(/before you print/i)).toBeVisible();
+    await expect(page.getByText(/“treats”/i)).toBeVisible();
+    await expect(page.getByText(/does not by itself determine/i)).toBeVisible();
+    // Until reviewed, the export choices stay out of reach.
+    await expect(page.getByRole("button", { name: /print at home/i })).toHaveCount(0);
+
+    await page.getByRole("button", { name: /reviewed this — continue/i }).click();
+    await expect(page.getByRole("button", { name: /print at home/i })).toBeVisible();
   });
 
   test("transparent material with white print warns about the white backing layer", async ({

@@ -25,6 +25,7 @@ import {
 } from "@/lib/easy/typography";
 import { fontCssFamily, loadFont } from "@/lib/fonts/registry";
 import { applyEasyChange } from "@/lib/easy/fields";
+import { DENSITY_MODES } from "@/lib/easy/density";
 import { getStorageAdapter } from "@/lib/storage";
 import { useCanUndoRedo, useDoc } from "@/stores/document-store";
 import { useProjectSessionStore } from "@/stores/project-session-store";
@@ -259,6 +260,35 @@ export function EasyEditor({ projectId }: { projectId: string }) {
               intensity: doc.easy.intensity ?? material?.defaultIntensity ?? "balanced",
             }}
           />
+
+          <section aria-label="How much information" className="space-y-2">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              How much information?
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {DENSITY_MODES.map((mode) => (
+                <Button
+                  key={mode.id}
+                  variant={doc.easy?.densityMode === mode.id ? "primary" : "outline"}
+                  size="sm"
+                  className="h-8 text-xs"
+                  aria-pressed={doc.easy?.densityMode === mode.id}
+                  title={mode.blurb}
+                  onClick={() =>
+                    void applyEasyChange({ densityMode: mode.id }).then((notes) => {
+                      for (const note of notes) toast.info("Layout note", note);
+                    })
+                  }
+                >
+                  {mode.name}
+                </Button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Switches which of your filled-in fields show — nothing is
+              deleted, and you can toggle any field individually below.
+            </p>
+          </section>
 
           <section aria-label="Label information" className="space-y-2">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">

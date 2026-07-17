@@ -39,6 +39,8 @@ async function runWizardToNeeds(page) {
   await page.goto(`${base}/create`);
   await page.getByRole("button", { name: /10 mL vial/i }).click();
   await page.getByRole("button", { name: /^continue$/i }).click();
+  await page.getByRole("button", { name: /biotechnology/i }).click();
+  await page.getByRole("button", { name: /^continue$/i }).click();
   await page.getByRole("button", { name: /holographic/i }).first().click();
   await page.getByRole("button", { name: /^continue$/i }).click();
   await page.getByRole("button", { name: /futuristic/i }).click();
@@ -83,9 +85,19 @@ await shoot("wizard-vial-iphone", iphone, async (page) => {
   await page.waitForTimeout(400);
 });
 
+await shoot("wizard-industry-desktop", desktop, async (page) => {
+  await page.goto(`${base}/create`);
+  await page.getByRole("button", { name: /10 mL vial/i }).click();
+  await page.getByRole("button", { name: /^continue$/i }).click();
+  await page.getByRole("button", { name: /research peptide/i }).click();
+  await page.waitForTimeout(400);
+});
+
 await shoot("wizard-material-desktop", desktop, async (page) => {
   await page.goto(`${base}/create`);
   await page.getByRole("button", { name: /10 mL vial/i }).click();
+  await page.getByRole("button", { name: /^continue$/i }).click();
+  await page.getByRole("button", { name: /general product/i }).click();
   await page.getByRole("button", { name: /^continue$/i }).click();
   await page.getByRole("button", { name: /holographic/i }).first().click();
   await page.waitForTimeout(600);

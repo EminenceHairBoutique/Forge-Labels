@@ -86,6 +86,11 @@ export function templateIsVialSpecific(t: EasyTemplateDef): boolean {
   return t.compatibleVialTypes !== "all" || t.compatibleVolumesMl !== "all";
 }
 
+/** Whether a template has a place for a slot (row or vertical rail). */
+export function templateHasSlot(t: EasyTemplateDef, slot: string): boolean {
+  return t.rows.some((r) => r.slot === slot) || t.verticalRow?.slot === slot;
+}
+
 export function templatesInCategory(category: TemplateCategory): EasyTemplateDef[] {
   return EASY_TEMPLATES.filter((t) => t.category.includes(category));
 }

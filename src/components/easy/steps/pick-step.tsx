@@ -10,6 +10,8 @@ import {
   defaultEasyFields,
 } from "@/lib/easy/create-doc";
 import { ensureEasyFonts } from "@/lib/easy/fields";
+import { getIndustry } from "@/lib/easy/industries";
+import { NOTICE_OPTIONS } from "@/lib/easy/notices";
 import { clearDraft, type WizardDraft } from "@/lib/easy/draft";
 import { measureTextHeightMm } from "@/lib/render/text-measure";
 import { renderThumbnail } from "@/lib/export/raster";
@@ -73,6 +75,7 @@ export function PickStep({
         labelWidthMm: probe.label.widthMm,
         labelHeightMm: probe.label.heightMm,
         vialPresetId: probe.vial.presetId,
+        industryId: draft.industry,
       });
       const option = getMaterialOption(
         material,
@@ -83,6 +86,14 @@ export function PickStep({
       const enabled = new Set(DEFAULT_ENABLED);
       if (draft.fields?.qr?.trim()) enabled.add("qr");
       if (draft.fields?.subtitle?.trim()) enabled.add("subtitle");
+      // Research purposes start with the standard notice already on the
+      // label (reviewed before export; swappable in the editor).
+      const industry = getIndustry(draft.industry);
+      const fields = defaultEasyFields(draft.fields);
+      if (industry?.suggestsNotice && !fields.notice) {
+        fields.notice = NOTICE_OPTIONS[0]!.text;
+      }
+      if (fields.notice) enabled.add("notice");
       const built: Candidate[] = [];
       for (const rec of recs) {
         await ensureEasyFonts(rec.template);
@@ -97,7 +108,8 @@ export function PickStep({
             intensity: draft.intensity,
             paletteId: rec.palette.id,
             styleId: draft.styleId,
-            fields: defaultEasyFields(draft.fields),
+            industry: draft.industry,
+            fields,
             enabled,
           },
           measureTextHeightMm,
@@ -127,6 +139,7 @@ export function PickStep({
     draft.wantsQr,
     draft.wantsBarcode,
     draft.glass,
+    draft.industry,
   ]);
 
   const selected = candidates?.find((c) => c.rec.template.id === selectedId);

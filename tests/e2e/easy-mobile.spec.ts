@@ -29,6 +29,10 @@ test.describe("iPhone-sized beginner flow", () => {
     await page.getByRole("button", { name: /20 mL vial/i }).click();
     await page.getByRole("button", { name: /^continue$/i }).click();
 
+    await page.getByRole("button", { name: /general product/i }).click();
+    await expectNoHorizontalScroll(page, "industry step");
+    await page.getByRole("button", { name: /^continue$/i }).click();
+
     await page.getByRole("button", { name: /^neon/i }).first().click();
     await expectNoHorizontalScroll(page, "material step");
     await page.getByRole("button", { name: /^continue$/i }).click();
@@ -96,6 +100,8 @@ test.describe("iPhone-sized beginner flow", () => {
     await page.goto("/create");
     await page.getByRole("button", { name: /10 mL vial/i }).click();
     await page.getByRole("button", { name: /^continue$/i }).click();
+    await page.getByRole("button", { name: /general product/i }).click();
+    await page.getByRole("button", { name: /^continue$/i }).click();
     await page.getByRole("button", { name: /holographic/i }).first().click();
     await page.getByRole("button", { name: /^continue$/i }).click();
     await page.getByRole("button", { name: /^continue$/i }).click();
@@ -108,8 +114,14 @@ test.describe("iPhone-sized beginner flow", () => {
     await page.getByRole("button", { name: /use this design/i }).click();
     await page.waitForURL(/\/easy\/[\w-]+/, { timeout: 30_000 });
 
-    // The flat preview runs the REAL render pipeline — if the finish tiles
-    // render, the holographic material is genuinely in the artwork.
+    // Push the effect to full coverage so the check is template-independent,
+    // then verify: the flat preview runs the REAL render pipeline — if the
+    // finish tiles render, the holographic material is genuinely in the artwork.
+    const moreEffect = page.getByRole("button", { name: /^more effect$/i });
+    for (let i = 0; i < 3 && (await moreEffect.isEnabled().catch(() => false)); i++) {
+      await moreEffect.click();
+      await page.waitForTimeout(700);
+    }
     await page.getByRole("button", { name: /^flat$/i }).click();
     const img = page.getByAltText("Flat label preview");
     await expect(img).toBeVisible({ timeout: 15_000 });
