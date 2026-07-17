@@ -5,6 +5,7 @@ const GUIDE_LINKS = [
   { href: "/guides/vial-sizes", label: "Vial size guide" },
   { href: "/guides/printing", label: "Printing guide" },
   { href: "/guides/materials", label: "Materials & finishes" },
+  { href: "/guides/research-labels", label: "Research labels" },
 ] as const;
 
 export default function GuidesLayout({

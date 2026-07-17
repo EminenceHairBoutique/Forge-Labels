@@ -22,15 +22,24 @@ Both edit the same document; switching modes never loses work.
   name", "Simplify", "Make it more premium/cleaner/bolder") included.
   "Make my label for me" compresses the whole thing to one screen and
   three finished options.
-- **120 validated templates + template browser** — structurally distinct,
-  size-responsive layout programs across luxury, clinical, laboratory,
-  holographic, neon, minimal, botanical, and transparent families, browsable
+- **151 validated templates + template browser** — structurally distinct,
+  size-responsive layout programs across research, pharmaceutical,
+  biotechnology, luxury, clinical, laboratory, holographic, neon, minimal,
+  botanical, and transparent families, browsable
   at `/library` (and inside the Easy editor) as engine-rendered mockup
   cards using your own words, with favorites, filters, and a 3D detail
   preview. Every template passes an automated quality gate
   (`npm run validate:templates`): print floors, overlap, QR quiet zones,
   contrast against actual backings, and font checks across sizes ×
   content stress × material rules.
+- **Research & laboratory labels** — a label-purpose step (research
+  peptide, lab reagent, pharmaceutical-inspired, biotechnology…), research
+  fields (catalog/SKU/lot/batch/dates plus user-supplied purity, formula,
+  molecular weight, CAS, sequence — never invented, always marked as
+  yours to verify), curated research-use notices reviewed before every
+  export, a claim/identifier warning system that never edits your words,
+  Essential/Standard/Detailed density modes, and a matching-series
+  generator (spreadsheet or CSV) with amount color coding.
 - **Typography without font menus** — 38 bundled font families (static
   OFL TTFs, lazily loaded, license-audited by `scripts/fetch-fonts.mjs`)
   behind 27 curated pairings and 10 plain-language typography
@@ -68,7 +77,7 @@ Both edit the same document; switching modes never loses work.
 - **Projects & brand kits** — autosave, version snapshots, thumbnails,
   tags, brand palettes/logos/fonts, logo upload in Easy mode
   (engine-placed and reflowed), and an Advanced-Editor template gallery of
-  16 fictional brand designs alongside the 120-template Easy library.
+  16 fictional brand designs alongside the 151-template Easy library.
 
 ## Quickstart (zero configuration)
 

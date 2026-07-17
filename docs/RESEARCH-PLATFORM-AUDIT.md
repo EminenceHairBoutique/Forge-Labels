@@ -115,3 +115,40 @@ only — no supplier is quoted, copied, or characterized:
   sections/filters; dashboard research action.
 - **R6 Content & closure**: guides section; unit + e2e additions; docs;
   reports; full gate; push.
+
+---
+
+## Outcome (post-build addendum)
+
+All twelve gap rows closed on this branch, in the planned order (R1–R6),
+with the gate green at every milestone:
+
+- **Gap 1–5 (schema/industry/notice/compliance/density):** shipped as
+  designed. One addition beyond plan: the content form became
+  template-aware (only fields the current layout can place are offered)
+  — the 14 new slots made the old show-everything form dishonest.
+- **Gap 6 (templates):** 151 total / 73 research-side (research +
+  pharmaceutical + biotechnology + laboratory + clinical categories);
+  the DNA gate and the new research/research-detailed scenarios caught
+  three real defects during authoring (a hierarchy inversion, a chip
+  bleeding into a footer row, a missing brand row) — fixed in templates,
+  never the gate.
+- **Gap 7 (series):** shipped with a 100-row cap and honest
+  skipped-column reporting on CSV import.
+- **Gap 8 (profile):** shipped browser-local; cloud sync deferred (see
+  deferred.md).
+- **Gap 9 (COA/verification):** QR-to-COA guidance + catalog/lot/batch/
+  verification/COA fields shipped; HOSTED verification pages deferred
+  honestly (deferred.md) — the brief marked them optional.
+- **Gap 10 (guides):** one comprehensive research-label guide + the
+  three existing guides; the remaining §23 topics are covered inside
+  them rather than as thirty thin pages.
+- **Gap 11–12 (discovery):** browser sections via the three new
+  categories; dashboard "Research label" action; industry deep links;
+  "Most clinical" role. Per-card "similar templates" stayed out (most
+  families are deliberate singletons — siblings would be noise).
+
+A research user's §38 definition-of-success path was verified end-to-end
+by `tests/e2e/overhaul.spec.ts` ("research peptide flow"): industry →
+recommendations with reasons → notice on the label by default → flagged
+wording reviewed → export unlocked.

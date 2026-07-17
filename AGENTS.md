@@ -68,7 +68,7 @@ react-konva editor, optional Supabase/Stripe. Full design rationale:
     the slot objects (single source of truth); `easy.stash` only holds
     toggled-off values. All Easy writes go through `applyEasyChange`
     (serialized + live-store reads — never pass a doc prop into it).
-13. **No template ships unvalidated.** Every Easy template (120 in
+13. **No template ships unvalidated.** Every Easy template (151 in
     `src/lib/easy/templates/`) must pass `src/lib/easy/validate.ts` —
     sizes × content scenarios × material cases with contrast, overlap,
     print-floor, quiet-zone, and font checks — plus the layout-DNA
@@ -78,6 +78,13 @@ react-konva editor, optional Supabase/Stripe. Full design rationale:
     reference roles, and every family/weight must exist in
     `public/fonts/manifest.json` (regenerate via `npm run fonts:fetch`,
     never hand-edit binaries).
+14. **Research honesty.** Scientific values (purity, CAS, formula,
+    weights, sequences) are user-supplied text — never suggest, derive,
+    or placeholder them with real-looking values. The compliance scanner
+    (`src/lib/easy/compliance.ts`) WARNS and records acknowledgments; it
+    must never edit or delete user content. Research-use notices are
+    reviewed before export (`export-wizard`), and research industries
+    only recommend templates that carry a `notice` row.
 
 ## Gotchas discovered in this codebase
 

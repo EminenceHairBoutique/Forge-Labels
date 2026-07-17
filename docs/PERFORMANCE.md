@@ -24,7 +24,7 @@ numbers behind it. Baselines are from the pre-overhaul build (commit
 - **Validation:** `registry.test.ts` fails the build on missing files,
   byte drift, orphans, variable fonts, or missing glyphs.
 
-## Template browser (120 cards)
+## Template browser (151 cards)
 
 - **Real previews, once:** cards render through the actual layout engine
   + export renderer into data URLs, cached in a module LRU (240 entries)
@@ -40,17 +40,18 @@ numbers behind it. Baselines are from the pre-overhaul build (commit
 
 ## Engine
 
-- The validation matrix (~120 templates × up to 34 build cases each,
-  ≈ 3,300 engine runs with the approximate measurer) completes in
-  **under one second** in the unit suite — the engine itself is pure
+- The validation matrix (151 templates × their size/content/material
+  cases, including the research stress scenarios — several thousand
+  engine runs with the approximate measurer) completes in **a few
+  seconds** in the unit suite — the engine itself is pure
   math and stays instant in the editor (real-metrics builds are a few
   milliseconds each, debounced at 350 ms while typing).
 
 ## Guarantees preserved
 
-- Unit suite: 400 tests across 29 files. Full e2e: 25 Easy/overhaul
-  tests plus the pre-existing dimensional, parity, and perf specs —
-  DPI-exact exports and editor↔export pixel parity are untouched.
+- Unit suite: 413 tests across 29 files. Full e2e: the Easy, overhaul,
+  and research flows plus the pre-existing dimensional, parity, and perf
+  specs — DPI-exact exports and editor↔export pixel parity are untouched.
 - The production build emits the Easy editor and browser as
   client-side islands; the 9.3 MB font directory is static content
   served per-file on demand, not part of any JS bundle.

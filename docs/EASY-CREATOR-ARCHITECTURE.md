@@ -327,7 +327,35 @@ The detail view holds the app's **only** 3D scene in the browser context.
 In the editor it applies via `applyEasyChange` (undoable); in create mode
 it builds a document and creates the project directly.
 
-### 14.7 Logo upload (`logo.ts`, content form)
+### 14.7 Research platform (v4 layer)
+
+The third build adds the research vocabulary on the same bones — details
+in [RESEARCH-PLATFORM-AUDIT.md](./RESEARCH-PLATFORM-AUDIT.md):
+
+- **Slots** grew to 31 (abbreviation, purity, formula, molecular-weight,
+  cas, sequence, notice, catalog, sku, batch, produced, retest, contact,
+  coa) with form sections (`SlotInfo.section`); the engine's drop ladder
+  keeps the research-use notice visible second-to-last.
+- **`industries.ts`** (13 label purposes) steers recommendation
+  categories/vibes/roles, suggested fields, notice and QR defaults —
+  research purposes only recommend templates with a notice row
+  (`templateHasSlot`).
+- **`notices.ts` + `compliance.ts`**: curated neutral notices reviewed
+  before export; a word-boundary claim/identifier scanner that warns
+  with excerpts, never edits, and records acknowledgments on the
+  project (`easy.complianceAck`, schema v4).
+- **`density.ts`**: Essential/Standard/Detailed field SETS (research vs
+  general), applied reversibly through `applyEasyChange` with
+  template-aware intersection.
+- **`series.ts` + `profile.ts`**: matching-series generation (rows/CSV →
+  sibling projects via `buildFamilyVariant`) and browser-local company
+  defaults merged UNDER user answers at wizard time.
+- **Validator**: research + research-detailed stress scenarios (fictional
+  data only) run for research-category templates; the content form is
+  template-aware so unsupported fields are pointed at research layouts
+  instead of silently dropped.
+
+### 14.8 Logo upload (`logo.ts`, content form)
 
 PNG/JPG/WebP → downscaled ≤512 px canvas PNG data URL + aspect ratio,
 stored via the normal Easy change path (`meta.logoAspect`), placed by the

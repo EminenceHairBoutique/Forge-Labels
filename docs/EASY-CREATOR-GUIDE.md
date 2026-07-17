@@ -10,7 +10,7 @@ label for me" asks everything on one screen — including your vial size and
 an optional QR link — and designs three finished labels for you.)
 
 Prefer to shop by design? **Templates** in the sidebar opens the full
-library of 120 designs, each previewed with your own words once you start
+library of 151 designs, each previewed with your own words once you start
 typing. Picking one there starts your label directly.
 
 ## 2. What are you labeling?
@@ -30,7 +30,15 @@ straight side. That's it — every technical dimension (label size, extra
 print area, safety margins) is calculated for you. Curious? "View technical
 dimensions" shows the numbers.
 
-## 3. Choose your label material
+## 3. What type of label is it?
+
+Tell us the label's purpose — research peptide, laboratory reagent,
+pharmaceutical-inspired, biotechnology, skincare, essential oil, and more.
+This shapes which designs and fields we suggest (research purposes start
+with a research-use notice and lot/batch fields ready to go). It never
+adds approvals, certifications, or claims to your label.
+
+## 4. Choose your label material
 
 Big cards show each material — holographic cards shimmer as you move your
 pointer (or tilt your phone). Each option says in plain words what it looks
@@ -45,20 +53,20 @@ product name, an accent panel, or the background. Whatever you pick, the
 design rules protect readability automatically (text never sits raw on a
 busy reflective pattern).
 
-## 4. How should it feel?
+## 5. How should it feel?
 
 Pick a feel — clean and clinical, luxury, bold, futuristic, botanical… or
 let Forge choose. Add your brand name, product name, and strength, and say
 whether you prefer light or dark labels.
 
-## 5. What needs to fit?
+## 6. What needs to fit?
 
 Say how much information the label carries — **just the essentials**, **a
 standard label**, or **lots of details** — and switch on anything special:
 a QR code, a barcode, or your logo. Designs that genuinely handle your
 amount of content (checked, not guessed) are recommended first.
 
-## 6. Pick a design
+## 7. Pick a design
 
 Six designs appear already wearing your words, on your vial size, in your
 material — each labeled (**Best match**, **Most professional**, **Most
@@ -66,7 +74,7 @@ minimal**, **Most bold**, **Most premium**, **Alternative style**) with a
 one-sentence reason. Not feeling them? **Browse all templates** opens the
 full library with filters and favorites (tap the heart to keep a shortlist).
 
-## 7. Edit by typing
+## 8. Edit by typing
 
 The editor is a form next to a live vial preview:
 
@@ -90,6 +98,16 @@ The editor is a form next to a live vial preview:
 - **Quick fixes**: Balance layout, Fit everything, Bigger product name,
   Easier to read, Simplify. Every change — yours or a fix — is one
   Undo step.
+- **How much information?** — Essential, Standard, or Detailed switches
+  whole field sets at once (research labels get the lot/batch/science
+  vocabulary). Nothing is deleted; switch back anytime.
+- **Research fields** live in their own sections — catalog & batch,
+  science data (printed exactly as you type it, from your documentation —
+  we can't verify chemistry), links, and the research-use notice with
+  standard wordings one tap away.
+- **Save these as my company defaults** remembers your brand, website,
+  contact, notice, storage, and warning — every new label starts with
+  them filled in.
 - **Change material** any time; the design adapts, including where the
   shiny effect goes.
 - The vial preview has Front/Side/Back/Spin buttons, a dark backdrop, and
@@ -99,7 +117,7 @@ Want to move things by hand, add shapes, or upload images? **Advanced
 Editor** opens the same label with full canvas control — and "Easy mode"
 brings you back without losing anything.
 
-## 8. Print or download
+## 9. Print or download
 
 Press **Download / print** and answer one question — how will you use it?
 
@@ -114,12 +132,22 @@ Press **Download / print** and answer one question — how will you use it?
 Before anything downloads, the label is checked and problems are explained
 in plain language — most come with a one-click fix.
 
-## 9. Build a product line
+## 10. Build a product line
 
 **Matching label** creates a sibling product that keeps your brand, fonts,
 material, and layout — you only change the product name, strength, lot,
 expiry, or QR link. Strengths can color-code automatically (5 mg blue,
 10 mg purple, 20 mg red, 30 mg gold) and you can pick any colors instead.
+
+Making many products? **Create a whole matching series** opens a small
+spreadsheet — one row per product (compound, amount, unit, lot, batch,
+and more) or a CSV import — and turns every row into a finished matching
+label in one pass.
+
+Before anything exports, you'll review your research-use notice and any
+wording that might imply medical use or approvals. Your words are never
+changed or removed — the review is recorded with the project so you know
+what was checked.
 
 ## Tips
 

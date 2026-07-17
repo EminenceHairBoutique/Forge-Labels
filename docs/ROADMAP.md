@@ -146,6 +146,42 @@ Details: [TEMPLATE-TYPOGRAPHY-AUDIT.md](./TEMPLATE-TYPOGRAPHY-AUDIT.md)
 [EASY-CREATOR-ARCHITECTURE.md](./EASY-CREATOR-ARCHITECTURE.md),
 [PERFORMANCE.md](./PERFORMANCE.md), and [ACCESSIBILITY.md](./ACCESSIBILITY.md).
 
+## Research & pharmaceutical platform — Shipped
+
+Built on the overhaul without touching the print kernel (audit:
+[RESEARCH-PLATFORM-AUDIT.md](./RESEARCH-PLATFORM-AUDIT.md)):
+
+- **Research vocabulary (schema v4):** 14 new semantic slots —
+  abbreviation, purity, formula, molecular weight, CAS, sequence,
+  research-use notice, catalog №, SKU, batch, date produced, retest date,
+  company contact, COA reference — with honest placeholders (no
+  real-looking scientific values anywhere) and engine drop ladders that
+  keep the notice visible second-to-last.
+- **Label purposes:** a wizard step ("What type of label are you
+  creating?") with 13 industries steering templates, suggested fields,
+  notices, QR defaults, and recommendation roles ("Most clinical") —
+  visual direction only, never regulatory claims.
+- **151 validated templates** including three new research families
+  (Peptide Precision → Research Vial Standard; Black Laboratory →
+  Controlled Carbon; Biotech Silver → Biotech Reserve) gated on research
+  stress scenarios with fictional data; research purposes only recommend
+  layouts that can place the notice.
+- **Notice & compliance system:** five neutral curated notices + custom;
+  a forced review before export with the §7 reminder; a claim/identifier
+  scanner (treats/cures/inject/dosage/FDA…) that warns with excerpts,
+  never edits, and records acknowledgments on the project
+  (`easy.complianceAck`).
+- **Content-density modes:** Essential / Standard / Detailed field sets
+  (research and general vocabularies), reversible, template-aware.
+- **Product-series generator:** spreadsheet rows or CSV import → matching
+  sibling labels with per-row amount color coding; company profile
+  defaults (brand/website/contact/notice/storage/warning) prefill new
+  labels.
+- **Research-label guide** (`/guides/research-labels`): lot/batch
+  organization, catalog systems, notice placement, COA QR sizing,
+  density, families, artwork-vs-verified-data, and claims — neutral, no
+  medical or personal-use instructions.
+
 ## Phase 3 — Partially shipped
 
 Shipped in this build:
