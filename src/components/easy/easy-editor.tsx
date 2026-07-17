@@ -38,6 +38,7 @@ import { ContentForm } from "./content-form";
 import { ExportWizard } from "./export-wizard";
 import { MaterialPicker } from "./material-picker";
 import { MatchingLabelDialog } from "./matching-label-dialog";
+import { SeriesDialog } from "./series-dialog";
 import { TemplateBrowser } from "./template-browser";
 import { VialStage } from "./vial-stage";
 import { cn } from "@/lib/utils";
@@ -57,6 +58,7 @@ export function EasyEditor({ projectId }: { projectId: string }) {
   const [exportOpen, setExportOpen] = React.useState(false);
   const [advancedExportOpen, setAdvancedExportOpen] = React.useState(false);
   const [matchingOpen, setMatchingOpen] = React.useState(false);
+  const [seriesOpen, setSeriesOpen] = React.useState(false);
   const doc = useDoc();
   const projectName = useProjectSessionStore((s) => s.projectName);
   const { canUndo } = useCanUndoRedo();
@@ -326,7 +328,9 @@ export function EasyEditor({ projectId }: { projectId: string }) {
         doc={doc}
         open={matchingOpen}
         onOpenChange={setMatchingOpen}
+        onSeries={() => setSeriesOpen(true)}
       />
+      <SeriesDialog doc={doc} open={seriesOpen} onOpenChange={setSeriesOpen} />
     </div>
   );
 }

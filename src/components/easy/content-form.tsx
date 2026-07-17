@@ -11,6 +11,7 @@ import {
 import { isResearchIndustry } from "@/lib/easy/industries";
 import { fileToEasyLogo } from "@/lib/easy/logo";
 import { NOTICE_OPTIONS } from "@/lib/easy/notices";
+import { profileFromDoc, saveProfile } from "@/lib/easy/profile";
 import { SLOTS, SLOT_ORDER, type SlotId, type SlotSection } from "@/lib/easy/slots";
 import { getEasyTemplate } from "@/lib/easy/templates";
 import { cn } from "@/lib/utils";
@@ -232,6 +233,30 @@ export function ContentForm({ doc }: { doc: LabelDocument }) {
             : " — other layouts in Browse all templates carry them."}
         </p>
       )}
+      <button
+        type="button"
+        className="text-left text-xs text-primary underline-offset-2 hover:underline"
+        onClick={() => {
+          const profile = profileFromDoc(doc);
+          const saved = Object.keys(profile);
+          if (saved.length === 0) {
+            toast.info(
+              "Nothing to save yet",
+              "Fill in your brand, website, contact, notice, storage, or warning first.",
+            );
+            return;
+          }
+          saveProfile(profile);
+          toast.success(
+            "Company defaults saved",
+            `New labels will start with your ${saved
+              .map((s) => SLOTS[s as SlotId].label.toLowerCase())
+              .join(", ")}.`,
+          );
+        }}
+      >
+        Save these as my company defaults
+      </button>
     </div>
   );
 }

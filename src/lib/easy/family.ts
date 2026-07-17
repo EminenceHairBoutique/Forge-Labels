@@ -16,10 +16,15 @@ import type { SlotId } from "./slots";
 
 export interface FamilyOverrides {
   productName?: string;
+  abbreviation?: string;
   strength?: string;
+  catalog?: string;
   lot?: string;
+  batch?: string;
+  retest?: string;
   expiry?: string;
   qr?: string;
+  barcode?: string;
   /** Accent/palette swap for strength color coding. */
   paletteId?: string;
 }
@@ -58,10 +63,15 @@ export function buildFamilyVariant(
     }
   };
   apply("product-name", overrides.productName);
+  apply("abbreviation", overrides.abbreviation);
   apply("strength", overrides.strength);
+  apply("catalog", overrides.catalog);
   apply("lot", overrides.lot);
+  apply("batch", overrides.batch);
+  apply("retest", overrides.retest);
   apply("expiry", overrides.expiry);
   apply("qr", overrides.qr);
+  apply("barcode", overrides.barcode);
 
   const build = buildEasyLabel({
     template,

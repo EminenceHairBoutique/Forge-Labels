@@ -35,10 +35,13 @@ export function MatchingLabelDialog({
   doc,
   open,
   onOpenChange,
+  onSeries,
 }: {
   doc: LabelDocument;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Open the whole-series generator instead (§14). */
+  onSeries?: () => void;
 }) {
   const router = useRouter();
   const [productName, setProductName] = React.useState("");
@@ -194,6 +197,18 @@ export function MatchingLabelDialog({
             Create matching label
           </Button>
         </DialogFooter>
+        {onSeries && (
+          <button
+            type="button"
+            className="text-left text-xs text-primary underline-offset-2 hover:underline"
+            onClick={() => {
+              onOpenChange(false);
+              onSeries();
+            }}
+          >
+            Making several products? Create a whole matching series →
+          </button>
+        )}
       </DialogContent>
     </Dialog>
   );

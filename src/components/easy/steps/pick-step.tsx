@@ -12,6 +12,7 @@ import {
 import { ensureEasyFonts } from "@/lib/easy/fields";
 import { getIndustry } from "@/lib/easy/industries";
 import { NOTICE_OPTIONS } from "@/lib/easy/notices";
+import { applyProfile, loadProfile } from "@/lib/easy/profile";
 import { clearDraft, type WizardDraft } from "@/lib/easy/draft";
 import { measureTextHeightMm } from "@/lib/render/text-measure";
 import { renderThumbnail } from "@/lib/export/raster";
@@ -86,10 +87,15 @@ export function PickStep({
       const enabled = new Set(DEFAULT_ENABLED);
       if (draft.fields?.qr?.trim()) enabled.add("qr");
       if (draft.fields?.subtitle?.trim()) enabled.add("subtitle");
-      // Research purposes start with the standard notice already on the
-      // label (reviewed before export; swappable in the editor).
+      // Saved company defaults fill in underneath the user's answers, then
+      // research purposes get the standard notice if nothing else set one
+      // (reviewed before export; swappable in the editor).
       const industry = getIndustry(draft.industry);
-      const fields = defaultEasyFields(draft.fields);
+      const { fields, added } = applyProfile(
+        defaultEasyFields(draft.fields),
+        loadProfile(),
+      );
+      for (const slot of added) enabled.add(slot);
       if (industry?.suggestsNotice && !fields.notice) {
         fields.notice = NOTICE_OPTIONS[0]!.text;
       }

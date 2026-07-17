@@ -19,6 +19,8 @@ import { sizesForTemplate } from "./validate";
 import { scanCompliance } from "./compliance";
 import { densitySlotSet } from "./density";
 import { getNotice, noticeIdForText } from "./notices";
+import { buildSeriesVariant, parseSeriesCsv } from "./series";
+import { applyProfile } from "./profile";
 import { approximateMeasure, fitRow, squeezeFactor, stackZones } from "./layout";
 import { nextEasyMeta } from "./meta";
 import { toPlainIssues } from "./plain-preflight";
@@ -673,6 +675,79 @@ describe("research platform core (v4)", () => {
     expect(parsed.easy?.densityMode).toBe("standard");
     expect(parsed.easy?.complianceAck?.[0]?.phrase).toBe("inject");
     expect(parsed.schemaVersion).toBe(4);
+  });
+});
+
+describe("product-series generator", () => {
+  it("parses a loosely-headed CSV into series rows and reports what it skipped", () => {
+    const csv = [
+      "Compound,ABBR,Amount,Unit,Lot Number,Batch,Favorite Snack",
+      "Peptide RC-7,RC-7,10,mg,LOT-1,B-1,waffles",
+      "Peptide RC-9,RC-9,20,mg,LOT-2,B-2,toast",
+    ].join("\n");
+    const result = parseSeriesCsv(csv);
+    expect(result.errors).toEqual([]);
+    expect(result.ignored).toEqual(["Favorite Snack"]);
+    expect(result.rows).toHaveLength(2);
+    expect(result.rows[0]).toMatchObject({
+      productName: "Peptide RC-7",
+      abbreviation: "RC-7",
+      amount: "10",
+      unit: "mg",
+      lot: "LOT-1",
+      batch: "B-1",
+    });
+  });
+
+  it("requires a product column and says how to fix it", () => {
+    const result = parseSeriesCsv("Amount,Unit\n10,mg");
+    expect(result.rows).toEqual([]);
+    expect(result.errors.join(" ")).toMatch(/No product column/i);
+  });
+
+  it("each row becomes a sibling that keeps the brand and notice, changing only its fields", () => {
+    const source = buildEasyDocument(
+      spec({
+        templateId: "research-vial-standard",
+        industry: "research-peptide",
+        fields: defaultEasyFields({
+          brand: "VANTA RESEARCH",
+          "product-name": "Peptide RC-7",
+          strength: "10 mg",
+          notice: "FOR RESEARCH USE ONLY",
+        }),
+        enabled: new Set<SlotId>([...DEFAULT_ENABLED, "notice"]),
+      }),
+    );
+    const sibling = buildSeriesVariant(source, {
+      productName: "Peptide RC-9",
+      amount: "20",
+      unit: "mg",
+      lot: "LOT-2",
+      accent: "auto",
+    });
+    const texts = textObjects(sibling.objects);
+    expect(texts.find((o) => o.slot === "product-name")?.text).toBe("Peptide RC-9");
+    expect(texts.find((o) => o.slot === "strength")?.text).toBe("20 mg");
+    expect(texts.find((o) => o.slot === "lot")?.text).toBe("LOT-2");
+    // Identity survives: brand, notice, template, dimensions.
+    expect(texts.find((o) => o.slot === "brand")?.text).toBe("VANTA RESEARCH");
+    expect(texts.find((o) => o.slot === "notice")?.text).toBe("FOR RESEARCH USE ONLY");
+    expect(sibling.easy?.templateId).toBe("research-vial-standard");
+    expect(sibling.label.widthMm).toBe(source.label.widthMm);
+    // Amount color coding picked a different accent palette (20 mg → red zone).
+    expect(sibling.easy?.paletteId).toBeDefined();
+  });
+
+  it("company defaults fill under the user's answers, never over them", () => {
+    const { fields, added } = applyProfile(
+      { brand: "MY OWN BRAND", "product-name": "Serum" },
+      { brand: "SAVED BRAND", website: "saved.example", notice: "FOR RESEARCH USE ONLY" },
+    );
+    expect(fields.brand).toBe("MY OWN BRAND");
+    expect(fields.website).toBe("saved.example");
+    expect(fields.notice).toBe("FOR RESEARCH USE ONLY");
+    expect(added.sort()).toEqual(["notice", "website"]);
   });
 });
 
