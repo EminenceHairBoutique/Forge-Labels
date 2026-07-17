@@ -881,18 +881,34 @@ export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
   // Least-important first; volume/warning/strength are last resorts for
   // truly tiny labels (a 12 mm neck band honestly holds brand + name only).
   // Brand and product name are never dropped.
+  // First entries drop first; identity, the warning, and the research
+  // notice hold on longest (§13: keep research notices visible).
   const DROP_ORDER: SlotId[] = [
     "verification",
+    "coa",
     "website",
+    "contact",
+    "sku",
+    "produced",
     "subtitle",
     "description",
+    "sequence",
+    "formula",
+    "molecular-weight",
+    "cas",
+    "purity",
     "storage",
     "directions",
     "expiry",
+    "retest",
     "lot",
     "ingredients",
+    "batch",
+    "catalog",
     "volume",
+    "abbreviation",
     "warning",
+    "notice",
     "strength",
   ];
   let dropIndex = 0;

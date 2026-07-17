@@ -25,6 +25,8 @@ export interface EasyDocumentSpec {
   intensity?: Intensity;
   paletteId: string;
   styleId?: string;
+  /** Label purpose from the wizard (drives fields, notices, density). */
+  industry?: string;
   fields: Partial<Record<SlotId, string>>;
   enabled: ReadonlySet<SlotId>;
 }
@@ -70,6 +72,7 @@ export function buildEasyDocument(
     intensity,
     paletteId: palette.id,
     styleId: spec.styleId,
+    industry: spec.industry,
   };
 
   return { ...mergeEasyObjects(base, build), easy };

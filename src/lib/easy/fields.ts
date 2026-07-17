@@ -13,8 +13,10 @@ import {
   mergeEasyObjects,
   type EffectPlacement,
 } from "./instantiate";
+import { densitySlotSet } from "./density";
 import {
   nextEasyMeta,
+  noticeTextFor,
   readEasyContent as readEasyState,
   SIMPLIFY_SLOTS,
   type EasyChange,
@@ -129,6 +131,56 @@ async function applyEasyChangeNow(change: EasyChange): Promise<string[]> {
       delete fields[slot];
     }
   }
+  const extraNotes: string[] = [];
+  if (change.noticeId) {
+    const text = noticeTextFor(change);
+    if (text) {
+      fields.notice = text;
+      enabled.add("notice");
+      delete stash.notice;
+    }
+  }
+  if (change.densityMode) {
+    // Bulk field-set switch (§11): the mode's slots come on where content
+    // exists (stash included); everything optional outside the set goes
+    // off with its value stashed. Required slots and the logo are never
+    // touched, and slots this layout has no place for are reported.
+    const wanted = densitySlotSet(change.densityMode, meta.industry);
+    const supported = new Set<SlotId>([
+      ...template.rows.map((r) => r.slot),
+      ...(template.verticalRow ? [template.verticalRow.slot] : []),
+      "qr",
+      "barcode",
+      "logo",
+    ]);
+    const missing: SlotId[] = [];
+    for (const slot of Object.keys(SLOTS) as SlotId[]) {
+      if (!SLOTS[slot].optional || SLOTS[slot].kind === "logo") continue;
+      const hasContent = Boolean(fields[slot]?.trim() || stash[slot]?.trim());
+      if (wanted.has(slot)) {
+        if (!hasContent) continue; // the mode opens doors, it doesn't invent content
+        if (!supported.has(slot)) {
+          missing.push(slot);
+          continue;
+        }
+        enabled.add(slot);
+        if (!fields[slot] && stash[slot]) fields[slot] = stash[slot];
+        delete stash[slot];
+      } else if (enabled.has(slot)) {
+        enabled.delete(slot);
+        const value = fields[slot];
+        if (value?.trim()) stash[slot] = value;
+        delete fields[slot];
+      }
+    }
+    if (missing.length > 0) {
+      extraNotes.push(
+        `This layout has no place for ${missing
+          .map((s) => `"${SLOTS[s].label}"`)
+          .join(", ")} — try a research layout from Browse all templates.`,
+      );
+    }
+  }
   meta.stash = Object.keys(stash).length > 0 ? stash : undefined;
 
   await ensureEasyFonts(template, meta.pairingId);
@@ -159,7 +211,7 @@ async function applyEasyChangeNow(change: EasyChange): Promise<string[]> {
     }));
   });
 
-  return build.notes;
+  return [...build.notes, ...extraNotes];
 }
 
 /** Toggle metadata for the form: which slots show an on/off switch. */

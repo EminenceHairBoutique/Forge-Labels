@@ -35,6 +35,12 @@ export function migrateDocument(raw: unknown): LabelDocument {
     // — pure additions again; stamp only.
     data.schemaVersion = 3;
   }
+  if (version < 4) {
+    // v4 added research-label easy-meta fields (industry, densityMode,
+    // noticeId, noticeReviewedAt, complianceAck) and 14 research slots —
+    // all optional additions; stamp only.
+    data.schemaVersion = 4;
+  }
 
   return parseLabelDocument(data);
 }

@@ -16,6 +16,9 @@ import { getMaterial, getMaterialOption } from "./materials";
 import { EASY_TEMPLATES, getEasyTemplate, templateFitsVial } from "./templates";
 import { recommendTemplates } from "./recommend";
 import { sizesForTemplate } from "./validate";
+import { scanCompliance } from "./compliance";
+import { densitySlotSet } from "./density";
+import { getNotice, noticeIdForText } from "./notices";
 import { approximateMeasure, fitRow, squeezeFactor, stackZones } from "./layout";
 import { nextEasyMeta } from "./meta";
 import { toPlainIssues } from "./plain-preflight";
@@ -49,14 +52,14 @@ describe("schema migration", () => {
     const v1 = JSON.parse(JSON.stringify({ ...createDocument(), schemaVersion: 1 }));
     delete v1.easy;
     const migrated = migrateDocument(v1);
-    expect(migrated.schemaVersion).toBe(3);
+    expect(migrated.schemaVersion).toBe(4);
     expect(migrated.easy).toBeUndefined();
   });
 
   it("upgrades a v2 easy document without touching its meta", () => {
     const v2 = JSON.parse(JSON.stringify({ ...buildEasyDocument(spec()), schemaVersion: 2 }));
     const migrated = migrateDocument(v2);
-    expect(migrated.schemaVersion).toBe(3);
+    expect(migrated.schemaVersion).toBe(4);
     expect(migrated.easy?.templateId).toBe(v2.easy.templateId);
     expect(migrated.easy?.pairingId).toBeUndefined();
   });
@@ -587,6 +590,84 @@ describe("recommendTemplates", () => {
       });
       expect(picks.some((p) => p.template.id === "crimp-dose")).toBe(false);
     }
+  });
+});
+
+describe("research platform core (v4)", () => {
+  it("density modes pick the research vocabulary for research industries", () => {
+    const essential = densitySlotSet("essential", "research-peptide");
+    expect(essential.has("notice")).toBe(true);
+    expect(essential.has("lot")).toBe(true);
+    expect(essential.has("qr")).toBe(true);
+    const detailed = densitySlotSet("detailed", "research-peptide");
+    for (const slot of ["cas", "formula", "molecular-weight", "sequence", "purity", "coa"] as const) {
+      expect(detailed.has(slot), slot).toBe(true);
+    }
+    const general = densitySlotSet("detailed", "skincare");
+    expect(general.has("cas")).toBe(false);
+    expect(general.has("ingredients")).toBe(true);
+  });
+
+  it("notice presets round-trip through free text", () => {
+    expect(noticeIdForText("FOR RESEARCH USE ONLY")).toBe("ruo");
+    expect(noticeIdForText("  for research   use only ")).toBe("ruo");
+    expect(noticeIdForText("Custom lab wording")).toBe("custom");
+    expect(getNotice("nhc")?.text).toBe("NOT FOR HUMAN CONSUMPTION");
+  });
+
+  it("compliance scan flags claims and identifiers but never the notice itself", () => {
+    const findings = scanCompliance({
+      description: "Treats muscle soreness. FDA approved.",
+      warning: "Do not inject.",
+      notice: "NOT FOR HUMAN CONSUMPTION",
+      catalog: "NDC 0000-0000",
+      "product-name": "Recovery Serum",
+    });
+    const phrases = findings.map((f) => `${f.slot}:${f.phrase}`);
+    expect(phrases).toContain("description:treats");
+    expect(phrases).toContain("description:fda approved");
+    expect(phrases).toContain("warning:inject");
+    expect(phrases).toContain("catalog:ndc");
+    // The curated notice text is exempt from claim flags.
+    expect(findings.some((f) => f.slot === "notice" && f.kind === "claim")).toBe(false);
+    const identifier = findings.find((f) => f.kind === "identifier");
+    expect(identifier?.message).toMatch(/authorized/i);
+    // Clean content produces no findings.
+    expect(scanCompliance({ "product-name": "Retinol Serum" })).toEqual([]);
+  });
+
+  it("meta transitions carry industry, density, notice review, and acknowledgments", () => {
+    const doc = buildEasyDocument(spec({ industry: "research-peptide" }));
+    expect(doc.easy?.industry).toBe("research-peptide");
+    const base = doc.easy!;
+    const withDensity = nextEasyMeta(base, { densityMode: "detailed" });
+    expect(withDensity.densityMode).toBe("detailed");
+    const withNotice = nextEasyMeta(base, { noticeId: "ruo" });
+    expect(withNotice.noticeId).toBe("ruo");
+    expect(withNotice.noticeReviewedAt).toBeUndefined();
+    const reviewed = nextEasyMeta(withNotice, { noticeReviewed: 1700000000000 });
+    expect(reviewed.noticeReviewedAt).toBe(1700000000000);
+    const acked = nextEasyMeta(reviewed, {
+      acknowledge: [{ slot: "description", phrase: "treats", at: 1700000000001 }],
+    });
+    expect(acked.complianceAck).toHaveLength(1);
+    // Typing custom notice text switches the preset to "custom" and clears review.
+    const custom = nextEasyMeta(reviewed, {
+      field: { slot: "notice", value: "OUR OWN WORDING" },
+    });
+    expect(custom.noticeId).toBe("custom");
+    expect(custom.noticeReviewedAt).toBeUndefined();
+  });
+
+  it("v4 documents parse with research slots and compliance metadata", () => {
+    const doc = buildEasyDocument(spec({ industry: "lab-reagent" }));
+    doc.easy!.densityMode = "standard";
+    doc.easy!.noticeId = "ruo";
+    doc.easy!.complianceAck = [{ slot: "warning", phrase: "inject", at: 1 }];
+    const parsed = parseLabelDocument(JSON.parse(JSON.stringify(doc)));
+    expect(parsed.easy?.densityMode).toBe("standard");
+    expect(parsed.easy?.complianceAck?.[0]?.phrase).toBe("inject");
+    expect(parsed.schemaVersion).toBe(4);
   });
 });
 

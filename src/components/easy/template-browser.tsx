@@ -516,9 +516,12 @@ export function TemplateBrowser({ open, onOpenChange, doc }: TemplateBrowserProp
 }
 
 const CATEGORY_LABELS: Record<TemplateCategory, string> = {
+  research: "Research peptide",
+  pharmaceutical: "Pharmaceutical-inspired",
+  biotechnology: "Biotechnology",
   luxury: "Luxury",
   clinical: "Clinical",
-  laboratory: "Laboratory & research",
+  laboratory: "Laboratory",
   holographic: "Holographic",
   neon: "Neon",
   plain: "Plain & minimal",

@@ -15,7 +15,7 @@ import { z } from "zod";
  *   changes; never silently break stored documents.
  */
 
-export const DOCUMENT_SCHEMA_VERSION = 3;
+export const DOCUMENT_SCHEMA_VERSION = 4;
 
 // ---------------------------------------------------------------------------
 // Shared primitives
@@ -409,6 +409,28 @@ export const EasyMetaSchema = z.object({
   placement: z.string().optional(),
   /** v3: uploaded logo aspect ratio (w/h) — the image itself is the `logo` slot object. */
   logoAspect: z.number().positive().optional(),
+  /** v4: label purpose from the wizard ("research-peptide", "skincare"…). */
+  industry: z.string().optional(),
+  /** v4: content-density field-set mode the user selected in the editor. */
+  densityMode: z.enum(["essential", "standard", "detailed"]).optional(),
+  /** v4: curated research-use notice preset backing the `notice` slot ("custom" = free text). */
+  noticeId: z.string().optional(),
+  /** v4: epoch ms when the user reviewed the notice before export (per §7). */
+  noticeReviewedAt: z.number().optional(),
+  /**
+   * v4: audit trail of compliance warnings the user acknowledged before
+   * export — phrase, the slot it appeared in, and when. Never deleted
+   * automatically.
+   */
+  complianceAck: z
+    .array(
+      z.object({
+        slot: z.string(),
+        phrase: z.string(),
+        at: z.number(),
+      }),
+    )
+    .optional(),
   stash: z.record(z.string(), z.string()).optional(),
   /** One-click fix adjustments — persist so later edits keep the fix. */
   tweaks: z

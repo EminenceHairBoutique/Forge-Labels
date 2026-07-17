@@ -22,6 +22,9 @@ export type ZoneId = "header" | "hero" | "footer";
 export type ColorRole = "text" | "muted" | "accent" | "onAccent" | "border";
 
 export type TemplateCategory =
+  | "research"
+  | "pharmaceutical"
+  | "biotechnology"
   | "luxury"
   | "clinical"
   | "laboratory"
@@ -34,6 +37,9 @@ export type TemplateCategory =
   | "botanical";
 
 export const TEMPLATE_CATEGORIES: readonly TemplateCategory[] = [
+  "research",
+  "pharmaceutical",
+  "biotechnology",
   "luxury",
   "clinical",
   "laboratory",

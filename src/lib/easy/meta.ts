@@ -4,7 +4,9 @@ import type {
   LabelDocument,
   LabelObject,
 } from "@/lib/document/schema";
+import type { DensityMode } from "./density";
 import { getMaterial, type Intensity } from "./materials";
+import { getNotice, noticeIdForText } from "./notices";
 import { isSlotId, type SlotId } from "./slots";
 
 /**
@@ -31,6 +33,18 @@ export interface EasyChange {
   simplify?: boolean;
   /** Rebuild from current values (Balance layout) — no meta change. */
   relayout?: boolean;
+  /**
+   * Content-density field set (§11): bulk-enables the mode's slots that
+   * have values (stash included) and stashes the rest — reversible like
+   * any toggle.
+   */
+  densityMode?: DensityMode;
+  /** Curated research-use notice preset — sets the `notice` field text. */
+  noticeId?: string;
+  /** Mark the notice as reviewed (export flow) — epoch ms of the review. */
+  noticeReviewed?: number;
+  /** Record acknowledged compliance warnings (export flow audit trail). */
+  acknowledge?: { slot: string; phrase: string; at: number }[];
 }
 
 /** Slots "Simplify design" turns off (values are stashed, so reversible). */
@@ -118,5 +132,24 @@ export function nextEasyMeta(current: EasyMeta, change: EasyChange): EasyMeta {
       if (!change.intensity) meta.intensity = nextMaterial.defaultIntensity;
     }
   }
+  if (change.densityMode) meta.densityMode = change.densityMode;
+  if (change.noticeId) {
+    meta.noticeId = change.noticeId;
+    meta.noticeReviewedAt = undefined; // new text → needs a fresh review
+  }
+  if (change.field?.slot === "notice") {
+    meta.noticeId = noticeIdForText(change.field.value);
+    meta.noticeReviewedAt = undefined;
+  }
+  if (change.noticeReviewed) meta.noticeReviewedAt = change.noticeReviewed;
+  if (change.acknowledge?.length) {
+    meta.complianceAck = [...(meta.complianceAck ?? []), ...change.acknowledge];
+  }
   return meta;
+}
+
+/** The notice text a `noticeId` change should write into the field. */
+export function noticeTextFor(change: EasyChange): string | undefined {
+  if (!change.noticeId) return undefined;
+  return getNotice(change.noticeId)?.text;
 }
