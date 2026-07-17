@@ -296,7 +296,12 @@ describe("nextEasyMeta (material switching)", () => {
 describe("template families", () => {
   it("ships at least 12 genuinely distinct layout archetypes", () => {
     // §4 of the overhaul brief: at least 120 genuinely distinct layouts.
-    expect(EASY_TEMPLATES.length).toBeGreaterThanOrEqual(120);
+    expect(EASY_TEMPLATES.length).toBeGreaterThanOrEqual(150);
+    // §8: at least 60 research-side templates (research/pharma/biotech/lab/clinical).
+    const researchSide = EASY_TEMPLATES.filter((t) =>
+      t.category.some((c) => ["research", "pharmaceutical", "biotechnology", "laboratory", "clinical"].includes(c)),
+    );
+    expect(researchSide.length).toBeGreaterThanOrEqual(60);
     const ids = new Set(EASY_TEMPLATES.map((t) => t.id));
     expect(ids.size).toBe(EASY_TEMPLATES.length);
     // Distinct DNA: no two templates share pairing + alignment + layout +

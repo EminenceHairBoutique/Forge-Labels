@@ -10,6 +10,9 @@ import { LUXE_EXPANSION } from "./expansion-luxe";
 import { LAB_EXPANSION } from "./expansion-lab";
 import { EFFECTS_EXPANSION } from "./expansion-effects";
 import { CRIMP_TEMPLATES } from "./crimp";
+import { RESEARCH_PEPTIDE_TEMPLATES } from "./research-peptide";
+import { DARK_LABORATORY_TEMPLATES } from "./dark-laboratory";
+import { BIOTECHNOLOGY_TEMPLATES } from "./biotechnology";
 import type { EasyTemplateDef, TemplateCategory } from "./types";
 
 /**
@@ -31,6 +34,9 @@ const ALL: EasyTemplateDef[] = [
   ...LAB_EXPANSION,
   ...EFFECTS_EXPANSION,
   ...CRIMP_TEMPLATES,
+  ...RESEARCH_PEPTIDE_TEMPLATES,
+  ...DARK_LABORATORY_TEMPLATES,
+  ...BIOTECHNOLOGY_TEMPLATES,
 ];
 
 export const EASY_TEMPLATES: readonly EasyTemplateDef[] = ALL;

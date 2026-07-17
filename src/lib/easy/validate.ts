@@ -182,6 +182,70 @@ export const VALIDATION_SCENARIOS: Scenario[] = [
   },
 ];
 
+/**
+ * Extra stress cases for research/pharmaceutical/biotechnology templates:
+ * the working research label, and the full science-data sheet. All
+ * scientific strings are FICTIONAL layout stress text — the app never
+ * suggests real values.
+ */
+const RESEARCH_FIELDS: Partial<Record<SlotId, string>> = {
+  brand: "VANTA RESEARCH",
+  "product-name": "Peptide Complex RC-7",
+  abbreviation: "RC-7",
+  strength: "10 mg",
+  volume: "10 mL",
+  notice: "FOR RESEARCH USE ONLY",
+  lot: "LOT 2401-A",
+  batch: "BATCH 24-118",
+  catalog: "CAT-2101",
+  storage: "Store at 2–8 °C away from light",
+};
+
+export const RESEARCH_SCENARIOS: Scenario[] = [
+  {
+    id: "research",
+    fields: RESEARCH_FIELDS,
+    enabled: [
+      "brand", "product-name", "abbreviation", "strength", "volume",
+      "notice", "lot", "batch", "catalog", "storage",
+    ],
+  },
+  {
+    id: "research-detailed",
+    fields: {
+      ...RESEARCH_FIELDS,
+      purity: "≥ 99% (HPLC)",
+      formula: "C42H68N12O14",
+      "molecular-weight": "965.1 g/mol",
+      cas: "0000-00-0",
+      sequence: "H-Gly-Glu-Pro-Thr-Ala-OH",
+      retest: "RETEST 01/2027",
+      produced: "MFG 01/2026",
+      sku: "SKU 10442",
+      coa: "COA 24-118",
+      website: "vantaresearch.example",
+      qr: "https://vantaresearch.example/coa/24-118",
+    },
+    enabled: [
+      "brand", "product-name", "abbreviation", "strength", "volume",
+      "notice", "lot", "batch", "catalog", "storage", "purity", "formula",
+      "molecular-weight", "cas", "sequence", "retest", "produced", "sku",
+      "coa", "website", "qr",
+    ],
+  },
+];
+
+const RESEARCH_CATEGORIES = new Set(["research", "pharmaceutical", "biotechnology"]);
+
+/** Scenarios where dropping a wanted code is an honest collapse, not a bug. */
+const CODES_MAY_DROP = new Set(["codes-detailed", "research-detailed"]);
+
+function scenariosForTemplate(t: EasyTemplateDef): Scenario[] {
+  return t.category.some((c) => RESEARCH_CATEGORIES.has(c))
+    ? [...VALIDATION_SCENARIOS, ...RESEARCH_SCENARIOS]
+    : VALIDATION_SCENARIOS;
+}
+
 interface Box {
   left: number;
   right: number;
@@ -361,11 +425,12 @@ export function validateTemplate(t: EasyTemplateDef): TemplateIssue[] {
 
   const sizes = sizesForTemplate(t);
   const materials = materialCases(t);
+  const scenarios = scenariosForTemplate(t);
 
   for (const size of sizes) {
     if (t.minHeightMm && size.heightMm < t.minHeightMm) continue; // honestly hidden at this size
     if (t.minWidthMm && size.widthMm < t.minWidthMm) continue;
-    for (const scenario of VALIDATION_SCENARIOS) {
+    for (const scenario of scenarios) {
       // The material axis runs on the real vial sizes with the core
       // scenarios; edge sizes always run on plain to keep the matrix sane.
       const cases =
@@ -474,7 +539,7 @@ function checkBuild(
   // hides a wanted code is a design failure, not an honest collapse.
   if (size.real) {
     for (const code of ["qr", "barcode"] as const) {
-      if (enabled.has(code) && scenario.fields[code] && hidden.has(code) && scenario.id !== "codes-detailed") {
+      if (enabled.has(code) && scenario.fields[code] && hidden.has(code) && !CODES_MAY_DROP.has(scenario.id)) {
         push("error", `The ${code === "qr" ? "QR code" : "barcode"} was dropped on a standard vial size.`);
       }
     }
