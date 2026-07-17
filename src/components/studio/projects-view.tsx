@@ -11,6 +11,7 @@ import {
   Search,
   Share2,
   Sparkles,
+  TestTube,
   Trash2,
   Users,
 } from "lucide-react";
@@ -190,6 +191,15 @@ export function ProjectsView() {
               </Button>
             }
           />
+          <Button variant="outline" asChild>
+            <Link
+              href="/create?industry=research-peptide"
+              title="Compound, amount, lot, batch, and a research-use notice"
+            >
+              <TestTube className="size-4" aria-hidden />
+              Research label
+            </Link>
+          </Button>
           <Button asChild>
             <Link href="/create">
               <Sparkles className="size-4" aria-hidden />

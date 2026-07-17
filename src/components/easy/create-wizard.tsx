@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { loadDraft, saveDraft, type WizardDraft } from "@/lib/easy/draft";
+import { getIndustry } from "@/lib/easy/industries";
 import { Button } from "@/components/ui/button";
 import { AutoStep } from "./steps/auto-step";
 import { VialStep } from "./steps/vial-step";
@@ -54,13 +55,27 @@ export function CreateWizard() {
     void Promise.resolve().then(() => {
       if (!alive) return;
       const stored = loadDraft();
-      if (stored) setDraft(stored);
+      // Deep links ("Research label" on the dashboard) preselect a purpose.
+      const industryParam = searchParams.get("industry");
+      const industry = getIndustry(industryParam)?.id;
+      const next = stored ?? { version: 1 as const, step: 0 };
+      if (industry && next.industry !== industry) {
+        const def = getIndustry(industry)!;
+        setDraft({
+          ...next,
+          industry,
+          styleId: next.styleId ?? def.defaultStyleId,
+          wantsQr: next.wantsQr ?? (def.suggestsQr ? true : undefined),
+        });
+      } else if (stored) {
+        setDraft(stored);
+      }
       setHydrated(true);
     });
     return () => {
       alive = false;
     };
-  }, []);
+  }, [searchParams]);
 
   const update = React.useCallback((patch: Partial<WizardDraft>) => {
     setDraft((current) => {
