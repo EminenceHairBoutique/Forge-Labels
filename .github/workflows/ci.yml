@@ -4,6 +4,8 @@ on:
   push:
     branches: ["**"]
   pull_request:
+  # Manual cross-browser sweep (Firefox + WebKit) — see the e2e-cross job.
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -58,5 +60,38 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
+          path: playwright-report
+          retention-days: 7
+
+  # Opt-in cross-browser sweep: run the whole e2e suite on Firefox and
+  # WebKit too. Dispatched manually so routine pushes stay fast.
+  e2e-cross:
+    name: Playwright e2e (Firefox + WebKit)
+    runs-on: ubuntu-latest
+    needs: checks
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Download build
+        uses: actions/download-artifact@v4
+        with:
+          name: next-build
+          path: .next
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium firefox webkit
+      - run: npm run test:e2e
+        env:
+          CI: "true"
+          PW_BROWSERS: all
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-cross
           path: playwright-report
           retention-days: 7

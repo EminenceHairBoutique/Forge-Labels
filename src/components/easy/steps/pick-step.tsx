@@ -15,7 +15,7 @@ import { NOTICE_OPTIONS } from "@/lib/easy/notices";
 import { applyProfile, loadProfile } from "@/lib/easy/profile";
 import { clearDraft, type WizardDraft } from "@/lib/easy/draft";
 import { measureTextHeightMm } from "@/lib/render/text-measure";
-import { renderThumbnail } from "@/lib/export/raster";
+import { renderThumbnailCached } from "@/lib/export/thumb-cache";
 import { getStorageAdapter } from "@/lib/storage";
 import type { LabelDocument } from "@/lib/document/schema";
 import { Badge } from "@/components/ui/badge";
@@ -120,7 +120,7 @@ export function PickStep({
           },
           measureTextHeightMm,
         );
-        const thumbnail = await renderThumbnail(doc, 720);
+        const thumbnail = await renderThumbnailCached(doc, 720);
         if (!alive) return;
         built.push({ rec, doc, thumbnail });
         setCandidates([...built]);

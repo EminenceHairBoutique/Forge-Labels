@@ -106,6 +106,69 @@ test.describe("upgrade batch", () => {
     expect(first.subarray(0, 5).toString()).toBe("%PDF-");
   });
 
+  test("PWA shell: manifest, icons, and a live service worker", async ({
+    page,
+  }) => {
+    const manifest = await page.request.get("/manifest.webmanifest");
+    expect(manifest.ok()).toBe(true);
+    const data = (await manifest.json()) as {
+      name: string;
+      icons: { src: string }[];
+      display: string;
+    };
+    expect(data.display).toBe("standalone");
+    for (const icon of data.icons) {
+      const res = await page.request.get(icon.src);
+      expect(res.ok(), icon.src).toBe(true);
+    }
+
+    // Production serves the worker and the app registers it.
+    const sw = await page.request.get("/sw.js");
+    expect(sw.ok()).toBe(true);
+    await page.goto("/dashboard");
+    const state = await page.evaluate(async () => {
+      const reg = await navigator.serviceWorker.ready;
+      return Boolean(reg.active);
+    });
+    expect(state).toBe(true);
+  });
+
+  test("template thumbnails persist to the IndexedDB cache", async ({ page }) => {
+    await startWizard(page, {
+      vial: /^10 mL vial/,
+      material: /plain/i,
+      product: "Cache Me",
+    });
+    // The wizard just rendered recommendation thumbnails — entries land
+    // in fl-thumbs asynchronously after each render.
+    await page.waitForFunction(
+      () =>
+        new Promise<boolean>((resolve) => {
+          const open = indexedDB.open("fl-thumbs", 1);
+          open.onerror = () => resolve(false);
+          open.onsuccess = () => {
+            const db = open.result;
+            if (!db.objectStoreNames.contains("thumbs")) {
+              db.close();
+              resolve(false);
+              return;
+            }
+            const count = db.transaction("thumbs").objectStore("thumbs").count();
+            count.onsuccess = () => {
+              db.close();
+              resolve(count.result > 0);
+            };
+            count.onerror = () => {
+              db.close();
+              resolve(false);
+            };
+          };
+        }),
+      undefined,
+      { timeout: 15_000 },
+    );
+  });
+
   test("hex elixir arches the brand line as real curved text", async ({ page }) => {
     await startWizard(page, {
       vial: /^10 mL vial/,

@@ -43,6 +43,14 @@ export default defineConfig({
         ...(executablePath ? { launchOptions: { executablePath } } : {}),
       },
     },
+    // Cross-browser sweeps are opt-in (PW_BROWSERS=all): CI's dispatchable
+    // job installs Firefox/WebKit; the sandbox ships Chromium only.
+    ...(process.env.PW_BROWSERS === "all"
+      ? [
+          { name: "firefox", use: { ...devices["Desktop Firefox"] } },
+          { name: "webkit", use: { ...devices["Desktop Safari"] } },
+        ]
+      : []),
   ],
   webServer: {
     command: `npm run start -- --port ${PORT}`,

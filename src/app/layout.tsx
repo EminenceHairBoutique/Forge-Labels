@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { AuthProvider } from "@/components/auth/auth-provider";
+import { PwaRegister } from "@/components/pwa-register";
 import { ThemeScript } from "@/components/theme/theme-script";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -45,6 +46,10 @@ export const metadata: Metadata = {
   },
   description:
     "Design, preview, and print professional labels for 10 mL, 20 mL, and 30 mL vials. Dimension-accurate exports, realistic mockups, and print-ready PDFs.",
+  icons: {
+    icon: "/icons/icon-192.png",
+    apple: "/icons/apple-touch-icon.png",
+  },
 };
 
 export const viewport: Viewport = {
@@ -75,6 +80,7 @@ export default function RootLayout({
           <TooltipProvider delayDuration={300}>{children}</TooltipProvider>
         </AuthProvider>
         <Toaster />
+        <PwaRegister />
       </body>
     </html>
   );

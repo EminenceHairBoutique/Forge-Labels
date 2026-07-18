@@ -30,7 +30,7 @@ import {
 import { applyEasyChange, ensureEasyFonts, readEasyState } from "@/lib/easy/fields";
 import type { SlotId } from "@/lib/easy/slots";
 import { measureTextHeightMm } from "@/lib/render/text-measure";
-import { renderThumbnail } from "@/lib/export/raster";
+import { renderThumbnailCached } from "@/lib/export/thumb-cache";
 import { getVialPreset } from "@/lib/vials/presets";
 import { getStorageAdapter } from "@/lib/storage";
 import {
@@ -119,7 +119,9 @@ async function buildPreview(
     substrateId: build.substrateId,
     objects: build.objects,
   };
-  return renderThumbnail(doc, maxPx);
+  // Persistent cache: the built doc IS the pixels' input, so its hash is
+  // the whole key — revisits skip fonts + Konva entirely.
+  return renderThumbnailCached(doc, maxPx);
 }
 
 function TemplateThumb({
