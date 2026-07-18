@@ -41,24 +41,29 @@ export async function createSheetPdf(options: SheetPdfOptions): Promise<Uint8Arr
   pdf.setCreator("Forge Labels");
 
   const png = await pdf.embedPng(options.labelPngBytes);
-  const cellW = imposition.cellWidthMm;
-  const cellH = imposition.cellHeightMm;
+  // The artwork PNG always covers trim + bleed and draws at ITS OWN size;
+  // the trim inset places it inside the cell (identical to the cell in
+  // auto mode, centered in the die-cut sticker in precut-sheet mode —
+  // never stretched to a mismatched cell).
+  const artW = labelWidthMm + 2 * bleedMm;
+  const artH = labelHeightMm + 2 * bleedMm;
 
   for (const cells of imposition.pages) {
     const page = pdf.addPage([mmToPt(pageWidthMm), mmToPt(pageHeightMm)]);
     for (const cell of cells) {
       // Flip y: imposition yMm measures from the page top.
-      const yTop = cell.yMm;
-      const yPdf = pageHeightMm - yTop - cellH;
+      const artXMm = cell.xMm + imposition.trimInsetXMm - bleedMm;
+      const artYTop = cell.yMm + imposition.trimInsetYMm - bleedMm;
+      const yPdf = pageHeightMm - artYTop - artH;
       page.drawImage(png, {
-        x: mmToPt(cell.xMm),
+        x: mmToPt(artXMm),
         y: mmToPt(yPdf),
-        width: mmToPt(cellW),
-        height: mmToPt(cellH),
+        width: mmToPt(artW),
+        height: mmToPt(artH),
       });
 
-      const trimX = cell.xMm + bleedMm;
-      const trimYTop = yTop + bleedMm;
+      const trimX = cell.xMm + imposition.trimInsetXMm;
+      const trimYTop = cell.yMm + imposition.trimInsetYMm;
       const trimYPdf = pageHeightMm - trimYTop - labelHeightMm;
 
       if (options.cutLines) {

@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import fc from "fast-check";
-import { computeImposition, type ImpositionInput } from "./imposition";
+import {
+  computeImposition,
+  getSheetPreset,
+  PAGE_SIZES,
+  SHEET_PRESETS,
+  type ImpositionInput,
+} from "./imposition";
 
 const BASE: ImpositionInput = {
   pageWidthMm: 215.9, // US Letter
@@ -158,5 +164,129 @@ describe("computeImposition — properties", () => {
       }),
       { numRuns: 200 },
     );
+  });
+});
+
+describe("computeImposition — precut sheet mode", () => {
+  const sheet30 = getSheetPreset("letter-30")!;
+  const asInput = (
+    preset: typeof sheet30,
+    overrides: Partial<ImpositionInput> = {},
+  ): ImpositionInput => {
+    const page = PAGE_SIZES.find((p) => p.id === preset.pageId)!;
+    return {
+      pageWidthMm: page.widthMm,
+      pageHeightMm: page.heightMm,
+      labelWidthMm: 63,
+      labelHeightMm: 24,
+      bleedMm: 0,
+      marginMm: 0,
+      spacingXMm: preset.spacingXMm,
+      spacingYMm: preset.spacingYMm,
+      offsetXMm: 0,
+      offsetYMm: 0,
+      copies: 30,
+      startRow: 0,
+      startCol: 0,
+      sheet: {
+        columns: preset.columns,
+        rows: preset.rows,
+        cellWidthMm: preset.cellWidthMm,
+        cellHeightMm: preset.cellHeightMm,
+      },
+      ...overrides,
+    };
+  };
+
+  it("reproduces the 30-up sheet's factory grid exactly", () => {
+    const r = computeImposition(asInput(sheet30));
+    expect(r.columns).toBe(3);
+    expect(r.rows).toBe(10);
+    expect(r.perPage).toBe(30);
+    expect(r.cellWidthMm).toBeCloseTo(66.675, 3);
+    expect(r.cellHeightMm).toBeCloseTo(25.4, 3);
+    // Factory margins: 4.76 mm sides, 12.7 mm top — pure centering math.
+    expect(r.originXMm).toBeCloseTo(4.7625, 2);
+    expect(r.originYMm).toBeCloseTo(12.7, 2);
+  });
+
+  it("centers the label trim inside each sticker", () => {
+    const r = computeImposition(asInput(sheet30));
+    expect(r.trimInsetXMm).toBeCloseTo((66.675 - 63) / 2, 6);
+    expect(r.trimInsetYMm).toBeCloseTo((25.4 - 24) / 2, 6);
+    expect(r.issues).toHaveLength(0);
+  });
+
+  it("auto mode keeps the trim inset equal to the bleed (back-compat)", () => {
+    const page = PAGE_SIZES[0]!;
+    const r = computeImposition({
+      pageWidthMm: page.widthMm,
+      pageHeightMm: page.heightMm,
+      labelWidthMm: 60,
+      labelHeightMm: 25,
+      bleedMm: 2,
+      marginMm: 10,
+      spacingXMm: 3,
+      spacingYMm: 3,
+      offsetXMm: 0,
+      offsetYMm: 0,
+      copies: 4,
+      startRow: 0,
+      startCol: 0,
+    });
+    expect(r.trimInsetXMm).toBe(2);
+    expect(r.trimInsetYMm).toBe(2);
+  });
+
+  it("warns when the label is larger than the sticker", () => {
+    const r = computeImposition(asInput(sheet30, { labelHeightMm: 30 }));
+    expect(r.issues.some((i) => i.includes("cut off at the sticker edge"))).toBe(true);
+    // Still lays out — the user decides, the tool never scales silently.
+    expect(r.perPage).toBe(30);
+  });
+
+  it("notes a much-smaller label and bleed spilling onto neighbors", () => {
+    const small = computeImposition(
+      asInput(sheet30, { labelWidthMm: 40, labelHeightMm: 15 }),
+    );
+    expect(small.issues.some((i) => i.includes("blank border"))).toBe(true);
+
+    const bleedy = computeImposition(
+      asInput(sheet30, { labelWidthMm: 66.675, labelHeightMm: 25.4, bleedMm: 2 }),
+    );
+    expect(bleedy.issues.some((i) => i.includes("onto its neighbors"))).toBe(true);
+  });
+
+  it("every preset's grid fits its page with sensible factory margins", () => {
+    for (const preset of SHEET_PRESETS) {
+      const r = computeImposition(
+        asInput(preset, {
+          labelWidthMm: preset.cellWidthMm,
+          labelHeightMm: preset.cellHeightMm,
+          copies: preset.columns * preset.rows,
+          spacingXMm: preset.spacingXMm,
+          spacingYMm: preset.spacingYMm,
+          sheet: {
+            columns: preset.columns,
+            rows: preset.rows,
+            cellWidthMm: preset.cellWidthMm,
+            cellHeightMm: preset.cellHeightMm,
+          },
+        }),
+      );
+      expect(r.issues, preset.id).toHaveLength(0);
+      expect(r.perPage, preset.id).toBe(preset.columns * preset.rows);
+      // Factory grids always leave real margins on all sides.
+      expect(r.originXMm, preset.id).toBeGreaterThan(1);
+      expect(r.originYMm, preset.id).toBeGreaterThan(1);
+      const page = PAGE_SIZES.find((p) => p.id === preset.pageId)!;
+      const gridW =
+        preset.columns * preset.cellWidthMm +
+        (preset.columns - 1) * preset.spacingXMm;
+      const gridH =
+        preset.rows * preset.cellHeightMm + (preset.rows - 1) * preset.spacingYMm;
+      expect(r.originXMm * 2 + gridW, preset.id).toBeCloseTo(page.widthMm, 1);
+      expect(r.originYMm * 2 + gridH, preset.id).toBeCloseTo(page.heightMm, 1);
+    }
   });
 });

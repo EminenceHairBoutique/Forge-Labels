@@ -19,6 +19,41 @@ export const PAGE_SIZES: readonly PageSizeDef[] = [
   { id: "legal", name: "US Legal (8.5×14 in)", widthMm: 215.9, heightMm: 355.6 },
 ] as const;
 
+/**
+ * Precut label-sheet presets: the standard die-cut grids shared by many
+ * sheet brands (deliberately unbranded — the packaging states the label
+ * size and count, which is what these names lead with). All are
+ * symmetric grids, which is how the centered imposition reproduces their
+ * factory margins exactly.
+ */
+export interface SheetPresetDef {
+  id: string;
+  /** "A4 · 21 labels · 63.5 × 38.1 mm" — count + sticker size first. */
+  name: string;
+  pageId: "letter" | "a4";
+  /** Die-cut sticker size. */
+  cellWidthMm: number;
+  cellHeightMm: number;
+  columns: number;
+  rows: number;
+  spacingXMm: number;
+  spacingYMm: number;
+}
+
+export const SHEET_PRESETS: readonly SheetPresetDef[] = [
+  { id: "letter-30", name: "Letter · 30 labels · 66.7 × 25.4 mm", pageId: "letter", cellWidthMm: 66.675, cellHeightMm: 25.4, columns: 3, rows: 10, spacingXMm: 3.175, spacingYMm: 0 },
+  { id: "letter-10", name: "Letter · 10 labels · 101.6 × 50.8 mm", pageId: "letter", cellWidthMm: 101.6, cellHeightMm: 50.8, columns: 2, rows: 5, spacingXMm: 4.8, spacingYMm: 0 },
+  { id: "letter-80", name: "Letter · 80 labels · 44.5 × 12.7 mm", pageId: "letter", cellWidthMm: 44.45, cellHeightMm: 12.7, columns: 4, rows: 20, spacingXMm: 7.62, spacingYMm: 0 },
+  { id: "a4-21", name: "A4 · 21 labels · 63.5 × 38.1 mm", pageId: "a4", cellWidthMm: 63.5, cellHeightMm: 38.1, columns: 3, rows: 7, spacingXMm: 2.5, spacingYMm: 0 },
+  { id: "a4-24", name: "A4 · 24 labels · 63.5 × 33.9 mm", pageId: "a4", cellWidthMm: 63.5, cellHeightMm: 33.9, columns: 3, rows: 8, spacingXMm: 2.5, spacingYMm: 0 },
+  { id: "a4-14", name: "A4 · 14 labels · 99.1 × 38.1 mm", pageId: "a4", cellWidthMm: 99.1, cellHeightMm: 38.1, columns: 2, rows: 7, spacingXMm: 2.5, spacingYMm: 0 },
+  { id: "a4-65", name: "A4 · 65 labels · 38.1 × 21.2 mm", pageId: "a4", cellWidthMm: 38.1, cellHeightMm: 21.2, columns: 5, rows: 13, spacingXMm: 2.5, spacingYMm: 0 },
+] as const;
+
+export function getSheetPreset(id: string): SheetPresetDef | undefined {
+  return SHEET_PRESETS.find((p) => p.id === id);
+}
+
 export interface ImpositionInput {
   pageWidthMm: number;
   pageHeightMm: number;
@@ -38,6 +73,18 @@ export interface ImpositionInput {
   /** Skip cells on the first page (reusing a partially-used sheet), 0-based. */
   startRow: number;
   startCol: number;
+  /**
+   * Precut-sheet mode: the grid and cell size come from the die-cut sheet
+   * instead of being auto-fitted, and the label's TRIM centers inside
+   * each sticker. Mismatched sizes produce plain-language issues, never
+   * silent scaling.
+   */
+  sheet?: {
+    columns: number;
+    rows: number;
+    cellWidthMm: number;
+    cellHeightMm: number;
+  };
 }
 
 export interface PlacedCell {
@@ -53,9 +100,16 @@ export interface ImpositionResult {
   columns: number;
   rows: number;
   perPage: number;
-  /** Artwork cell size (trim + 2×bleed). */
+  /** Cell size: trim + 2×bleed, or the die-cut sticker in sheet mode. */
   cellWidthMm: number;
   cellHeightMm: number;
+  /**
+   * Where the label's TRIM sits inside each cell. Auto mode: the bleed.
+   * Sheet mode: centered in the sticker — the renderer and preview both
+   * place from this, so they can't disagree.
+   */
+  trimInsetXMm: number;
+  trimInsetYMm: number;
   /** Grid origin on a full page (before skips), from page top-left. */
   originXMm: number;
   originYMm: number;
@@ -69,8 +123,15 @@ export interface ImpositionResult {
 
 export function computeImposition(input: ImpositionInput): ImpositionResult {
   const issues: string[] = [];
-  const cellW = input.labelWidthMm + 2 * input.bleedMm;
-  const cellH = input.labelHeightMm + 2 * input.bleedMm;
+  const sheet = input.sheet;
+  const cellW = sheet ? sheet.cellWidthMm : input.labelWidthMm + 2 * input.bleedMm;
+  const cellH = sheet ? sheet.cellHeightMm : input.labelHeightMm + 2 * input.bleedMm;
+  const trimInsetX = sheet
+    ? (sheet.cellWidthMm - input.labelWidthMm) / 2
+    : input.bleedMm;
+  const trimInsetY = sheet
+    ? (sheet.cellHeightMm - input.labelHeightMm) / 2
+    : input.bleedMm;
   const printW = input.pageWidthMm - 2 * input.marginMm;
   const printH = input.pageHeightMm - 2 * input.marginMm;
 
@@ -80,6 +141,8 @@ export function computeImposition(input: ImpositionInput): ImpositionResult {
     perPage: 0,
     cellWidthMm: cellW,
     cellHeightMm: cellH,
+    trimInsetXMm: trimInsetX,
+    trimInsetYMm: trimInsetY,
     originXMm: input.marginMm,
     originYMm: input.marginMm,
     pages: [],
@@ -93,17 +156,50 @@ export function computeImposition(input: ImpositionInput): ImpositionResult {
     issues.push("The margins leave no printable area on this page size.");
     return empty;
   }
-  if (cellW > printW || cellH > printH) {
+  if (!sheet && (cellW > printW || cellH > printH)) {
     issues.push(
       "The label (including bleed) is larger than the printable area. Use a bigger page or smaller margins.",
     );
     return empty;
   }
 
-  const columns = Math.floor(
-    (printW + input.spacingXMm) / (cellW + input.spacingXMm),
-  );
-  const rows = Math.floor((printH + input.spacingYMm) / (cellH + input.spacingYMm));
+  if (sheet) {
+    // The die-cut grid is fixed — check it fits, then say plainly how the
+    // label relates to the sticker. Never scale artwork to a sheet.
+    const gridW = sheet.columns * cellW + (sheet.columns - 1) * input.spacingXMm;
+    const gridH = sheet.rows * cellH + (sheet.rows - 1) * input.spacingYMm;
+    if (gridW > input.pageWidthMm + 0.05 || gridH > input.pageHeightMm + 0.05) {
+      issues.push("This sheet layout doesn't fit the selected page size.");
+      return empty;
+    }
+    const wDiff = input.labelWidthMm - sheet.cellWidthMm;
+    const hDiff = input.labelHeightMm - sheet.cellHeightMm;
+    if (wDiff > 0.1 || hDiff > 0.1) {
+      issues.push(
+        `Your label (${input.labelWidthMm.toFixed(1)} × ${input.labelHeightMm.toFixed(1)} mm) is larger than this sheet's stickers (${sheet.cellWidthMm.toFixed(1)} × ${sheet.cellHeightMm.toFixed(1)} mm) — it will be cut off at the sticker edge.`,
+      );
+    } else if (wDiff < -6 || hDiff < -6) {
+      issues.push(
+        `Your label is noticeably smaller than this sheet's stickers (${sheet.cellWidthMm.toFixed(1)} × ${sheet.cellHeightMm.toFixed(1)} mm) — it prints centered with a blank border around it.`,
+      );
+    }
+    if (
+      input.bleedMm > 0.05 &&
+      (input.bleedMm > trimInsetX + Math.min(input.spacingXMm, 4) ||
+        input.bleedMm > trimInsetY + Math.min(input.spacingYMm, 4))
+    ) {
+      issues.push(
+        "The artwork's bleed extends past the sticker onto its neighbors — fine for edge-to-edge designs, but neighbors of unused cells will show a sliver of color.",
+      );
+    }
+  }
+
+  const columns = sheet
+    ? sheet.columns
+    : Math.floor((printW + input.spacingXMm) / (cellW + input.spacingXMm));
+  const rows = sheet
+    ? sheet.rows
+    : Math.floor((printH + input.spacingYMm) / (cellH + input.spacingYMm));
   const perPage = columns * rows;
   if (perPage === 0) {
     issues.push("Nothing fits with the current spacing.");
@@ -162,6 +258,8 @@ export function computeImposition(input: ImpositionInput): ImpositionResult {
     perPage,
     cellWidthMm: cellW,
     cellHeightMm: cellH,
+    trimInsetXMm: trimInsetX,
+    trimInsetYMm: trimInsetY,
     originXMm: originX,
     originYMm: originY,
     pages,

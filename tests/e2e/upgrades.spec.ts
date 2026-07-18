@@ -72,6 +72,40 @@ test.describe("upgrade batch", () => {
     await expect(chip).toHaveAttribute("aria-pressed", "false");
   });
 
+  test("precut sheet presets warn about fit and export a sheet PDF", async ({
+    page,
+  }) => {
+    await startWizard(page, {
+      vial: /^10 mL vial/,
+      material: /plain/i,
+      product: "Sheet Fit",
+    });
+    await page.getByRole("button", { name: /download \/ print/i }).click();
+    await page.getByRole("button", { name: /print at home/i }).click();
+    await page.getByRole("button", { name: /precut label sheets/i }).click();
+
+    // The 10 mL wrap (~74 mm wide) overflows the default 30-up sticker —
+    // the mismatch is said plainly, and nothing is silently scaled.
+    const preset = page.locator("#sheet-preset");
+    await expect(preset).toBeVisible();
+    await expect(page.getByText(/cut off at the sticker edge/i)).toBeVisible();
+
+    // The 10-up shipping sticker fits it (with an honest border note).
+    await preset.selectOption("letter-10");
+    await expect(page.getByText(/cut off at the sticker edge/i)).toHaveCount(0);
+    await expect(page.getByText(/blank border/i)).toBeVisible();
+
+    const download = page.waitForEvent("download");
+    await page.getByRole("button", { name: /make my print sheet/i }).click();
+    const file = await download;
+    expect(file.suggestedFilename()).toMatch(/print-sheet\.pdf$/);
+    const stream = await file.createReadStream();
+    const first = await new Promise<Buffer>((resolve) => {
+      stream.once("data", (chunk) => resolve(chunk as Buffer));
+    });
+    expect(first.subarray(0, 5).toString()).toBe("%PDF-");
+  });
+
   test("hex elixir arches the brand line as real curved text", async ({ page }) => {
     await startWizard(page, {
       vial: /^10 mL vial/,

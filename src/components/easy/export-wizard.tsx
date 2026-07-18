@@ -22,7 +22,11 @@ import type { SlotId } from "@/lib/easy/slots";
 import { exportRaster } from "@/lib/export/raster";
 import { createSingleLabelPdf } from "@/lib/export/pdf";
 import { createSheetPdf } from "@/lib/export/sheet-pdf";
-import { computeImposition } from "@/lib/print/imposition";
+import {
+  computeImposition,
+  getSheetPreset,
+  SHEET_PRESETS,
+} from "@/lib/print/imposition";
 import { runPreflight } from "@/lib/preflight/rules";
 import { toPlainIssues } from "@/lib/easy/plain-preflight";
 import { buildSpecSheet, listDocumentFonts } from "@/lib/easy/spec-sheet";
@@ -79,6 +83,7 @@ export function ExportWizard({
   const [mode, setMode] = React.useState<Mode | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [paper, setPaper] = React.useState<"letter" | "a4">("letter");
+  const [sheetId, setSheetId] = React.useState("letter-30");
   const [copies, setCopies] = React.useState(12);
   const [cutMyself, setCutMyself] = React.useState(true);
   const projectName = useProjectSessionStore((s) => s.projectName);
@@ -159,25 +164,52 @@ export function ExportWizard({
     });
   };
 
-  async function generateHomeSheet() {
-    setBusy(true);
-    try {
-      const page = paper === "letter" ? { w: 215.9, h: 279.4 } : { w: 210, h: 297 };
-      const imposition = computeImposition({
+  // Precut-sheet mode: the die-cut grids for the chosen paper size, with a
+  // derived fallback so switching paper never leaves a stale selection.
+  const sheetChoices = SHEET_PRESETS.filter((p) => p.pageId === paper);
+  const chosenSheet = getSheetPreset(sheetId);
+  const activeSheet = cutMyself
+    ? undefined
+    : chosenSheet?.pageId === paper
+      ? chosenSheet
+      : sheetChoices[0];
+
+  function homeImposition(copyCount: number) {
+    const page = paper === "letter" ? { w: 215.9, h: 279.4 } : { w: 210, h: 297 };
+    return {
+      page,
+      imposition: computeImposition({
         pageWidthMm: page.w,
         pageHeightMm: page.h,
         labelWidthMm: doc.label.widthMm,
         labelHeightMm: doc.label.heightMm,
         bleedMm: doc.label.bleedMm,
-        marginMm: 10,
-        spacingXMm: 3,
-        spacingYMm: 3,
+        marginMm: activeSheet ? 0 : 10,
+        spacingXMm: activeSheet ? activeSheet.spacingXMm : 3,
+        spacingYMm: activeSheet ? activeSheet.spacingYMm : 3,
         offsetXMm: 0,
         offsetYMm: 0,
-        copies,
+        copies: copyCount,
         startRow: 0,
         startCol: 0,
-      });
+        ...(activeSheet
+          ? {
+              sheet: {
+                columns: activeSheet.columns,
+                rows: activeSheet.rows,
+                cellWidthMm: activeSheet.cellWidthMm,
+                cellHeightMm: activeSheet.cellHeightMm,
+              },
+            }
+          : {}),
+      }),
+    };
+  }
+
+  async function generateHomeSheet() {
+    setBusy(true);
+    try {
+      const { page, imposition } = homeImposition(copies);
       if (imposition.perPage === 0) {
         toast.error("The label doesn't fit this paper size");
         return;
@@ -191,7 +223,8 @@ export function ExportWizard({
         labelWidthMm: doc.label.widthMm,
         labelHeightMm: doc.label.heightMm,
         bleedMm: doc.label.bleedMm,
-        cutLines: cutMyself,
+        // Die-cut sheets are already cut — guides only for plain paper.
+        cutLines: cutMyself && !activeSheet,
         cropMarks: false,
         title: `${projectName} — sheet`,
       });
@@ -472,12 +505,32 @@ export function ExportWizard({
                   Precut label sheets
                 </ChoiceButton>
               </div>
-              {!cutMyself && (
-                <p className="text-xs text-muted-foreground">
-                  Precut sheets need positions that match your sheet brand — the
-                  Advanced print options let you adjust margins and spacing
-                  exactly.
-                </p>
+              {!cutMyself && activeSheet && (
+                <div className="space-y-1.5 pt-1">
+                  <Label htmlFor="sheet-preset">Which sheet layout?</Label>
+                  <select
+                    id="sheet-preset"
+                    className="h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm"
+                    value={activeSheet.id}
+                    onChange={(e) => setSheetId(e.target.value)}
+                  >
+                    {sheetChoices.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted-foreground">
+                    Standard die-cut grids shared by many brands — match the
+                    label size and count on your packaging. Your label prints
+                    centered in each sticker.
+                  </p>
+                  {homeImposition(1).imposition.issues.map((issue) => (
+                    <p key={issue} className="text-xs font-medium text-destructive" role="alert">
+                      {issue}
+                    </p>
+                  ))}
+                </div>
               )}
             </div>
             <div className="space-y-1.5">

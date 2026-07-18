@@ -7,7 +7,9 @@ import { exportRaster } from "@/lib/export/raster";
 import { createCalibrationPdf, createSheetPdf } from "@/lib/export/sheet-pdf";
 import {
   computeImposition,
+  getSheetPreset,
   PAGE_SIZES,
+  SHEET_PRESETS,
   type ImpositionInput,
 } from "@/lib/print/imposition";
 import { getStorageAdapter } from "@/lib/storage";
@@ -34,6 +36,8 @@ import { NumberField } from "./fields/dimension-field";
 
 /** Persisted print preferences (per browser, like a printer driver). */
 interface PrintSettings {
+  /** "plain" = cut-yourself auto layout; else a SHEET_PRESETS id. */
+  sheetPresetId: string;
   pageSizeId: string;
   landscape: boolean;
   customWidthMm: number;
@@ -47,6 +51,7 @@ interface PrintSettings {
 }
 
 const DEFAULT_SETTINGS: PrintSettings = {
+  sheetPresetId: "plain",
   pageSizeId: "letter",
   landscape: false,
   customWidthMm: 210,
@@ -117,11 +122,19 @@ export function PrintDialog({ doc, open, onOpenChange }: PrintDialogProps) {
     });
   };
 
-  const pageDef = PAGE_SIZES.find((p) => p.id === settings.pageSizeId);
+  // Precut sheets pin the page size and grid; plain paper stays free-form.
+  const sheetPreset =
+    settings.sheetPresetId === "plain"
+      ? undefined
+      : getSheetPreset(settings.sheetPresetId);
+  const pageDef = sheetPreset
+    ? PAGE_SIZES.find((p) => p.id === sheetPreset.pageId)
+    : PAGE_SIZES.find((p) => p.id === settings.pageSizeId);
   const baseW = pageDef?.widthMm ?? settings.customWidthMm;
   const baseH = pageDef?.heightMm ?? settings.customHeightMm;
-  const pageWidthMm = settings.landscape ? baseH : baseW;
-  const pageHeightMm = settings.landscape ? baseW : baseH;
+  const landscape = !sheetPreset && settings.landscape;
+  const pageWidthMm = landscape ? baseH : baseW;
+  const pageHeightMm = landscape ? baseW : baseH;
 
   const input: ImpositionInput = {
     pageWidthMm,
@@ -129,14 +142,24 @@ export function PrintDialog({ doc, open, onOpenChange }: PrintDialogProps) {
     labelWidthMm: doc.label.widthMm,
     labelHeightMm: doc.label.heightMm,
     bleedMm: doc.label.bleedMm,
-    marginMm: settings.marginMm,
-    spacingXMm: settings.spacingMm,
-    spacingYMm: settings.spacingMm,
+    marginMm: sheetPreset ? 0 : settings.marginMm,
+    spacingXMm: sheetPreset ? sheetPreset.spacingXMm : settings.spacingMm,
+    spacingYMm: sheetPreset ? sheetPreset.spacingYMm : settings.spacingMm,
     offsetXMm: settings.offsetXMm,
     offsetYMm: settings.offsetYMm,
     copies,
     startRow,
     startCol,
+    ...(sheetPreset
+      ? {
+          sheet: {
+            columns: sheetPreset.columns,
+            rows: sheetPreset.rows,
+            cellWidthMm: sheetPreset.cellWidthMm,
+            cellHeightMm: sheetPreset.cellHeightMm,
+          },
+        }
+      : {}),
   };
   const imposition = computeImposition(input);
 
@@ -153,8 +176,9 @@ export function PrintDialog({ doc, open, onOpenChange }: PrintDialogProps) {
         labelWidthMm: doc.label.widthMm,
         labelHeightMm: doc.label.heightMm,
         bleedMm: doc.label.bleedMm,
-        cutLines: settings.cutLines,
-        cropMarks: settings.cropMarks,
+        // Die-cut sheets need no scissor guides — the cuts exist already.
+        cutLines: sheetPreset ? false : settings.cutLines,
+        cropMarks: sheetPreset ? false : settings.cropMarks,
         title: `${projectName} — sheet`,
       });
       const blob = new Blob([pdfBytes as unknown as BlobPart], {
@@ -206,80 +230,117 @@ export function PrintDialog({ doc, open, onOpenChange }: PrintDialogProps) {
 
         <div className="grid gap-6 md:grid-cols-[1fr_240px]">
           <div className="space-y-4">
+            <div className="space-y-1">
+              <Label htmlFor="print-sheet-type" className="text-xs text-muted-foreground">
+                Paper
+              </Label>
+              <Select
+                value={settings.sheetPresetId}
+                onValueChange={(sheetPresetId) => update({ sheetPresetId })}
+              >
+                <SelectTrigger id="print-sheet-type" className="h-8 w-full">
+                  {sheetPreset?.name ?? "Plain paper — cut the labels yourself"}
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="plain">
+                    Plain paper — cut the labels yourself
+                  </SelectItem>
+                  {SHEET_PRESETS.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {sheetPreset && (
+                <p className="text-xs text-muted-foreground">
+                  Standard die-cut grid shared by many sheet brands — match the
+                  label size and count printed on your packaging. Your{" "}
+                  {doc.label.widthMm.toFixed(1)} × {doc.label.heightMm.toFixed(1)} mm
+                  label prints centered in each {sheetPreset.cellWidthMm.toFixed(1)} ×{" "}
+                  {sheetPreset.cellHeightMm.toFixed(1)} mm sticker.
+                </p>
+              )}
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label htmlFor="print-page" className="text-xs text-muted-foreground">
-                  Page size
-                </Label>
-                <Select
-                  value={settings.pageSizeId}
-                  onValueChange={(pageSizeId) => update({ pageSizeId })}
-                >
-                  <SelectTrigger id="print-page" className="h-8">
-                    {pageDef?.name ?? "Custom"}
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PAGE_SIZES.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.name}
-                      </SelectItem>
-                    ))}
-                    <SelectItem value="custom">Custom…</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-end gap-2 pb-0.5">
-                <Switch
-                  id="print-landscape"
-                  checked={settings.landscape}
-                  onCheckedChange={(landscape) => update({ landscape })}
-                />
-                <Label htmlFor="print-landscape" className="text-sm">
-                  Landscape
-                </Label>
-              </div>
-              {!pageDef && (
+              {!sheetPreset && (
                 <>
+                  <div className="space-y-1">
+                    <Label htmlFor="print-page" className="text-xs text-muted-foreground">
+                      Page size
+                    </Label>
+                    <Select
+                      value={settings.pageSizeId}
+                      onValueChange={(pageSizeId) => update({ pageSizeId })}
+                    >
+                      <SelectTrigger id="print-page" className="h-8">
+                        {pageDef?.name ?? "Custom"}
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PAGE_SIZES.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.name}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="custom">Custom…</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-end gap-2 pb-0.5">
+                    <Switch
+                      id="print-landscape"
+                      checked={settings.landscape}
+                      onCheckedChange={(landscape) => update({ landscape })}
+                    />
+                    <Label htmlFor="print-landscape" className="text-sm">
+                      Landscape
+                    </Label>
+                  </div>
+                  {!pageDef && (
+                    <>
+                      <NumberField
+                        id="print-custom-w"
+                        label="Page width"
+                        value={settings.customWidthMm}
+                        min={50}
+                        max={1000}
+                        suffix="mm"
+                        onCommit={(customWidthMm) => update({ customWidthMm })}
+                      />
+                      <NumberField
+                        id="print-custom-h"
+                        label="Page height"
+                        value={settings.customHeightMm}
+                        min={50}
+                        max={1000}
+                        suffix="mm"
+                        onCommit={(customHeightMm) => update({ customHeightMm })}
+                      />
+                    </>
+                  )}
                   <NumberField
-                    id="print-custom-w"
-                    label="Page width"
-                    value={settings.customWidthMm}
-                    min={50}
-                    max={1000}
+                    id="print-margin"
+                    label="Page margin"
+                    value={settings.marginMm}
+                    min={0}
+                    max={40}
+                    step={0.5}
                     suffix="mm"
-                    onCommit={(customWidthMm) => update({ customWidthMm })}
+                    onCommit={(marginMm) => update({ marginMm })}
                   />
                   <NumberField
-                    id="print-custom-h"
-                    label="Page height"
-                    value={settings.customHeightMm}
-                    min={50}
-                    max={1000}
+                    id="print-spacing"
+                    label="Label spacing"
+                    value={settings.spacingMm}
+                    min={0}
+                    max={20}
+                    step={0.5}
                     suffix="mm"
-                    onCommit={(customHeightMm) => update({ customHeightMm })}
+                    onCommit={(spacingMm) => update({ spacingMm })}
                   />
                 </>
               )}
-              <NumberField
-                id="print-margin"
-                label="Page margin"
-                value={settings.marginMm}
-                min={0}
-                max={40}
-                step={0.5}
-                suffix="mm"
-                onCommit={(marginMm) => update({ marginMm })}
-              />
-              <NumberField
-                id="print-spacing"
-                label="Label spacing"
-                value={settings.spacingMm}
-                min={0}
-                max={20}
-                step={0.5}
-                suffix="mm"
-                onCommit={(spacingMm) => update({ spacingMm })}
-              />
               <NumberField
                 id="print-copies"
                 label="Copies"
@@ -351,24 +412,26 @@ export function PrintDialog({ doc, open, onOpenChange }: PrintDialogProps) {
               </div>
             </details>
 
-            <div className="flex flex-wrap items-center gap-4">
-              <label className="flex items-center gap-2 text-sm">
-                <Switch
-                  checked={settings.cutLines}
-                  onCheckedChange={(cutLines) => update({ cutLines })}
-                  aria-label="Cut lines"
-                />
-                Cut lines
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <Switch
-                  checked={settings.cropMarks}
-                  onCheckedChange={(cropMarks) => update({ cropMarks })}
-                  aria-label="Crop marks"
-                />
-                Crop marks
-              </label>
-            </div>
+            {!sheetPreset && (
+              <div className="flex flex-wrap items-center gap-4">
+                <label className="flex items-center gap-2 text-sm">
+                  <Switch
+                    checked={settings.cutLines}
+                    onCheckedChange={(cutLines) => update({ cutLines })}
+                    aria-label="Cut lines"
+                  />
+                  Cut lines
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <Switch
+                    checked={settings.cropMarks}
+                    onCheckedChange={(cropMarks) => update({ cropMarks })}
+                    aria-label="Crop marks"
+                  />
+                  Crop marks
+                </label>
+              </div>
+            )}
 
             {imposition.issues.map((issue) => (
               <Callout key={issue} variant="warning">
@@ -382,7 +445,8 @@ export function PrintDialog({ doc, open, onOpenChange }: PrintDialogProps) {
             <SheetPreview
               pageWidthMm={pageWidthMm}
               pageHeightMm={pageHeightMm}
-              bleedMm={doc.label.bleedMm}
+              labelWidthMm={doc.label.widthMm}
+              labelHeightMm={doc.label.heightMm}
               imposition={imposition}
             />
             <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
@@ -422,12 +486,14 @@ export function PrintDialog({ doc, open, onOpenChange }: PrintDialogProps) {
 function SheetPreview({
   pageWidthMm,
   pageHeightMm,
-  bleedMm,
+  labelWidthMm,
+  labelHeightMm,
   imposition,
 }: {
   pageWidthMm: number;
   pageHeightMm: number;
-  bleedMm: number;
+  labelWidthMm: number;
+  labelHeightMm: number;
   imposition: ReturnType<typeof computeImposition>;
 }) {
   const firstPage = imposition.pages[0] ?? [];
@@ -441,7 +507,7 @@ function SheetPreview({
       <rect x="0" y="0" width={pageWidthMm} height={pageHeightMm} fill="white" />
       {firstPage.map((cell) => (
         <g key={`${cell.row}-${cell.col}`}>
-          {/* Artwork cell (label + bleed) */}
+          {/* Cell: artwork area, or the die-cut sticker in sheet mode */}
           <rect
             x={cell.xMm}
             y={cell.yMm}
@@ -449,12 +515,12 @@ function SheetPreview({
             height={imposition.cellHeightMm}
             fill="#ede9fe"
           />
-          {/* Trim outline */}
+          {/* Label trim, placed exactly where the PDF places it */}
           <rect
-            x={cell.xMm + bleedMm}
-            y={cell.yMm + bleedMm}
-            width={imposition.cellWidthMm - 2 * bleedMm}
-            height={imposition.cellHeightMm - 2 * bleedMm}
+            x={cell.xMm + imposition.trimInsetXMm}
+            y={cell.yMm + imposition.trimInsetYMm}
+            width={labelWidthMm}
+            height={labelHeightMm}
             fill="#ffffff"
             stroke="#7c6ce0"
             strokeWidth={0.4}
