@@ -1,5 +1,6 @@
-import type { LabelDocument } from "@/lib/document/schema";
+import type { LabelDocument, LabelObject } from "@/lib/document/schema";
 import { getSubstrate } from "@/lib/finishes/types";
+import { getFontFamily } from "@/lib/fonts/registry";
 import { runPreflight } from "@/lib/preflight/rules";
 import { getMaterial, getMaterialOption } from "./materials";
 import { readEasyContent } from "./meta";
@@ -10,6 +11,32 @@ import { readEasyContent } from "./meta";
  * where the PROPER technical terms belong). Pure text — copyable, and
  * bundled into the print-ready ZIP.
  */
+/**
+ * Every font family + weight the document actually uses (§20's "font
+ * information"): "Archivo — weights 400, 600". Text is always outlined or
+ * rasterized in the print files, so this is reference information for the
+ * printer, not files they need to install.
+ */
+export function listDocumentFonts(doc: LabelDocument): string[] {
+  const weightsByFamily = new Map<string, Set<number>>();
+  const walk = (objects: readonly LabelObject[]): void => {
+    for (const o of objects) {
+      if (o.type === "group") walk(o.children);
+      if (o.type !== "text") continue;
+      const set = weightsByFamily.get(o.fontFamilyId) ?? new Set<number>();
+      set.add(o.fontWeight);
+      weightsByFamily.set(o.fontFamilyId, set);
+    }
+  };
+  walk(doc.objects);
+  return [...weightsByFamily.entries()]
+    .map(([id, weights]) => {
+      const name = getFontFamily(id)?.name ?? id;
+      return `${name} — weight${weights.size === 1 ? "" : "s"} ${[...weights].sort((a, b) => a - b).join(", ")}`;
+    })
+    .sort();
+}
+
 export function buildSpecSheet(doc: LabelDocument, projectName: string): string {
   const content = readEasyContent(doc);
   const material = content ? getMaterial(content.meta.materialId) : undefined;

@@ -3,6 +3,7 @@
 import * as React from "react";
 import dynamic from "next/dynamic";
 import { Moon, RectangleHorizontal, Rotate3d, Sun } from "lucide-react";
+import { mutateDocument, withGesture } from "@/lib/document/commands";
 import type { LabelDocument } from "@/lib/document/schema";
 import { getMaterial } from "@/lib/easy/materials";
 import { useLabelTexture } from "@/components/mockup/use-label-texture";
@@ -158,6 +159,50 @@ export function VialStage({
           </Button>
         )}
       </div>
+
+      {show3d && (
+        <div
+          className="flex flex-wrap items-center gap-1.5"
+          role="group"
+          aria-label="Cap color"
+        >
+          <span className="text-[11px] text-muted-foreground">Cap</span>
+          {CAP_COLORS.map((cap) => (
+            <button
+              key={cap.color}
+              type="button"
+              aria-label={`${cap.name} cap`}
+              aria-pressed={doc.vial.capColor.toLowerCase() === cap.color}
+              title={cap.name}
+              onClick={() =>
+                withGesture(() =>
+                  mutateDocument((current) => ({
+                    ...current,
+                    vial: { ...current.vial, capColor: cap.color },
+                  })),
+                )
+              }
+              className={cn(
+                "size-5 rounded-full border-2 transition-transform hover:scale-110",
+                doc.vial.capColor.toLowerCase() === cap.color
+                  ? "border-primary"
+                  : "border-border",
+              )}
+              style={{ backgroundColor: cap.color }}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
+
+/** Curated flip-cap colors (named — never color alone). */
+const CAP_COLORS: readonly { name: string; color: string }[] = [
+  { name: "Black", color: "#2a2a2e" },
+  { name: "White", color: "#f4f4f6" },
+  { name: "Blue", color: "#1e4fd8" },
+  { name: "Red", color: "#b91c1c" },
+  { name: "Silver", color: "#9aa2ad" },
+  { name: "Gold", color: "#c9a227" },
+];

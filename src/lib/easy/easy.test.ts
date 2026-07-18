@@ -24,7 +24,7 @@ import { applyProfile } from "./profile";
 import { approximateMeasure, fitRow, squeezeFactor, stackZones } from "./layout";
 import { nextEasyMeta } from "./meta";
 import { toPlainIssues } from "./plain-preflight";
-import { buildSpecSheet } from "./spec-sheet";
+import { buildSpecSheet, listDocumentFonts } from "./spec-sheet";
 import type { SlotId } from "./slots";
 
 function textObjects(objects: readonly LabelObject[]): TextObject[] {
@@ -675,6 +675,18 @@ describe("research platform core (v4)", () => {
     expect(parsed.easy?.densityMode).toBe("standard");
     expect(parsed.easy?.complianceAck?.[0]?.phrase).toBe("inject");
     expect(parsed.schemaVersion).toBe(4);
+  });
+});
+
+describe("printer package extras", () => {
+  it("lists every typeface + weight the document uses, by display name", () => {
+    const doc = buildEasyDocument(spec({ templateId: "research-vial-standard" }));
+    const fonts = listDocumentFonts(doc);
+    expect(fonts.length).toBeGreaterThanOrEqual(1);
+    // "Archivo — weights 400, 600" style lines, sorted, no raw ids.
+    for (const line of fonts) {
+      expect(line).toMatch(/^.+ — weights? \d{3}(, \d{3})*$/);
+    }
   });
 });
 

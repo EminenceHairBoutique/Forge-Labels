@@ -25,7 +25,7 @@ import { createSheetPdf } from "@/lib/export/sheet-pdf";
 import { computeImposition } from "@/lib/print/imposition";
 import { runPreflight } from "@/lib/preflight/rules";
 import { toPlainIssues } from "@/lib/easy/plain-preflight";
-import { buildSpecSheet } from "@/lib/easy/spec-sheet";
+import { buildSpecSheet, listDocumentFonts } from "@/lib/easy/spec-sheet";
 import { applyEasyChange } from "@/lib/easy/fields";
 import { getStorageAdapter } from "@/lib/storage";
 import { useProjectSessionStore } from "@/stores/project-session-store";
@@ -196,27 +196,61 @@ export function ExportWizard({
   async function generateProPack() {
     setBusy(true);
     try {
-      const raster = await exportRaster(doc, { dpi: 600, mode: "print", format: "png" });
+      const base = slug(projectName);
+      // Bleed artwork feeds the PDF; trim artwork and a light preview ride
+      // along so the printer can proof without opening the PDF (§20).
+      const bleedRaster = await exportRaster(doc, { dpi: 600, mode: "print", format: "png" });
+      const bleedBytes = new Uint8Array(await bleedRaster.blob.arrayBuffer());
+      const trimRaster = await exportRaster(doc, { dpi: 600, mode: "sticker", format: "png" });
+      const previewRaster = await exportRaster(doc, { dpi: 150, mode: "sticker", format: "png" });
       const pdfBytes = await createSingleLabelPdf({
         widthMm: doc.label.widthMm,
         heightMm: doc.label.heightMm,
         bleedMm: doc.label.bleedMm,
-        pngBytes: new Uint8Array(await raster.blob.arrayBuffer()),
+        pngBytes: bleedBytes,
         cropMarks: true,
         title: projectName,
       });
       const spec = buildSpecSheet(doc, projectName);
+      const fonts = listDocumentFonts(doc);
+      const files: [string, string][] = [
+        [`${base}-print-ready.pdf`, "Print this. Bleed + crop marks, exact physical size."],
+        [`artwork/${base}-with-bleed-600dpi.png`, "The same artwork as a raster, including bleed."],
+        [`artwork/${base}-trim-size-600dpi.png`, "Artwork at exact trim size (no bleed)."],
+        ["preview.png", "Small proof image for quick visual checks."],
+        ["specification.txt", "Dimensions, material, finish, and production notes."],
+        ["fonts.txt", "Typefaces used (reference only — text is baked into the artwork)."],
+      ];
+      const readme = [
+        `${projectName} — printer package`,
+        "",
+        "Files:",
+        ...files.map(([name, what]) => `  ${name}\n      ${what}`),
+        "",
+        "Questions about material or finish are answered in specification.txt.",
+      ].join("\n");
       const zipped = zipSync({
-        [`${slug(projectName)}-print-ready.pdf`]: pdfBytes,
+        [`${base}-print-ready.pdf`]: pdfBytes,
+        [`artwork/${base}-with-bleed-600dpi.png`]: bleedBytes,
+        [`artwork/${base}-trim-size-600dpi.png`]: new Uint8Array(
+          await trimRaster.blob.arrayBuffer(),
+        ),
+        "preview.png": new Uint8Array(await previewRaster.blob.arrayBuffer()),
         "specification.txt": strToU8(spec),
+        "fonts.txt": strToU8(
+          fonts.length > 0
+            ? `Typefaces in this design (text is rasterized/outlined in the print files):\n${fonts.map((f) => `  ${f}`).join("\n")}\n`
+            : "No text objects in this design.\n",
+        ),
+        "README.txt": strToU8(readme),
       });
       const blob = new Blob([zipped as unknown as BlobPart], { type: "application/zip" });
-      const fileName = `${slug(projectName)}-for-printer.zip`;
+      const fileName = `${base}-for-printer.zip`;
       downloadBlob(blob, fileName);
       await record("zip", fileName, blob.size, 600);
       toast.success(
         "Printer package ready",
-        "Send the whole ZIP — it includes the print-ready PDF and the specification sheet.",
+        "Send the whole ZIP — print PDF, bleed and trim artwork, spec sheet, and font notes.",
       );
     } catch (err) {
       toast.error("Couldn't build the package", err instanceof Error ? err.message : undefined);

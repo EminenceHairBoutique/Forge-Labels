@@ -172,6 +172,16 @@ export function ContentForm({ doc }: { doc: LabelDocument }) {
                 {info.hint}
               </p>
             )}
+            {slot === "qr" && /^https?:\/\/\S+$/i.test(value.trim()) && (
+              <a
+                href={value.trim()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[11px] font-medium text-primary underline-offset-2 hover:underline"
+              >
+                Test the destination — open where this code sends people ↗
+              </a>
+            )}
           </>
         )}
       </div>

@@ -103,7 +103,13 @@ interface Scenario {
   id: string;
   fields: Partial<Record<SlotId, string>>;
   enabled: SlotId[];
+  /** Uploaded-logo aspect ratio (w/h) when `fields.logo` is set. */
+  logoAspect?: number;
 }
+
+/** 1×1 transparent PNG — layout only needs the string, never the pixels. */
+const LOGO_DATA_URL =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
 
 const BASE_FIELDS: Partial<Record<SlotId, string>> = {
   brand: "AURELIS LABS",
@@ -159,6 +165,15 @@ export const VALIDATION_SCENARIOS: Scenario[] = [
     id: "qr",
     fields: { ...BASE_FIELDS, qr: "https://aurelislabs.example/verify" },
     enabled: ["brand", "product-name", "strength", "volume", "qr"],
+  },
+  {
+    // §34: logo present (a wide 2.5:1 mark) — every other scenario is the
+    // logo-absent case. The engine must place it, keep its aspect, and
+    // never let it collide with text.
+    id: "logo",
+    fields: { ...BASE_FIELDS, logo: LOGO_DATA_URL },
+    enabled: ["brand", "product-name", "strength", "volume", "logo"],
+    logoAspect: 2.5,
   },
   {
     id: "barcode",
@@ -479,6 +494,7 @@ function checkBuild(
       palette,
       fields: scenario.fields,
       enabled,
+      logoAspect: scenario.logoAspect,
     });
   } catch (e) {
     push("error", `Engine threw: ${e instanceof Error ? e.message : String(e)}`);
@@ -488,6 +504,32 @@ function checkBuild(
   const texts = build.objects.filter((o): o is TextObject => o.type === "text");
   const qr = build.objects.find((o) => o.type === "qrcode");
   const barcode = build.objects.find((o) => o.type === "barcode");
+  const logo = build.objects.find((o) => o.type === "image" && o.slot === "logo");
+
+  // 1a. Logo (§34): when enabled it must render, keep its aspect ratio,
+  //     and stay clear of every text row — unless honestly dropped.
+  const hiddenEarly = new Set(build.hiddenSlots);
+  if (enabled.has("logo") && scenario.fields.logo && !hiddenEarly.has("logo")) {
+    if (!logo) {
+      push("error", "Logo enabled but no logo object was produced.");
+    } else {
+      const aspect = logo.widthMm / logo.heightMm;
+      const want = scenario.logoAspect ?? 1;
+      if (Math.abs(aspect - want) / want > 0.02) {
+        push(
+          "error",
+          `Logo aspect drifted: placed ${aspect.toFixed(2)}:1, uploaded ${want.toFixed(2)}:1.`,
+        );
+      }
+      const logoBox = objBox(logo);
+      for (const text of texts) {
+        if (intersects(logoBox, objBox(text))) {
+          push("error", `Logo overlaps the "${text.slot}" text.`);
+          break;
+        }
+      }
+    }
+  }
 
   // 1. Slot presence: every enabled slot with content and a row must render
   //    (unless it honestly collapsed — minLabelHeightMm or an announced drop).
@@ -547,7 +589,12 @@ function checkBuild(
 
   // 2. Bounds: nothing escapes the trim box (with sub-safe tolerance).
   const slack = 0.65; // centered boxes may include internal padding
-  for (const o of [...texts, ...(qr ? [qr] : []), ...(barcode ? [barcode] : [])]) {
+  for (const o of [
+    ...texts,
+    ...(qr ? [qr] : []),
+    ...(barcode ? [barcode] : []),
+    ...(logo ? [logo] : []),
+  ]) {
     const box = objBox(o);
     if (
       box.left < -slack ||
