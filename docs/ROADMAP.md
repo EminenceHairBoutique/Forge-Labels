@@ -181,6 +181,12 @@ Built on the overhaul without touching the print kernel (audit:
   organization, catalog systems, notice placement, COA QR sizing,
   density, families, artwork-vs-verified-data, and claims — neutral, no
   medical or personal-use instructions.
+- **Completeness pass:** logo present/absent joined the template quality
+  gates (placement, aspect within 2%, no text overlap — all 151 pass);
+  the professional printer ZIP carries print PDF + with-bleed and
+  trim-size 600 DPI artwork + proof preview + spec + font notes + README;
+  a "test the destination" link under the QR field; named cap-color
+  swatches on the Easy vial preview.
 
 ## Phase 3 — Partially shipped
 

@@ -49,7 +49,7 @@ numbers behind it. Baselines are from the pre-overhaul build (commit
 
 ## Guarantees preserved
 
-- Unit suite: 413 tests across 29 files. Full e2e: the Easy, overhaul,
+- Unit suite: 414 tests across 29 files. Full e2e: the Easy, overhaul,
   and research flows plus the pre-existing dimensional, parity, and perf
   specs — DPI-exact exports and editor↔export pixel parity are untouched.
 - The production build emits the Easy editor and browser as
