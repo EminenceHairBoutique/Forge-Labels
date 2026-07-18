@@ -306,9 +306,11 @@ function backingAt(
   let color: string | null = null;
   for (const o of objects) {
     if (o === target) break; // only things painted BELOW the text
-    if (o.type !== "rect" && o.type !== "ellipse") continue;
+    if (o.type !== "rect" && o.type !== "ellipse" && o.type !== "polygon") continue;
     if (o.fill.type !== "solid") continue;
-    // Hairline rules can't act as a reading surface.
+    // Hairline rules can't act as a reading surface. Curved shapes
+    // (medallions, hexagon badges) count near their center, where the
+    // engine anchors badge text — the bounding box is a fair stand-in.
     if (o.heightMm < 1.2 || o.widthMm < 1.2) continue;
     const cover = objBox(o);
     if (

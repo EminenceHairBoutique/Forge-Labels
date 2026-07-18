@@ -50,6 +50,8 @@ const CLAIM_PHRASES: readonly string[] = [
   "prescription",
   "clinically proven",
   "therapeutic",
+  "sterile",
+  "sterility",
 ];
 
 /** Regulated identifiers that require explicit user authorization. */
@@ -64,7 +66,7 @@ const IDENTIFIER_TOKENS: readonly string[] = [
 ];
 
 const CLAIM_MESSAGE =
-  "This wording may imply medical use or an approval the label can't establish. Review it before printing — it stays exactly as you wrote it.";
+  "This wording may imply medical use, a quality guarantee, or an approval the label can't establish. Review it before printing — it stays exactly as you wrote it.";
 
 const IDENTIFIER_MESSAGE =
   "This looks like a regulated identifier or certification mark. Confirm that you are authorized to use it and that the information is accurate.";

@@ -22,7 +22,7 @@ Both edit the same document; switching modes never loses work.
   name", "Simplify", "Make it more premium/cleaner/bolder") included.
   "Make my label for me" compresses the whole thing to one screen and
   three finished options.
-- **151 validated templates + template browser** — structurally distinct,
+- **153 validated templates + template browser** — structurally distinct,
   size-responsive layout programs across research, pharmaceutical,
   biotechnology, luxury, clinical, laboratory, holographic, neon, minimal,
   botanical, and transparent families, browsable
@@ -77,7 +77,7 @@ Both edit the same document; switching modes never loses work.
 - **Projects & brand kits** — autosave, version snapshots, thumbnails,
   tags, brand palettes/logos/fonts, logo upload in Easy mode
   (engine-placed and reflowed), and an Advanced-Editor template gallery of
-  16 fictional brand designs alongside the 151-template Easy library.
+  16 fictional brand designs alongside the 153-template Easy library.
 
 ## Quickstart (zero configuration)
 

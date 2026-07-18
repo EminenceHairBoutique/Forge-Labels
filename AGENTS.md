@@ -68,7 +68,7 @@ react-konva editor, optional Supabase/Stripe. Full design rationale:
     the slot objects (single source of truth); `easy.stash` only holds
     toggled-off values. All Easy writes go through `applyEasyChange`
     (serialized + live-store reads — never pass a doc prop into it).
-13. **No template ships unvalidated.** Every Easy template (151 in
+13. **No template ships unvalidated.** Every Easy template (153 in
     `src/lib/easy/templates/`) must pass `src/lib/easy/validate.ts` —
     sizes × content scenarios × material cases with contrast, overlap,
     print-floor, quiet-zone, and font checks — plus the layout-DNA

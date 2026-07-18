@@ -126,7 +126,21 @@ export type DecorDef =
   | { kind: "corners"; lengthMm: number; strokePt: number; color: ColorRole; insetMm: number; minLabelHeightMm?: number }
   | { kind: "divider"; after: SlotId; widthFactor: number; strokePt: number; fill: DecorFill; minLabelHeightMm?: number }
   | { kind: "side-rail"; edge: "left" | "right"; insetMm: number; strokePt: number; color: ColorRole; minLabelHeightMm?: number }
-  | { kind: "medallion"; sizeFactor: number; fill: DecorFill; ring?: boolean; minLabelHeightMm?: number }
+  | {
+      kind: "medallion";
+      sizeFactor: number;
+      fill: DecorFill;
+      ring?: boolean;
+      /** Badge shape — hexagons read as pharma/biotech marks. */
+      shape?: "circle" | "hexagon";
+      /**
+       * Center the medallion on this slot's row instead of the first
+       * header row. When the slot isn't on the label, no medallion is
+       * drawn (never a badge behind unrelated text).
+       */
+      slot?: SlotId;
+      minLabelHeightMm?: number;
+    }
   | { kind: "frame-effect"; thicknessFactor: number; minLabelHeightMm?: number };
 
 /** Where QR/barcode boxes live. */

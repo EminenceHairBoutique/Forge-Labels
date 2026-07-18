@@ -24,7 +24,7 @@ numbers behind it. Baselines are from the pre-overhaul build (commit
 - **Validation:** `registry.test.ts` fails the build on missing files,
   byte drift, orphans, variable fonts, or missing glyphs.
 
-## Template browser (151 cards)
+## Template browser (153 cards)
 
 - **Real previews, once:** cards render through the actual layout engine
   + export renderer into data URLs, cached in a module LRU (240 entries)
@@ -40,7 +40,7 @@ numbers behind it. Baselines are from the pre-overhaul build (commit
 
 ## Engine
 
-- The validation matrix (151 templates × their size/content/material
+- The validation matrix (153 templates × their size/content/material
   cases, including the research stress scenarios — several thousand
   engine runs with the approximate measurer) completes in **a few
   seconds** in the unit suite — the engine itself is pure

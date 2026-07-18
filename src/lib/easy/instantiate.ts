@@ -5,6 +5,7 @@ import type {
   BarcodeObject,
   EasyTweaks,
   EllipseObject,
+  PolygonObject,
   Fill,
   ImageObject,
   LabelDocument,
@@ -1114,12 +1115,23 @@ export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
       const headerRows = placed.filter((o) =>
         leftZones.header.some((r) => r.obj.id === o.id),
       );
-      const target = headerRows[0] ?? heroRows[0];
+      // A slot-targeted medallion is a badge for THAT text (e.g. a hexagon
+      // behind the abbreviation) — if the slot isn't on the label, draw
+      // nothing rather than badge unrelated text.
+      const target = medallion.slot
+        ? placed.find((o) => o.slot === medallion.slot && o.type === "text")
+        : (headerRows[0] ?? heroRows[0]);
       if (target) {
-        const d = MM(Math.max(heightMm * medallion.sizeFactor, 4));
-        const ellipse: EllipseObject = {
+        // The badge must CONTAIN its text — longer abbreviations grow the
+        // medallion instead of spilling past it (hexagon mid-band is
+        // narrower than its bounding box, hence the /0.62 headroom).
+        const textW =
+          target.type === "text" ? estimateTextWidthMm(target) : 0;
+        const d = MM(
+          Math.max(heightMm * medallion.sizeFactor, textW / 0.62, 4),
+        );
+        const shared = {
           id: newObjectId(),
-          type: "ellipse",
           name: "",
           slot: "accent:medallion",
           xMm: target.xMm,
@@ -1130,9 +1142,9 @@ export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
           opacity: 1,
           locked: false,
           visible: true,
-          printLayer: "artwork",
+          printLayer: "artwork" as const,
           fill: medallion.ring
-            ? { type: "none" }
+            ? ({ type: "none" } as const)
             : decorFill(medallion.fill, palette, option.finishId),
           ...(medallion.ring
             ? {
@@ -1146,7 +1158,13 @@ export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
               }
             : {}),
         };
-        objects.push(ellipse);
+        if (medallion.shape === "hexagon") {
+          const hexagon: PolygonObject = { ...shared, type: "polygon", sides: 6 };
+          objects.push(hexagon);
+        } else {
+          const ellipse: EllipseObject = { ...shared, type: "ellipse" };
+          objects.push(ellipse);
+        }
       }
     }
   }
