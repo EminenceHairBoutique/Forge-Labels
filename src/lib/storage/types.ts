@@ -17,6 +17,8 @@ export interface StorageCapabilities {
   cloudSync: boolean;
   /** Stripe billing is configured. */
   billing: boolean;
+  /** Hosted batch verification pages can be published. */
+  verification: boolean;
   /** Shareable links can be created. */
   sharing: boolean;
 }

@@ -5,6 +5,7 @@ import {
   LayoutTemplate,
   Palette,
   Settings,
+  ShieldCheck,
   Download,
   Users,
 } from "lucide-react";
@@ -22,6 +23,7 @@ const STUDIO_NAV = [
   { href: "/brand-kits", label: "Brand kits", icon: Palette },
   { href: "/assets", label: "Assets", icon: ImageIcon },
   { href: "/team", label: "Team", icon: Users },
+  { href: "/verify", label: "Verify", icon: ShieldCheck },
   { href: "/exports", label: "Exports", icon: Download },
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;

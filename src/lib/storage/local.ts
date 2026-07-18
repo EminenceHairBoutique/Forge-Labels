@@ -74,6 +74,7 @@ export class LocalAdapter implements StorageAdapter {
     auth: false,
     cloudSync: false,
     billing: false,
+    verification: false,
     sharing: false,
   };
 

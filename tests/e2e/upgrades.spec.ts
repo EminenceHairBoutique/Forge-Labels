@@ -169,6 +169,23 @@ test.describe("upgrade batch", () => {
     );
   });
 
+  test("verification pages state their cloud requirement honestly in local mode", async ({
+    page,
+  }) => {
+    // Public token page: explains local demo mode instead of erroring.
+    await page.goto("/verify/some-unknown-token");
+    await expect(
+      page.getByText(/verification isn't enabled on this deployment/i),
+    ).toBeVisible();
+
+    // Studio management page: cloud-required callout, reachable from nav.
+    await page.goto("/dashboard");
+    await page.getByRole("link", { name: /^verify$/i }).click();
+    await expect(
+      page.getByText(/verification pages require cloud mode/i),
+    ).toBeVisible();
+  });
+
   test("hex elixir arches the brand line as real curved text", async ({ page }) => {
     await startWizard(page, {
       vial: /^10 mL vial/,

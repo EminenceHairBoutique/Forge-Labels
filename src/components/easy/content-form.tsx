@@ -12,6 +12,7 @@ import { isResearchIndustry } from "@/lib/easy/industries";
 import { fileToEasyLogo } from "@/lib/easy/logo";
 import { NOTICE_OPTIONS } from "@/lib/easy/notices";
 import { profileFromDoc, saveProfile } from "@/lib/easy/profile";
+import { getStorageAdapter } from "@/lib/storage";
 import { SLOTS, SLOT_ORDER, type SlotId, type SlotSection } from "@/lib/easy/slots";
 import { getEasyTemplate } from "@/lib/easy/templates";
 import { cn } from "@/lib/utils";
@@ -92,6 +93,21 @@ export function ContentForm({ doc }: { doc: LabelDocument }) {
 
   const toggleable = new Set(toggleableSlots());
   const logoSrc = state.fields.logo;
+  // Cloud deployments can host the batch page the verification field
+  // links to; local mode simply doesn't show the offer (capability
+  // gating, not env sniffing).
+  const canHostVerify = getStorageAdapter().capabilities.verification;
+  const verifyComposeHref = () => {
+    const params = new URLSearchParams();
+    const product = state.fields["product-name"]?.trim();
+    const batch = (state.fields.batch ?? state.fields.lot)?.trim();
+    const notice = state.fields.notice?.trim();
+    if (product) params.set("product", product);
+    if (batch) params.set("batch", batch);
+    if (notice) params.set("notice", notice);
+    const query = params.toString();
+    return query ? `/verify?${query}` : "/verify";
+  };
 
   // Only offer fields the CURRENT layout can actually place — no dead
   // inputs. Codes and the logo are engine-level (always placeable).
@@ -206,6 +222,16 @@ export function ContentForm({ doc }: { doc: LabelDocument }) {
                 className="text-[11px] font-medium text-primary underline-offset-2 hover:underline"
               >
                 Test the destination — open where this code sends people ↗
+              </a>
+            )}
+            {slot === "verification" && canHostVerify && (
+              <a
+                href={verifyComposeHref()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[11px] font-medium text-primary underline-offset-2 hover:underline"
+              >
+                Host a batch verification page on Forge Labels ↗
               </a>
             )}
           </>

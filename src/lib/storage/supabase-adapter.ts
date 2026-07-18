@@ -67,6 +67,7 @@ export class SupabaseAdapter implements StorageAdapter {
       auth: true,
       cloudSync: true,
       billing: Boolean(process.env.NEXT_PUBLIC_STRIPE_ENABLED === "1"),
+      verification: true,
       sharing: true,
     };
   }

@@ -339,7 +339,10 @@ test.describe("onboarding", () => {
     await page.evaluate(() => window.localStorage.removeItem("forge-labels:onboarded:v1"));
     await page.reload();
     await expect(page.getByText(/welcome to forge labels/i)).toBeVisible();
-    await expect(page.getByText(/you don't need design experience/i)).toBeVisible();
+    // Scoped to the dialog: the dashboard empty state repeats the promise.
+    await expect(
+      page.getByRole("dialog").getByText(/you don't need design experience/i),
+    ).toBeVisible();
     await page.getByRole("button", { name: /skip for now/i }).click();
     await expect(page.getByText(/welcome to forge labels/i)).toHaveCount(0);
     await page.reload();
