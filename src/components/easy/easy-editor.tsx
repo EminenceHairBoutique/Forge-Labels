@@ -3,12 +3,14 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CopyPlus, Download, SlidersHorizontal, Undo2 } from "lucide-react";
+import { ArrowLeft, CopyPlus, Download, Sparkles, SlidersHorizontal, Undo2 } from "lucide-react";
 import { loadDocument, undo } from "@/lib/document/commands";
 import type { LabelDocument } from "@/lib/document/schema";
 import { ensureFinishesRegistered } from "@/lib/finishes";
 import { loadFontsForDocument } from "@/lib/fonts/registry";
-import { getEasyPalette } from "@/lib/easy/palettes";
+import { getEasyPalette, type EasyPalette } from "@/lib/easy/palettes";
+import { paletteFromLogoSrc } from "@/lib/easy/logo";
+import { LOGO_PALETTE_ID } from "@/lib/easy/logo-palette";
 import {
   getMaterial,
   getMaterialOption,
@@ -62,6 +64,30 @@ export function EasyEditor({ projectId }: { projectId: string }) {
   const doc = useDoc();
   const projectName = useProjectSessionStore((s) => s.projectName);
   const { canUndo } = useCanUndoRedo();
+
+  // Logo-derived palette chip: extraction is async (image decode +
+  // canvas), so the result caches per logo src; a changed or removed logo
+  // resets during render (adjust-during-render, never setState in effect).
+  const logoObj = doc?.objects.find((o) => o.slot === "logo" && o.type === "image");
+  const logoSrc =
+    logoObj?.type === "image" && logoObj.source.kind === "url"
+      ? logoObj.source.url
+      : undefined;
+  const [logoPal, setLogoPal] = React.useState<{
+    src: string;
+    palette: EasyPalette | null;
+  } | null>(null);
+  if (logoPal && logoPal.src !== logoSrc) setLogoPal(null);
+  React.useEffect(() => {
+    if (!logoSrc) return;
+    let cancelled = false;
+    void paletteFromLogoSrc(logoSrc).then((palette) => {
+      if (!cancelled) setLogoPal({ src: logoSrc, palette });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [logoSrc]);
 
   React.useEffect(() => {
     ensureFinishesRegistered();
@@ -207,40 +233,82 @@ export function EasyEditor({ projectId }: { projectId: string }) {
                 Colors
               </p>
               <ul className="flex flex-wrap gap-2">
-                {palettes.map((palette) => (
-                  <li key={palette.id}>
+                {palettes.map((palette) => {
+                  const active =
+                    doc.easy!.paletteId === palette.id && !doc.easy!.customPalette;
+                  return (
+                    <li key={palette.id}>
+                      <button
+                        type="button"
+                        title={palette.name}
+                        aria-label={`Use the ${palette.name} colors`}
+                        aria-pressed={active}
+                        onClick={() =>
+                          void applyEasyChange({ paletteId: palette.id })
+                        }
+                        className={cn(
+                          "flex h-9 w-14 overflow-hidden rounded-lg border-2 transition-colors",
+                          active
+                            ? "border-primary"
+                            : "border-border hover:border-primary/40",
+                        )}
+                      >
+                        <span
+                          className="h-full w-1/2"
+                          style={{ backgroundColor: palette.bg ?? "#e5e7eb" }}
+                        />
+                        <span className="flex h-full w-1/2 flex-col">
+                          <span
+                            className="h-1/2"
+                            style={{ backgroundColor: palette.text }}
+                          />
+                          <span
+                            className="h-1/2"
+                            style={{ backgroundColor: palette.accent }}
+                          />
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+                {logoPal?.palette && (
+                  <li>
                     <button
                       type="button"
-                      title={palette.name}
-                      aria-label={`Use the ${palette.name} colors`}
-                      aria-pressed={doc.easy!.paletteId === palette.id}
+                      title="From your logo"
+                      aria-label="Use the colors from your logo"
+                      aria-pressed={doc.easy!.customPalette?.id === LOGO_PALETTE_ID}
                       onClick={() =>
-                        void applyEasyChange({ paletteId: palette.id })
+                        void applyEasyChange({ customPalette: logoPal.palette })
                       }
                       className={cn(
-                        "flex h-9 w-14 overflow-hidden rounded-lg border-2 transition-colors",
-                        doc.easy!.paletteId === palette.id
+                        "relative flex h-9 w-14 overflow-hidden rounded-lg border-2 transition-colors",
+                        doc.easy!.customPalette?.id === LOGO_PALETTE_ID
                           ? "border-primary"
                           : "border-border hover:border-primary/40",
                       )}
                     >
                       <span
                         className="h-full w-1/2"
-                        style={{ backgroundColor: palette.bg ?? "#e5e7eb" }}
+                        style={{ backgroundColor: logoPal.palette.bg ?? "#e5e7eb" }}
                       />
                       <span className="flex h-full w-1/2 flex-col">
                         <span
                           className="h-1/2"
-                          style={{ backgroundColor: palette.text }}
+                          style={{ backgroundColor: logoPal.palette.text }}
                         />
                         <span
                           className="h-1/2"
-                          style={{ backgroundColor: palette.accent }}
+                          style={{ backgroundColor: logoPal.palette.accent }}
                         />
                       </span>
+                      <Sparkles
+                        aria-hidden
+                        className="absolute right-0.5 top-0.5 size-3 rounded-full bg-background/85 p-0.5 text-primary"
+                      />
                     </button>
                   </li>
-                ))}
+                )}
               </ul>
             </section>
           )}

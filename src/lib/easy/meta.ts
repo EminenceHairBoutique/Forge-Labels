@@ -84,6 +84,11 @@ export function readEasyContent(doc: LabelDocument): EasyContent | null {
       if (o.type === "text") fields[o.slot] = o.text;
       else if (o.type === "qrcode") fields[o.slot] = o.value;
       else if (o.type === "barcode") fields[o.slot] = o.value;
+      // The logo's "field value" is its data URL — without this, any
+      // rebuild after an upload silently dropped the logo.
+      else if (o.type === "image" && o.source.kind === "url") {
+        fields[o.slot] = o.source.url;
+      }
     }
   };
   walk(doc.objects);

@@ -21,9 +21,10 @@ import { scanCompliance } from "./compliance";
 import { densitySlotSet } from "./density";
 import { getNotice, noticeIdForText } from "./notices";
 import { buildSeriesVariant, parseSeriesCsv } from "./series";
+import { extractDominantColors, LOGO_PALETTE_ID, paletteFromLogo } from "./logo-palette";
 import { applyProfile } from "./profile";
 import { approximateMeasure, fitRow, solveArc, squeezeFactor, stackZones } from "./layout";
-import { nextEasyMeta } from "./meta";
+import { nextEasyMeta, readEasyContent } from "./meta";
 import { toPlainIssues } from "./plain-preflight";
 import { buildSpecSheet, listDocumentFonts } from "./spec-sheet";
 import type { SlotId } from "./slots";
@@ -333,6 +334,78 @@ describe("arc rows (RowDef.arc)", () => {
     expect(brand.curve).toBeUndefined();
     const box = objectAabb(brand);
     expect(box.x + box.width).toBeLessThanOrEqual(30.01);
+  });
+});
+
+describe("logo palette (from-your-logo chip)", () => {
+  const pixels = (colors: [number, number, number, number][], each: number) => {
+    const data: number[] = [];
+    for (const [r, g, b, a] of colors) {
+      for (let i = 0; i < each; i++) data.push(r, g, b, a);
+    }
+    return { data, width: data.length / 4, height: 1 };
+  };
+
+  it("extractDominantColors ranks by population and skips transparent/white", () => {
+    const out = extractDominantColors(
+      pixels(
+        [
+          [224, 32, 32, 255], // red — most populous
+          [32, 32, 224, 255], // blue
+          [255, 255, 255, 255], // white background — skipped
+          [10, 200, 10, 40], // transparent — skipped
+        ],
+        8,
+      ),
+    );
+    expect(out[0]).toBe("#e02020");
+    expect(out[1]).toBe("#2020e0");
+    expect(out).toHaveLength(2);
+  });
+
+  it("derives a contrast-safe palette that keeps the brand color family", () => {
+    const palette = paletteFromLogo(["#2244cc", "#111122"])!;
+    expect(palette).not.toBeNull();
+    expect(palette.id).toBe(LOGO_PALETTE_ID);
+    expect(palette.bg).toBe("#ffffff");
+    expect(contrastRatio(palette.accent, "#ffffff")).toBeGreaterThanOrEqual(3.5);
+    expect(contrastRatio(palette.text, "#ffffff")).toBeGreaterThanOrEqual(7);
+    expect(contrastRatio(palette.muted, "#ffffff")).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(palette.onAccent, palette.accent)).toBeGreaterThanOrEqual(3.5);
+  });
+
+  it("darkens a light brand color to the floor instead of rejecting it", () => {
+    const palette = paletteFromLogo(["#ffd633"])!;
+    expect(palette).not.toBeNull();
+    expect(contrastRatio(palette.accent, "#ffffff")).toBeGreaterThanOrEqual(3.5);
+    // Hue survives the darkening — still golden, not gray.
+    const r = parseInt(palette.accent.slice(1, 3), 16);
+    const g = parseInt(palette.accent.slice(3, 5), 16);
+    const b = parseInt(palette.accent.slice(5, 7), 16);
+    expect(r).toBeGreaterThan(b);
+    expect(g).toBeGreaterThan(b);
+  });
+
+  it("declines washed-out logos honestly", () => {
+    expect(paletteFromLogo([])).toBeNull();
+    expect(paletteFromLogo(["#dddddd", "#f0f0f0"])).toBeNull();
+  });
+
+  it("readEasyContent reconstructs the logo field so rebuilds keep it", () => {
+    const dataUrl = "data:image/png;base64,iVBORw0KGgo=";
+    const doc = buildEasyDocument(
+      spec({
+        fields: defaultEasyFields({
+          brand: "AURELIS LABS",
+          "product-name": "Retinol Serum",
+          logo: dataUrl,
+        }),
+        enabled: new Set([...DEFAULT_ENABLED, "logo"]),
+      }),
+    );
+    const state = readEasyContent(doc)!;
+    expect(state.fields.logo).toBe(dataUrl);
+    expect(state.enabled.has("logo")).toBe(true);
   });
 });
 

@@ -1,5 +1,8 @@
 "use client";
 
+import { extractDominantColors, paletteFromLogo } from "./logo-palette";
+import type { EasyPalette } from "./palettes";
+
 /**
  * Logo intake for the Easy Creator: downscale any raster upload to a
  * bounded PNG data URL (≤ 512 px on the long edge, alpha preserved) so it
@@ -60,4 +63,29 @@ function loadImage(url: string): Promise<HTMLImageElement> {
     image.onerror = () => reject(new Error("Couldn't read that image — try a different file."));
     image.src = url;
   });
+}
+
+/**
+ * Colors from a stored logo data URL → a contrast-safe Easy palette, or
+ * null when the logo has no usable color. Downsampled hard (≤ 48 px) —
+ * dominant-color math doesn't need detail.
+ */
+export async function paletteFromLogoSrc(src: string): Promise<EasyPalette | null> {
+  try {
+    const image = await loadImage(src);
+    const w = image.naturalWidth;
+    const h = image.naturalHeight;
+    if (!w || !h) return null;
+    const scale = Math.min(1, 48 / Math.max(w, h));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(Math.round(w * scale), 1);
+    canvas.height = Math.max(Math.round(h * scale), 1);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    return paletteFromLogo(extractDominantColors(pixels));
+  } catch {
+    return null;
+  }
 }
