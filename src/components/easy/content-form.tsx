@@ -172,6 +172,32 @@ export function ContentForm({ doc }: { doc: LabelDocument }) {
                 {info.hint}
               </p>
             )}
+            {slot === "qr" && (
+              <div className="flex flex-wrap gap-1.5 pb-0.5" role="group" aria-label="QR style">
+                {(
+                  [
+                    { id: "square", name: "Square" },
+                    { id: "rounded", name: "Rounded" },
+                    { id: "dot", name: "Dots" },
+                  ] as const
+                ).map((style) => (
+                  <button
+                    key={style.id}
+                    type="button"
+                    aria-pressed={(state.meta.qrStyle ?? "square") === style.id}
+                    onClick={() => void applyEasyChange({ qrStyle: style.id }).then(surfaceNotes)}
+                    className={cn(
+                      "rounded-full border px-2.5 py-1 text-[11px] leading-none transition-colors",
+                      (state.meta.qrStyle ?? "square") === style.id
+                        ? "border-primary bg-primary-subtle/40 text-foreground"
+                        : "border-border text-muted-foreground hover:border-primary/40",
+                    )}
+                  >
+                    {style.name}
+                  </button>
+                ))}
+              </div>
+            )}
             {slot === "qr" && /^https?:\/\/\S+$/i.test(value.trim()) && (
               <a
                 href={value.trim()}

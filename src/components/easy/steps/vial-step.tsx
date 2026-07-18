@@ -33,6 +33,9 @@ const CARD_PRESETS: { presetId: string; title: string; subtitle: string }[] = [
   { presetId: "30ml-serum", title: "30 mL bottle", subtitle: "1 oz skincare bottle" },
   { presetId: "10ml-dropper", title: "Dropper bottle", subtitle: "10 mL with dropper top" },
   { presetId: "30ml-dropper", title: "Large dropper", subtitle: "30 mL Boston round" },
+  { presetId: "5ml-serum", title: "5 mL mini vial", subtitle: "Small serum vial" },
+  { presetId: "2ml-cryo", title: "2 mL cryovial", subtitle: "Frozen-sample tube" },
+  { presetId: "50ml-centrifuge", title: "50 mL tube", subtitle: "Centrifuge tube" },
   { presetId: "custom", title: "Something else", subtitle: "Any round bottle or vial" },
 ];
 

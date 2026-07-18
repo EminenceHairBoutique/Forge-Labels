@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { migrateDocument } from "@/lib/document/migrate";
 import { runPreflight } from "@/lib/preflight/rules";
+import { objectAabb } from "@/lib/render/geometry";
 import { createDocument } from "@/lib/document/defaults";
 import { parseLabelDocument, type LabelObject, type TextObject } from "@/lib/document/schema";
 import { getVialPreset } from "@/lib/vials/presets";
@@ -21,7 +22,7 @@ import { densitySlotSet } from "./density";
 import { getNotice, noticeIdForText } from "./notices";
 import { buildSeriesVariant, parseSeriesCsv } from "./series";
 import { applyProfile } from "./profile";
-import { approximateMeasure, fitRow, squeezeFactor, stackZones } from "./layout";
+import { approximateMeasure, fitRow, solveArc, squeezeFactor, stackZones } from "./layout";
 import { nextEasyMeta } from "./meta";
 import { toPlainIssues } from "./plain-preflight";
 import { buildSpecSheet, listDocumentFonts } from "./spec-sheet";
@@ -54,14 +55,14 @@ describe("schema migration", () => {
     const v1 = JSON.parse(JSON.stringify({ ...createDocument(), schemaVersion: 1 }));
     delete v1.easy;
     const migrated = migrateDocument(v1);
-    expect(migrated.schemaVersion).toBe(4);
+    expect(migrated.schemaVersion).toBe(5);
     expect(migrated.easy).toBeUndefined();
   });
 
   it("upgrades a v2 easy document without touching its meta", () => {
     const v2 = JSON.parse(JSON.stringify({ ...buildEasyDocument(spec()), schemaVersion: 2 }));
     const migrated = migrateDocument(v2);
-    expect(migrated.schemaVersion).toBe(4);
+    expect(migrated.schemaVersion).toBe(5);
     expect(migrated.easy?.templateId).toBe(v2.easy.templateId);
     expect(migrated.easy?.pairingId).toBeUndefined();
   });
@@ -95,14 +96,13 @@ describe("buildEasyDocument", () => {
           spec({ preset, templateId: template.id }),
         );
         for (const obj of textObjects(doc.objects)) {
-          // Rotated (vertical) rows swap their extents around the center.
-          const rotated = obj.rotationDeg % 180 !== 0;
-          const w = rotated ? obj.heightMm : obj.widthMm;
-          const h = rotated ? obj.widthMm : obj.heightMm;
-          expect(obj.xMm - w / 2).toBeGreaterThanOrEqual(-0.01);
-          expect(obj.xMm + w / 2).toBeLessThanOrEqual(doc.label.widthMm + 0.01);
-          expect(obj.yMm - h / 2).toBeGreaterThanOrEqual(-0.01);
-          expect(obj.yMm + h / 2).toBeLessThanOrEqual(doc.label.heightMm + 0.01);
+          // objectAabb handles rotated (vertical) rows and curved (arc)
+          // rows, whose ink hangs off the stored arc center.
+          const box = objectAabb(obj);
+          expect(box.x).toBeGreaterThanOrEqual(-0.01);
+          expect(box.x + box.width).toBeLessThanOrEqual(doc.label.widthMm + 0.01);
+          expect(box.y).toBeGreaterThanOrEqual(-0.01);
+          expect(box.y + box.height).toBeLessThanOrEqual(doc.label.heightMm + 0.01);
         }
       }
     },
@@ -258,6 +258,81 @@ describe("one-click fix tweaks", () => {
     // A later unrelated change keeps them.
     const later = nextEasyMeta(withBoth, { paletteId: "white-blue" });
     expect(later.tweaks).toEqual({ tight: true, nameScale: 1.15 });
+  });
+});
+
+describe("arc rows (RowDef.arc)", () => {
+  const hexBuild = (widthMm: number, heightMm: number, brand = "ZEN HEALTH PHARMA") => {
+    const material = getMaterial("plain")!;
+    return buildEasyLabel({
+      template: getEasyTemplate("hex-elixir")!,
+      widthMm,
+      heightMm,
+      bleedMm: 2,
+      safeMm: 2,
+      material,
+      option: getMaterialOption(material, "plain-white"),
+      intensity: "subtle",
+      palette: getEasyPalette("white-black"),
+      fields: defaultEasyFields({
+        brand,
+        abbreviation: "ZH",
+        "product-name": "Clarity",
+        volume: "10 mL",
+      }),
+      enabled: DEFAULT_ENABLED,
+    });
+  };
+
+  it("solveArc respects the band budget and reports arc-center geometry", () => {
+    const spec = solveArc(36, 78, 5, 6)!;
+    expect(spec).not.toBeNull();
+    expect(spec.bandHeightMm).toBeLessThanOrEqual(6);
+    // The arc center sits one radius + ascent below the ink top.
+    expect(spec.centerFromTopMm).toBeCloseTo(spec.radiusMm + 5 * (25.4 / 72) * 0.8, 5);
+    // A generous budget honors the requested angle: radius = L / θ.
+    const generous = solveArc(36, 78, 5, 50)!;
+    expect(generous.radiusMm).toBeCloseTo(36 / ((78 * Math.PI) / 180), 3);
+    // Tighter budgets flatten the bow (bigger radius), never overflow it.
+    expect(spec.radiusMm).toBeGreaterThanOrEqual(generous.radiusMm);
+  });
+
+  it("solveArc declines degenerate bows instead of forcing them", () => {
+    expect(solveArc(36, 78, 5, 2)).toBeNull(); // no room under the budget
+    expect(solveArc(4, 78, 5, 8)).toBeNull(); // run too short to bow
+  });
+
+  it("bows the hex-elixir brand on labels with vertical room", () => {
+    const build = hexBuild(70, 30);
+    const brand = build.objects.find(
+      (o): o is TextObject => o.type === "text" && o.slot === "brand",
+    )!;
+    expect(brand.curve).toMatchObject({ direction: "up" });
+    // The stored point is the ARC CENTER; the ink hangs above it and must
+    // stay inside the trim — objectAabb knows the difference.
+    const box = objectAabb(brand);
+    expect(box.y).toBeGreaterThanOrEqual(0);
+    expect(box.y + box.height).toBeLessThan(brand.yMm);
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(70);
+  });
+
+  it("falls back to a straight row when the label has no room for a bow", () => {
+    const build = hexBuild(70, 12);
+    const brand = build.objects.find(
+      (o): o is TextObject => o.type === "text" && o.slot === "brand",
+    )!;
+    expect(brand.curve).toBeUndefined();
+  });
+
+  it("straightens rather than shrink an overlong run below the floor", () => {
+    const build = hexBuild(30, 30, "EXTRAORDINARILY LONG BRAND WORDMARK INC");
+    const brand = build.objects.find(
+      (o): o is TextObject => o.type === "text" && o.slot === "brand",
+    )!;
+    expect(brand.curve).toBeUndefined();
+    const box = objectAabb(brand);
+    expect(box.x + box.width).toBeLessThanOrEqual(30.01);
   });
 });
 
@@ -674,7 +749,7 @@ describe("research platform core (v4)", () => {
     const parsed = parseLabelDocument(JSON.parse(JSON.stringify(doc)));
     expect(parsed.easy?.densityMode).toBe("standard");
     expect(parsed.easy?.complianceAck?.[0]?.phrase).toBe("inject");
-    expect(parsed.schemaVersion).toBe(4);
+    expect(parsed.schemaVersion).toBe(5);
   });
 });
 

@@ -39,7 +39,10 @@ export function buildFamilyVariant(
     throw new Error("Matching labels need an Easy Creator project.");
   }
   const meta = { ...content.meta };
-  if (overrides.paletteId) meta.paletteId = overrides.paletteId;
+  if (overrides.paletteId) {
+    meta.paletteId = overrides.paletteId;
+    meta.customPalette = undefined; // explicit color coding wins
+  }
 
   const template = getEasyTemplate(meta.templateId);
   const material = getMaterial(meta.materialId);
@@ -47,7 +50,7 @@ export function buildFamilyVariant(
     throw new Error("The source label uses an unknown template or material.");
   }
   const option = getMaterialOption(material, meta.materialOptionId);
-  const palette = getEasyPalette(meta.paletteId);
+  const palette = meta.customPalette ?? getEasyPalette(meta.paletteId);
 
   const fields = { ...content.fields };
   const enabled = new Set<SlotId>(content.enabled);

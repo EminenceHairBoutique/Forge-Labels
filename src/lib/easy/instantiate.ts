@@ -28,14 +28,17 @@ import type {
   RowDef,
   ZoneId,
 } from "./templates";
+import { curvedInkBox, estimateRunLengthMm } from "@/lib/render/geometry";
 import { SLOTS, type SlotId } from "./slots";
 import { getPairing, roleDefaultWeight, roleFamily, roleWeights } from "./typography";
 import {
   approximateMeasure,
   fitRow,
   PT_TO_MM,
+  solveArc,
   squeezeFactor,
   stackZones,
+  type ArcSpec,
   type TextMeasure,
 } from "./layout";
 
@@ -78,6 +81,8 @@ export interface EasyBuildInput {
   placement?: EffectPlacement;
   /** Aspect ratio (w/h) of the uploaded logo, when fields.logo is set. */
   logoAspect?: number;
+  /** QR module style ("square" when absent). */
+  qrStyle?: "square" | "rounded" | "dot";
 }
 
 export interface EasyBuildResult {
@@ -668,6 +673,8 @@ export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
     obj: TextObject;
     heightMm: number;
     spacingBeforeMm: number;
+    /** Present when the row bowed into an arc — placement offsets differ. */
+    arc?: ArcSpec;
   }
 
   const isRight = (row: RowDef) => Boolean(split && row.column === "right");
@@ -791,6 +798,54 @@ export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
       fill,
       autoFit: false,
     };
+
+    // Bowed rows (RowDef.arc): solve the arc at the preferred size and
+    // shrink toward the floor while the ink is wider than the column. When
+    // no meaningful bow fits — short label, floor-size text, overlong run —
+    // the row falls through to the straight path below: type is never
+    // squeezed in service of a decoration.
+    if (row.arc && !row.monogram && !row.chip) {
+      let arcPt = prefPt;
+      let spec = solveArc(
+        estimateRunLengthMm({ ...base, fontSizePt: arcPt }),
+        row.arc,
+        arcPt,
+        heightMm * 0.2,
+      );
+      for (let pass = 0; spec && spec.inkWidthMm > columnW && pass < 3; pass++) {
+        if (arcPt <= minPt) {
+          spec = null;
+          break;
+        }
+        arcPt = Math.max(arcPt * ((columnW * 0.96) / spec.inkWidthMm), minPt);
+        spec = solveArc(
+          estimateRunLengthMm({ ...base, fontSizePt: arcPt }),
+          row.arc,
+          arcPt,
+          heightMm * 0.2,
+        );
+      }
+      if (spec && spec.inkWidthMm <= columnW) {
+        return {
+          def: row,
+          obj: {
+            ...base,
+            fontSizePt: MM(arcPt),
+            curve: { radiusMm: MM(spec.radiusMm), direction: "up" },
+            // Stored box: ink width, and a height whose TOP edge (the box
+            // is centered on the arc-center yMm) meets the ink top. The
+            // render reads only (xMm, yMm, curve); the box serves
+            // selection/snapping, and accurate checks use curvedInkBox.
+            widthMm: MM(spec.inkWidthMm),
+            heightMm: MM(2 * spec.centerFromTopMm),
+          },
+          heightMm: spec.bandHeightMm,
+          spacingBeforeMm:
+            (row.spacingBefore ?? 0.8) * scaleH * (tweaks.tight ? 0.6 : 1) * squeeze,
+          arc: spec,
+        };
+      }
+    }
 
     const fitted = fitRow(base, { prefPt, minPt, maxLines: row.maxLines }, measure);
     if (fitted.atMinimum) {
@@ -987,15 +1042,20 @@ export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
     columnLeft: (row: LaidRow) => number,
   ) => {
     rows.forEach((row, i) => {
-      const columnW = row.obj.widthMm;
+      const columnW = columnWidth(row.def);
       const left = columnLeft(row);
       const obj: TextObject = {
         ...row.obj,
         xMm: MM(left + columnW / 2),
-        yMm: MM(topList[startIndex + i]! + row.heightMm / 2),
+        // Arc rows store the arc CENTER (the render contract for curved
+        // text); it sits centerFromTopMm below the band's top edge.
+        yMm: MM(
+          topList[startIndex + i]! +
+            (row.arc ? row.arc.centerFromTopMm : row.heightMm / 2),
+        ),
       };
       placed.push(obj);
-      if (row.def.chip) {
+      if (row.def.chip && !row.arc) {
         chips.push(chipBehind(obj, row.def.chip, palette, scaleH));
       }
     });
@@ -1037,15 +1097,27 @@ export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
   }
 
   /**
+   * Vertical ink extents of a placed row. Curved rows store the ARC
+   * CENTER with a selection-aid box, so their real band comes from the
+   * shared ink-box estimate instead of yMm ± heightMm/2.
+   */
+  const rowExtent = (o: TextObject): { top: number; bottom: number } => {
+    const ink = o.curve ? curvedInkBox(o) : null;
+    return ink
+      ? { top: ink.y, bottom: ink.y + ink.height }
+      : { top: o.yMm - o.heightMm / 2, bottom: o.yMm + o.heightMm / 2 };
+  };
+
+  /**
    * Distance below a row at which a rule (underline/divider) can sit
    * without touching the next row — squeezed layouts close the gaps, so
    * the offset adapts to the real space available.
    */
   const ruleOffset = (row: TextObject, baseFactor: number): number => {
-    const bottom = row.yMm + row.heightMm / 2;
+    const bottom = rowExtent(row).bottom;
     let nextTop = Infinity;
     for (const o of placed) {
-      const top = o.yMm - o.heightMm / 2;
+      const top = rowExtent(o).top;
       if (top <= bottom + 0.05) continue;
       const overlapX =
         row.xMm - row.widthMm / 2 < o.xMm + o.widthMm / 2 &&
@@ -1061,8 +1133,8 @@ export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
     leftZones.hero.some((r) => r.obj.id === o.id),
   );
   if (heroRows.length > 0) {
-    const heroTop = Math.min(...heroRows.map((o) => o.yMm - o.heightMm / 2));
-    const heroBottom = Math.max(...heroRows.map((o) => o.yMm + o.heightMm / 2));
+    const heroTop = Math.min(...heroRows.map((o) => rowExtent(o).top));
+    const heroBottom = Math.max(...heroRows.map((o) => rowExtent(o).bottom));
     if (plan.heroPanel || plan.heroAccentPanel) {
       // Pad the panel but never let it reach neighboring rows or codes.
       const pad = 1.6 * scaleH;
@@ -1070,12 +1142,12 @@ export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
       const footerIds = new Set(leftZones.footer.map((r) => r.obj.id));
       const headerBottomMax = Math.max(
         zoneTop,
-        ...placed.filter((o) => headerIds.has(o.id)).map((o) => o.yMm + o.heightMm / 2),
+        ...placed.filter((o) => headerIds.has(o.id)).map((o) => rowExtent(o).bottom),
       );
       const footerTopMin = Math.min(
         zoneBottom,
         cornerCodeH > 0 ? codeBottom - cornerCodeH : Infinity,
-        ...placed.filter((o) => footerIds.has(o.id)).map((o) => o.yMm - o.heightMm / 2),
+        ...placed.filter((o) => footerIds.has(o.id)).map((o) => rowExtent(o).top),
       );
       const panelTop = Math.max(heroTop - pad, headerBottomMax + 0.4);
       const panelBottom = Math.min(heroBottom + pad, footerTopMin - 0.4);
@@ -1103,7 +1175,7 @@ export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
         objects.push(rect({
           slot: "accent:underline",
           xMm: template.align === "center" ? widthMm / 2 : MM(safeLeft + w / 2),
-          yMm: MM(productRow.yMm + productRow.heightMm / 2 + ruleOffset(productRow, 1.1)),
+          yMm: MM(rowExtent(productRow).bottom + ruleOffset(productRow, 1.1)),
           widthMm: w,
           heightMm: MM(Math.max(underline.strokePt * PT_TO_MM, 0.35)),
           fill: decorFill(underline.fill, palette, option.finishId),
@@ -1117,10 +1189,12 @@ export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
       );
       // A slot-targeted medallion is a badge for THAT text (e.g. a hexagon
       // behind the abbreviation) — if the slot isn't on the label, draw
-      // nothing rather than badge unrelated text.
+      // nothing rather than badge unrelated text. Untargeted medallions
+      // center on the first STRAIGHT row: an arc's stored center is the
+      // arc pivot, not its ink, so a badge there would miss the text.
       const target = medallion.slot
         ? placed.find((o) => o.slot === medallion.slot && o.type === "text")
-        : (headerRows[0] ?? heroRows[0]);
+        : (headerRows.find((o) => !o.curve) ?? heroRows.find((o) => !o.curve));
       if (target) {
         // The badge must CONTAIN its text — longer abbreviations grow the
         // medallion instead of spilling past it (hexagon mid-band is
@@ -1179,7 +1253,7 @@ export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
         template.align === "center" && !split
           ? widthMm / 2
           : MM(target.xMm - target.widthMm / 2 + w / 2),
-      yMm: MM(target.yMm + target.heightMm / 2 + ruleOffset(target, 0.9)),
+      yMm: MM(rowExtent(target).bottom + ruleOffset(target, 0.9)),
       widthMm: w,
       heightMm: MM(Math.max(decor.strokePt * PT_TO_MM, 0.3)),
       fill: decorFill(decor.fill, palette, option.finishId),
@@ -1194,7 +1268,7 @@ export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
   );
   if (plan.footerPanel && (footerObjects.length > 0 || qrOn || barcodeOn)) {
     const contentTop = footerObjects.length
-      ? Math.min(...footerObjects.map((o) => o.yMm - o.heightMm / 2))
+      ? Math.min(...footerObjects.map((o) => rowExtent(o).top))
       : codeBottom;
     const codesTop = codeBottom - Math.max(qrOn ? qrBox : 0, barcodeOn ? barcodeH : 0);
     const top = Math.min(contentTop, codesTop) - 1.2 * scaleH;
@@ -1325,7 +1399,7 @@ export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
       ecLevel: "M",
       fgColor: paletteQrColor(palette),
       bgColor: "#ffffff",
-      moduleShape: "square",
+      moduleShape: input.qrStyle ?? "square",
       quietModules: 4,
     };
     objects.push(qr);
@@ -1439,6 +1513,22 @@ function chipBehind(
 
 /** Opaque chip exactly behind a text row (full-effect readability). */
 function readabilityChip(obj: TextObject, color: string, scaleH: number): RectObject {
+  // Curved rows: the ink band hangs off the arc apex, not around the
+  // stored center — cover the real ink box instead.
+  const ink = obj.curve ? curvedInkBox(obj) : null;
+  if (ink) {
+    const padX = 1.4 * scaleH;
+    const padY = 0.6 * scaleH;
+    return rect({
+      slot: `accent:chip-${obj.slot}`,
+      xMm: MM(ink.x + ink.width / 2),
+      yMm: MM(ink.y + ink.height / 2),
+      widthMm: MM(ink.width + padX * 2),
+      heightMm: MM(ink.height + padY * 2),
+      fill: { type: "solid", color },
+      cornerRadiusMm: 0.6,
+    });
+  }
   const textW = estimateTextWidthMm(obj);
   const padX = 1.4 * scaleH;
   const padY = 0.6 * scaleH;

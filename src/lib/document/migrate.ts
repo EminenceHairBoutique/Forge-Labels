@@ -41,6 +41,11 @@ export function migrateDocument(raw: unknown): LabelDocument {
     // all optional additions; stamp only.
     data.schemaVersion = 4;
   }
+  if (version < 5) {
+    // v5 added optional easy-meta qrStyle and customPalette (logo-derived
+    // colors) — pure additions; stamp only.
+    data.schemaVersion = 5;
+  }
 
   return parseLabelDocument(data);
 }

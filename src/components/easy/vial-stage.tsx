@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
-import { Moon, RectangleHorizontal, Rotate3d, Sun } from "lucide-react";
+import { Camera, Moon, RectangleHorizontal, Rotate3d, Sun } from "lucide-react";
 import { mutateDocument, withGesture } from "@/lib/document/commands";
 import type { LabelDocument } from "@/lib/document/schema";
 import { getMaterial } from "@/lib/easy/materials";
@@ -10,7 +10,11 @@ import { useLabelTexture } from "@/components/mockup/use-label-texture";
 import {
   DEFAULT_MOCKUP_SETTINGS,
   type MockupSettings,
+  type VialSceneHandle,
 } from "@/components/mockup/vial-scene";
+import { getStorageAdapter } from "@/lib/storage";
+import { useProjectSessionStore } from "@/stores/project-session-store";
+import { toast } from "@/components/ui/toaster";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -49,6 +53,9 @@ export function VialStage({
   className?: string;
 }) {
   const labelCanvas = useLabelTexture(doc);
+  const sceneRef = React.useRef<VialSceneHandle>(null);
+  const projectId = useProjectSessionStore((s) => s.projectId);
+  const projectName = useProjectSessionStore((s) => s.projectName);
   const [webgl] = React.useState(() =>
     typeof document === "undefined" ? true : supportsWebGl(),
   );
@@ -76,6 +83,7 @@ export function VialStage({
       <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-border bg-canvas-backdrop">
         {show3d ? (
           <VialScene
+            ref={sceneRef}
             vial={doc.vial}
             labelWidthMm={doc.label.widthMm}
             labelHeightMm={doc.label.heightMm}
@@ -133,6 +141,38 @@ export function VialStage({
           <Rotate3d className="size-3.5" aria-hidden /> Spin
         </Button>
         <span className="flex-1" />
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 px-2.5 text-xs"
+          aria-label="Download a picture of the vial"
+          title="Download a picture of the vial"
+          disabled={!show3d}
+          onClick={() => {
+            const dataUrl = sceneRef.current?.snapshot();
+            if (!dataUrl) {
+              toast.error("Couldn't capture the preview — try again.");
+              return;
+            }
+            const a = document.createElement("a");
+            a.href = dataUrl;
+            const fileName = `${(projectName || "label").replaceAll(/\s+/g, "-").toLowerCase()}-mockup.png`;
+            a.download = fileName;
+            a.click();
+            const byteSize = Math.round((dataUrl.length - "data:image/png;base64,".length) * 0.75);
+            void getStorageAdapter().recordExport({
+              projectId,
+              projectName,
+              kind: "png",
+              fileName,
+              byteSize,
+              dpi: null,
+            });
+            toast.success("Mockup saved", "A picture of the vial, not a print file.");
+          }}
+        >
+          <Camera className="size-3.5" aria-hidden />
+        </Button>
         <Button
           variant="outline"
           size="sm"

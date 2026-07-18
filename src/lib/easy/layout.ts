@@ -30,6 +30,54 @@ export function approximateMeasure(obj: TextObject): number {
   return Math.max(lines * fontMm * obj.lineHeight, 0.1);
 }
 
+export interface ArcSpec {
+  radiusMm: number;
+  /** The arc center sits this far below the ink band's top edge. */
+  centerFromTopMm: number;
+  /** Vertical space the bowed row occupies (sagitta + ascent + pad). */
+  bandHeightMm: number;
+  /** Horizontal ink extent (chord plus rotated end-glyph overhang). */
+  inkWidthMm: number;
+}
+
+/**
+ * Geometry for a row bowed upward along a circular arc (pharma-seal brand
+ * lines). `requestedDeg` is the MOST the run may subtend; the solver
+ * flattens the bow (bigger radius) until the band fits `bandBudgetMm` and
+ * returns null when no meaningful bow fits — callers then keep the row
+ * straight. Pure and estimate-driven: the engine lays out and the
+ * validator boxes with the same numbers, so the two cannot disagree.
+ */
+export function solveArc(
+  runLengthMm: number,
+  requestedDeg: number,
+  fontSizePt: number,
+  bandBudgetMm: number,
+): ArcSpec | null {
+  const fontMm = fontSizePt * PT_TO_MM;
+  const ascentMm = fontMm * 0.8;
+  const padMm = fontMm * 0.25;
+  const sagittaMax = bandBudgetMm - ascentMm - padMm;
+  // A bow shallower than ~half the cap height reads as a mistake, not an
+  // arch — below that (or on runs too short to sweep), stay straight.
+  if (runLengthMm < 8 || sagittaMax < Math.max(0.9, fontMm * 0.55)) return null;
+  // Small-angle inversion of sagitta = (L/θ)·(1 − cos(θ/2)) ≈ L·θ/8. The
+  // approximation overestimates the sagitta, so the exact band computed
+  // below always comes in at or under budget.
+  const budgetTheta = (8 * sagittaMax) / runLengthMm;
+  const theta = Math.min((Math.max(requestedDeg, 0) * Math.PI) / 180, budgetTheta, 2.6);
+  if (theta < 0.35) return null;
+  const radiusMm = runLengthMm / theta;
+  if (radiusMm > 300) return null;
+  const half = theta / 2;
+  return {
+    radiusMm,
+    centerFromTopMm: radiusMm + ascentMm,
+    bandHeightMm: radiusMm * (1 - Math.cos(half)) + ascentMm + padMm,
+    inkWidthMm: 2 * (radiusMm + ascentMm) * Math.sin(half) + fontMm * 0.3,
+  };
+}
+
 export interface FitResult {
   fontSizePt: number;
   heightMm: number;

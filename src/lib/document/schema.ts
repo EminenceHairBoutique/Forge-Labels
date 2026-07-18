@@ -15,7 +15,7 @@ import { z } from "zod";
  *   changes; never silently break stored documents.
  */
 
-export const DOCUMENT_SCHEMA_VERSION = 4;
+export const DOCUMENT_SCHEMA_VERSION = 5;
 
 // ---------------------------------------------------------------------------
 // Shared primitives
@@ -430,6 +430,28 @@ export const EasyMetaSchema = z.object({
         at: z.number(),
       }),
     )
+    .optional(),
+  /** v5: QR module style on the label ("square" when absent). */
+  qrStyle: z.enum(["square", "rounded", "dot"]).optional(),
+  /**
+   * v5: a palette derived from the user's own colors (e.g. extracted from
+   * their logo), used INSTEAD of `paletteId` while present. Stored inline
+   * because it isn't in the curated registry; contrast floors are enforced
+   * at creation and preflight still checks the result.
+   */
+  customPalette: z
+    .object({
+      id: z.string(),
+      name: z.string(),
+      bg: hexColor.nullable(),
+      text: hexColor,
+      muted: hexColor,
+      accent: hexColor,
+      onAccent: hexColor,
+      dark: z.boolean(),
+      border: hexColor.optional(),
+      qrColor: hexColor.optional(),
+    })
     .optional(),
   stash: z.record(z.string(), z.string()).optional(),
   /** One-click fix adjustments — persist so later edits keep the fix. */

@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toaster";
 import { VialStage } from "./vial-stage";
@@ -220,6 +221,7 @@ export function TemplateBrowser({ open, onOpenChange, doc }: TemplateBrowserProp
   const [density, setDensity] = React.useState<ContentDensity | "all">("all");
   const [onlyFavs, setOnlyFavs] = React.useState(false);
   const [filtersOpen, setFiltersOpen] = React.useState(false);
+  const [query, setQuery] = React.useState("");
   const [favs, setFavs] = React.useState<Set<string>>(readFavs);
   const [detail, setDetail] = React.useState<EasyTemplateDef | null>(null);
   const [busy, setBusy] = React.useState(false);
@@ -292,14 +294,25 @@ export function TemplateBrowser({ open, onOpenChange, doc }: TemplateBrowserProp
   });
   const hidden = EASY_TEMPLATES.length - eligible.length;
 
+  const needle = query.trim().toLowerCase();
   const filtered = eligible.filter((t) => {
     if (category !== "all" && !t.category.includes(category)) return false;
     if (tone !== "all" && (templatePrefersDark(t) ? "dark" : "light") !== tone) return false;
     if (density !== "all" && t.density !== density) return false;
     if (onlyFavs && !favs.has(t.id)) return false;
+    if (
+      needle &&
+      ![t.name, t.familyName, ...t.mood, ...t.category]
+        .join(" ")
+        .toLowerCase()
+        .includes(needle)
+    ) {
+      return false;
+    }
     return true;
   });
-  const anyFilter = category !== "all" || tone !== "all" || density !== "all" || onlyFavs;
+  const anyFilter =
+    category !== "all" || tone !== "all" || density !== "all" || onlyFavs || needle.length > 0;
 
   const featured = filtered.filter((t) => t.featured);
   const sections: { title: string; items: EasyTemplateDef[] }[] = anyFilter
@@ -385,6 +398,13 @@ export function TemplateBrowser({ open, onOpenChange, doc }: TemplateBrowserProp
 
         {/* Filter bar (collapses to a bottom sheet on phones). */}
         <div className="flex items-center gap-2 border-b border-border px-4 py-2">
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search templates…"
+            aria-label="Search templates"
+            className="h-8 w-36 text-xs sm:w-48"
+          />
           <Button
             variant="outline"
             size="sm"

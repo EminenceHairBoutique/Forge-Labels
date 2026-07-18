@@ -86,7 +86,7 @@ async function applyEasyChangeNow(change: EasyChange): Promise<string[]> {
   const material = getMaterial(meta.materialId);
   if (!template || !material) return [];
   const option = getMaterialOption(material, meta.materialOptionId);
-  const palette = getEasyPalette(meta.paletteId);
+  const palette = meta.customPalette ?? getEasyPalette(meta.paletteId);
 
   const fields = { ...state.fields };
   const enabled = new Set(state.enabled);
@@ -202,6 +202,7 @@ async function applyEasyChangeNow(change: EasyChange): Promise<string[]> {
     pairingId: meta.pairingId,
     placement: meta.placement as EffectPlacement | undefined,
     logoAspect: meta.logoAspect,
+    qrStyle: meta.qrStyle,
   });
 
   withGesture(() => {

@@ -2,7 +2,9 @@ import { createDocument } from "@/lib/document/defaults";
 import type { LabelObject, TextObject } from "@/lib/document/schema";
 import { availableWeights, getFontFamily } from "@/lib/fonts/registry";
 import { getVialPreset, VIAL_PRESETS } from "@/lib/vials/presets";
+import { curvedInkBox } from "@/lib/render/geometry";
 import { buildEasyLabel, type EasyBuildInput } from "./instantiate";
+import { PT_TO_MM } from "./layout";
 import { contrastRatio, getEasyPalette, EASY_PALETTES } from "./palettes";
 import { getMaterial, getMaterialOption, MATERIALS, type MaterialDef } from "./materials";
 import { EASY_TEMPLATES, type EasyTemplateDef } from "./templates";
@@ -269,6 +271,19 @@ interface Box {
 }
 
 function objBox(o: LabelObject): Box {
+  // Curved text: the ink hangs off the arc apex — box the real ink, not
+  // the stored selection rectangle (same math the engine lays out with).
+  if (o.type === "text" && o.curve) {
+    const ink = curvedInkBox(o);
+    if (ink) {
+      return {
+        left: ink.x,
+        right: ink.x + ink.width,
+        top: ink.y,
+        bottom: ink.y + ink.height,
+      };
+    }
+  }
   // Rotated ±90 text swaps its extents around the center.
   const rotated = o.rotationDeg % 180 !== 0;
   const w = rotated ? o.heightMm : o.widthMm;
@@ -295,14 +310,20 @@ function backingAt(
   objects: LabelObject[],
   target: TextObject,
 ): string | null {
-  // Glyphs sit at the aligned edge of the text box, not its center.
+  // Glyphs sit at the aligned edge of the text box, not its center. Curved
+  // rows read at the arc apex: horizontally centered, just under the ink
+  // box's top edge (the stored center sits far below the ink).
   const box = objBox(target);
-  const anchorX =
-    target.align === "left"
+  const anchorX = target.curve
+    ? target.xMm
+    : target.align === "left"
       ? box.left + Math.min(1, target.widthMm / 4)
       : target.align === "right"
         ? box.right - Math.min(1, target.widthMm / 4)
         : target.xMm;
+  const anchorY = target.curve
+    ? box.top + target.fontSizePt * PT_TO_MM * 0.4
+    : target.yMm;
   let color: string | null = null;
   for (const o of objects) {
     if (o === target) break; // only things painted BELOW the text
@@ -316,8 +337,8 @@ function backingAt(
     if (
       anchorX >= cover.left &&
       anchorX <= cover.right &&
-      target.yMm >= cover.top &&
-      target.yMm <= cover.bottom
+      anchorY >= cover.top &&
+      anchorY <= cover.bottom
     ) {
       color = o.fill.color;
     }

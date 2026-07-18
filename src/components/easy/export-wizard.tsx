@@ -28,6 +28,7 @@ import { toPlainIssues } from "@/lib/easy/plain-preflight";
 import { buildSpecSheet, listDocumentFonts } from "@/lib/easy/spec-sheet";
 import { applyEasyChange } from "@/lib/easy/fields";
 import { getStorageAdapter } from "@/lib/storage";
+import type { ExportRecord } from "@/lib/storage/types";
 import { useProjectSessionStore } from "@/stores/project-session-store";
 import { Button } from "@/components/ui/button";
 import {
@@ -87,6 +88,22 @@ export function ExportWizard({
     () => (open ? toPlainIssues(runPreflight(doc), doc) : []),
     [doc, open],
   );
+
+  const [recentExports, setRecentExports] = React.useState<ExportRecord[]>([]);
+  React.useEffect(() => {
+    if (!open || !projectId) return;
+    let alive = true;
+    getStorageAdapter()
+      .listExports()
+      .then((all) => {
+        if (!alive) return;
+        setRecentExports(all.filter((e) => e.projectId === projectId).slice(0, 3));
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [open, projectId, busy]);
 
   // §7/§29 review gate: the research-use notice must be read before export,
   // and flagged wording must be acknowledged (recorded on the project —
@@ -411,6 +428,24 @@ export function ExportWizard({
             >
               Advanced print options (all formats, DPI, separations…)
             </button>
+            {recentExports.length > 0 && (
+              <div className="mt-2 space-y-1 border-t border-border pt-2">
+                <p className="text-xs font-medium text-muted-foreground">
+                  Recent downloads for this label
+                </p>
+                <ul className="space-y-0.5">
+                  {recentExports.map((entry) => (
+                    <li key={entry.id} className="flex items-baseline gap-2 text-[11px] text-muted-foreground">
+                      <span className="truncate font-medium text-foreground">{entry.fileName}</span>
+                      <span className="shrink-0">
+                        {entry.dpi ? `${entry.dpi} DPI · ` : ""}
+                        {new Date(entry.createdAt).toLocaleDateString()}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         )}
 

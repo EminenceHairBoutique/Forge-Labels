@@ -45,6 +45,10 @@ export interface EasyChange {
   noticeReviewed?: number;
   /** Record acknowledged compliance warnings (export flow audit trail). */
   acknowledge?: { slot: string; phrase: string; at: number }[];
+  /** QR module style ("square" | "rounded" | "dot"). */
+  qrStyle?: "square" | "rounded" | "dot";
+  /** Logo-derived palette — null clears back to the curated paletteId. */
+  customPalette?: NonNullable<EasyMeta["customPalette"]> | null;
 }
 
 /** Slots "Simplify design" turns off (values are stashed, so reversible). */
@@ -98,7 +102,14 @@ export function readEasyContent(doc: LabelDocument): EasyContent | null {
  */
 export function nextEasyMeta(current: EasyMeta, change: EasyChange): EasyMeta {
   const meta: EasyMeta = { ...current };
-  if (change.paletteId) meta.paletteId = change.paletteId;
+  if (change.paletteId) {
+    meta.paletteId = change.paletteId;
+    meta.customPalette = undefined; // picking a curated palette wins
+  }
+  if (change.customPalette !== undefined) {
+    meta.customPalette = change.customPalette ?? undefined;
+  }
+  if (change.qrStyle) meta.qrStyle = change.qrStyle;
   if (change.templateId) {
     meta.templateId = change.templateId;
     // A template's curated pairing is part of its design — switching

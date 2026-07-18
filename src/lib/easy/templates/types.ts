@@ -96,6 +96,16 @@ export interface RowDef {
   align?: "left" | "center" | "right";
   /** Collapse this row entirely on labels shorter than this (§6). */
   minLabelHeightMm?: number;
+  /**
+   * Bow this row upward along a circular arc (pharma-seal brand lines) —
+   * rendered as the same curved text the studio editor offers, so editor
+   * and exports stay in parity. The value is the MAXIMUM angle in degrees
+   * the text may subtend; the engine flattens the bow to fit the label's
+   * vertical budget and falls back to a straight row when no meaningful
+   * bow fits (short labels, floor-size text, overlong runs). Single-line
+   * rows only; ignored on monogram and chip rows.
+   */
+  arc?: number;
 }
 
 /** Rotated text along an edge (reads bottom-up on the left, top-down right). */

@@ -4,13 +4,15 @@ import { defineTemplate } from "./types";
 
 /**
  * Hex Badge family — modeled on a user-supplied pharma brand system:
- * tracked brand line over a hexagon initials badge, a heavyweight product
- * name, a full-width rule, then a technical data block. Layout ONLY —
- * brand names, products, ingredients, and any claims are the user's field
- * text (reviewed by the compliance pass), the badge letters come from the
- * abbreviation field, and an uploaded logo replaces nothing it shouldn't.
- * On holographic material the film + readability panels come from the
- * material rules, matching the reference's foil-and-white-panel look.
+ * tracked brand line ARCHED over a hexagon initials badge (the classic
+ * seal look; the engine flattens or straightens the bow on labels without
+ * the vertical room), a heavyweight product name, a full-width rule, then
+ * a technical data block. Layout ONLY — brand names, products,
+ * ingredients, and any claims are the user's field text (reviewed by the
+ * compliance pass), the badge letters come from the abbreviation field,
+ * and an uploaded logo replaces nothing it shouldn't. On holographic
+ * material the film + readability panels come from the material rules,
+ * matching the reference's foil-and-white-panel look.
  */
 
 function dataRow(slot: RowDef["slot"], overrides: Partial<RowDef> = {}): RowDef {
@@ -46,7 +48,7 @@ export const HEX_BADGE_TEMPLATES: readonly EasyTemplateDef[] = [
     minHeightMm: 18,
     align: "center",
     rows: [
-      brandCaps({ align: "center", color: "accent", letterSpacingEm: 0.18 }),
+      brandCaps({ align: "center", color: "accent", letterSpacingEm: 0.18, arc: 78 }),
       // The badge: the abbreviation ("ZH"-style initials) on a hexagon.
       { slot: "abbreviation", zone: "header", font: "display", weight: 700, sizeFactor: 0.075, minPt: 4.5, maxLines: 1, color: "onAccent", align: "center", spacingBefore: 2.6, minLabelHeightMm: 22 },
       productHero(0.19, { align: "center", minPt: 8, spacingBefore: 2.6 }),
