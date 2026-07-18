@@ -34,7 +34,7 @@ imports `server-only`), but treat the value with the same care.
 
 ### 1.2 Run the migrations
 
-Three files in `supabase/migrations/`, in order:
+Four files in `supabase/migrations/`, in order:
 
 - `0001_init.sql` — all tables, RLS policies, helper functions
   (`is_admin()`, `is_org_member()`), the `get_shared_project` RPC, and the
@@ -44,6 +44,12 @@ Three files in `supabase/migrations/`, in order:
   code) and template categories.
 - `0003_team_ui.sql` — owner-inclusive membership checks and the
   `get_org_members` directory function used by the Team page.
+- `0004_verification.sql` — hosted batch-verification records
+  (`batch_records` + the anon-executable `get_batch_record` RPC) and the
+  public `coa` bucket (PDF-only, owner-namespaced writes) behind the
+  `/verify/[token]` pages. Verify with two test users: owners see only
+  their rows; anonymous reads work solely through the RPC and only for
+  `published` records.
 
 Either paste each file into the **SQL Editor** and run them, or use the
 Supabase CLI:

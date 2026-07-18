@@ -32,6 +32,19 @@ Both edit the same document; switching modes never loses work.
   (`npm run validate:templates`): print floors, overlap, QR quiet zones,
   contrast against actual backings, and font checks across sizes ×
   content stress × material rules.
+- **Brand touches** — arched brand lines (pharma-seal style, flattened or
+  straightened automatically on labels without the room), a
+  contrast-enforced palette extracted from your uploaded logo, QR module
+  styles, and named cap colors with one-click vial mockup snapshots.
+- **Home printing on precut sheets** — seven standard die-cut grids
+  (30/10/80-up Letter, 21/24/14/65-up A4) reproduced exactly, label trim
+  centered per sticker, with plain-language fit warnings — plus the
+  existing cut-yourself layouts, printer calibration page, and 600 DPI
+  sheet PDFs.
+- **Hosted batch verification (cloud mode)** — publish a per-batch record
+  page (your fields, your notice, optional COA PDF with SHA-256
+  fingerprint) and point the label's QR at it; pages display your words
+  verbatim and state that Forge Labels doesn't verify contents.
 - **Research & laboratory labels** — a label-purpose step (research
   peptide, lab reagent, pharmaceutical-inspired, biotechnology…), research
   fields (catalog/SKU/lot/batch/dates plus user-supplied purity, formula,

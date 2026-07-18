@@ -214,3 +214,29 @@ Still later (tracked in [deferred.md](./deferred.md)):
   image filter pipeline (`src/lib/render/image-filters.ts`) is applied
   identically in the editor and every export, and processed variants can be
   stored through the existing assets adapter.
+
+## Upgrade batch — Shipped
+
+Post-research-platform improvements, delivered as gated milestone commits:
+
+- **Quick wins.** Template search in the browser, named cap colors + mockup
+  PNG download on the vial stage, QR module styles (square/rounded/dot),
+  new vial presets (10 mL crimp, 2 mL cryo, 5 mL serum, 50 mL centrifuge),
+  recent-exports list in the export wizard (schema v5).
+- **Arched brand rows.** `RowDef.arc` bows a row along a circular arc via
+  the shared curved-text render; the engine flattens or straightens the bow
+  to fit, and `curvedInkBox` (render/geometry) is the one source of arc ink
+  bounds for preflight, snapping, panels, and the template validator. Hex
+  Elixir's brand line arcs over its badge.
+- **Logo palettes.** Dominant colors extracted from the uploaded logo become
+  a contrast-enforced "From your logo" palette chip; washed-out logos
+  honestly yield nothing. (Also fixed: logos now survive engine rebuilds.)
+- **Precut sheet presets.** Seven standard die-cut grids (unbranded) drive
+  the imposition engine exactly — label trim centered per sticker, plain
+  warnings for size mismatches, wired into both print surfaces.
+- **Infrastructure.** IndexedDB thumbnail cache keyed by built-doc hash;
+  installable PWA (manifest + conservative service worker, production
+  only); opt-in Firefox/WebKit CI job.
+- **Batch verification pages.** Cloud-gated hosted records
+  (`/verify/[token]`) showing owner-entered batch data verbatim with COA
+  upload + SHA-256 fingerprint; Verify studio page + editor compose link.

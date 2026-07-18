@@ -160,3 +160,17 @@ or die-cut guides as separate processes:
 - Preflight flags two layer mistakes: white ink assigned on opaque white
   stock (usually unintended) and text/images on the die-cut layer (die
   lines should be simple shapes).
+
+## Precut label sheets
+
+Sheet presets (`SHEET_PRESETS` in `src/lib/print/imposition.ts`) pin the
+imposition grid to a die-cut sheet's factory geometry instead of
+auto-fitting: exact columns/rows, exact sticker size, factory margins
+reproduced by centering the symmetric grid. The label's TRIM centers in
+each sticker via the `trimInset` carried on the imposition result — the
+sheet PDF and the dialog preview both place from it, so they cannot
+disagree, and artwork is never scaled to a mismatched cell. Size
+mismatches surface as plain warnings (clipped at the die-cut edge, blank
+border, bleed reaching neighbors); the tool never silently rescales.
+Presets are deliberately unbranded — match the label size and count
+printed on the sheet packaging.

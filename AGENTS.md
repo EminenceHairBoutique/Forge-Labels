@@ -101,6 +101,11 @@ react-konva editor, optional Supabase/Stripe. Full design rationale:
   If editor e2e fails with stale chunks, kill leftover servers:
   `pkill -f "next[-]server"` (bracket avoids self-match).
 - Fictional template brands only; finishes are labeled simulations.
+- Curved (arc) text stores its ARC CENTER in (xMm, yMm) and a
+  selection-aid box — real ink bounds come ONLY from `curvedInkBox` /
+  `objectAabb` in `src/lib/render/geometry.ts`, never `yMm ± heightMm/2`.
+  The Easy engine's arc solver (`solveArc` in `src/lib/easy/layout.ts`)
+  shares the same estimates, so layout and validation cannot disagree.
 
 ## Docs map
 

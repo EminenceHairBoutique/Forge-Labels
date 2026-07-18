@@ -55,3 +55,13 @@ numbers behind it. Baselines are from the pre-overhaul build (commit
 - The production build emits the Easy editor and browser as
   client-side islands; the 9.3 MB font directory is static content
   served per-file on demand, not part of any JS bundle.
+
+## Thumbnail cache
+
+Template-browser and wizard previews are memoized twice: an in-session
+promise cache, backed by IndexedDB (`fl-thumbs`, `src/lib/export/thumb-cache.ts`).
+The persistent key is a hash of the BUILT document (object ids stripped)
+plus the raster size — template redesigns change the doc and therefore
+self-invalidate; nothing needs a version bump. Entries are LRU-pruned at
+400. A cache hit skips font loading and Konva entirely, so a revisited
+browser paints from disk.

@@ -292,6 +292,37 @@ environment is generated locally (`scripts/generate-hdr.mjs`) — no CDN
 fetches. The landing hero defers loading until idle and falls back to SVG
 when WebGL or motion is unavailable.
 
+## Upgrade-batch systems
+
+- **Arc rows.** `RowDef.arc` (max subtended degrees) flows through
+  `solveArc` (`src/lib/easy/layout.ts`), which flattens the bow to the
+  label's vertical budget or declines it; the emitted `TextObject.curve`
+  renders through the SAME curved-text mapping the studio editor uses
+  (Konva.TextPath / glyph outlines in SVG + vector PDF). Arc ink bounds
+  come exclusively from `curvedInkBox` in `src/lib/render/geometry.ts` —
+  `objectAabb` is curve-aware, so preflight, snapping, group bounds,
+  engine panels, and the template validator all box the same estimate.
+- **Logo palettes.** `src/lib/easy/logo-palette.ts` (pure) quantizes the
+  uploaded logo's pixels and derives a light palette whose roles are
+  nudged along their lightness axes to curated-palette contrast floors;
+  `paletteFromLogoSrc` (logo.ts) is the browser glue. Applied as
+  `easy.customPalette`; picking any curated palette clears it.
+- **Precut sheets.** `SHEET_PRESETS` + `ImpositionInput.sheet` pin the
+  grid/cell to die-cut geometry; the `trimInset` on the result is the one
+  placement contract shared by the sheet PDF and the dialog preview.
+- **Thumbnail cache.** `src/lib/export/thumb-cache.ts` fronts
+  `renderThumbnail` with IndexedDB keyed by `stableDocKey` (built-doc
+  hash, ids stripped) — self-invalidating, LRU-pruned.
+- **PWA.** `app/manifest.ts` + `public/sw.js` (cache-first for hashed
+  statics/fonts/icons, network-first navigations, APIs untouched),
+  registered in production only (`components/pwa-register.tsx`).
+- **Batch verification.** `batch_records` + `get_batch_record` RPC
+  (`0004_verification.sql`) mirror the share-link pattern; the public
+  `coa` bucket holds owner-namespaced PDFs fingerprinted client-side
+  (`src/lib/verify-core.ts` SHA-256). `/verify/[token]` renders owner
+  data verbatim; the studio Verify page manages records behind the
+  `verification` capability.
+
 ## Testing
 
 - **Unit (Vitest):** geometry/calculator, document commands + undo

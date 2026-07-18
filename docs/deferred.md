@@ -64,3 +64,11 @@ These need real infrastructure and belong on the
 - **Share links and team flows against live RLS.** Local-mode CI verifies the
   honest gates; link resolution, invite acceptance, and org-scoped project
   visibility need a running Supabase project with two test users.
+- **Batch verification pages against live RLS + storage.** The
+  `batch_records` policies, `get_batch_record` RPC, and the public `coa`
+  bucket ship in `0004_verification.sql`; CI proves the local-mode gates
+  and the pure helpers only. Verify with two users per SETUP §1.2.
+- **Firefox/WebKit e2e runs.** The Playwright projects exist behind
+  `PW_BROWSERS=all` and CI has a dispatchable `e2e-cross` job, but this
+  sandbox ships Chromium only — the first cross-browser run happens in CI,
+  not here.
