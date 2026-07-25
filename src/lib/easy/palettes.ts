@@ -74,6 +74,9 @@ export const EASY_PALETTES: readonly EasyPalette[] = [
   p("navy-white", "Navy & white", "#12233f", "#f4f7fb", "#9fb0c8", "#f4f7fb", "#12233f", true, { glass: ["cobalt", "clear"], qrColor: "#0a1526" }),
   p("emerald-gold", "Emerald & gold", "#0e2a22", "#eef4ee", "#9ab8ab", "#d4af5f", "#14241d", true),
   p("rose-cream", "Rose & cream", "#f9f1ec", "#4a2c33", "#8a6b72", "#b0566b", "#ffffff"),
+  // --- Noir (near-black premium research) -------------------------------------
+  p("noir-silver", "Noir & silver", "#0c0c10", "#f4f4f6", "#a6adb8", "#c9ccd4", "#14141a", true, { border: "#3a3a44", glass: ["clear", "cobalt"] }),
+  p("noir-blue", "Noir & electric blue", "#060a12", "#eaf2ff", "#93a8c7", "#4f8dff", "#061021", true, { border: "#243247", glass: ["cobalt", "clear"] }),
   // --- Holographic pairings --------------------------------------------------
   p("holo-black", "Black & holographic", "#131318", "#f5f5f7", "#a3a3ad", "#cdd6f4", "#131318", true),
   p("holo-white", "White & holographic", "#ffffff", "#232330", "#6a6a78", "#6a58cf", "#ffffff"),

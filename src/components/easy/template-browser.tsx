@@ -382,6 +382,9 @@ export function TemplateBrowser({ open, onOpenChange, doc }: TemplateBrowserProp
         "Couldn't use this template",
         err instanceof Error ? err.message : undefined,
       );
+    } finally {
+      // The browser stays mounted after closing — a stuck busy flag used
+      // to disable every Use button the next time it was opened.
       setBusy(false);
     }
   }

@@ -23,6 +23,7 @@ import type {
 } from "./materials";
 import type {
   ColorRole,
+  DecorDef,
   DecorFill,
   EasyTemplateDef,
   RowDef,
@@ -200,6 +201,22 @@ function estimateTextWidthMm(obj: TextObject): number {
   const text = obj.textTransform === "uppercase" ? obj.text.toUpperCase() : obj.text;
   const longest = text.split("\n").reduce((max, line) => Math.max(max, line.length), 0);
   return Math.min(longest * fontMm * 0.54 * (1 + obj.letterSpacingEm), obj.widthMm);
+}
+
+/**
+ * Badge diameter for a medallion behind a text row: never smaller than
+ * the design size, always big enough to CONTAIN the text (a hexagon's
+ * mid-band is narrower than its bounding box, hence the /0.62 headroom).
+ * One formula for both the stack reservation and the draw.
+ */
+function medallionDiameterMm(
+  target: TextObject,
+  sizeFactor: number,
+  labelHeightMm: number,
+): number {
+  return MM(
+    Math.max(labelHeightMm * sizeFactor, estimateTextWidthMm(target) / 0.62, 4),
+  );
 }
 
 export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
@@ -887,8 +904,25 @@ export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
   const floor = tweaks.tight ? 0.45 : 0.55;
 
   let rowSet = activeRows;
+  // A slot-targeted medallion (badge) grows to CONTAIN its text, so the
+  // badge's real box can exceed the text row's height — the row must
+  // reserve the badge's diameter in the stack, or a long abbreviation
+  // pushes the badge up into the row above it.
+  const targetedMedallion = decorActive.find(
+    (d): d is Extract<DecorDef, { kind: "medallion" }> =>
+      d.kind === "medallion" && Boolean(d.slot),
+  );
   const buildAll = (squeeze: number): LaidRow[] =>
-    rowSet.map((row) => buildRow(row, squeeze));
+    rowSet.map((row) => {
+      const built = buildRow(row, squeeze);
+      if (targetedMedallion && row.slot === targetedMedallion.slot && !built.arc) {
+        built.heightMm = Math.max(
+          built.heightMm,
+          medallionDiameterMm(built.obj, targetedMedallion.sizeFactor, heightMm),
+        );
+      }
+      return built;
+    });
   // Corner codes reserve real vertical space in the footer zone; split
   // layouts reserve it inside the right column. Both count against the
   // fit budget so the centered hero can never drift into a code.
@@ -1196,14 +1230,12 @@ export function buildEasyLabel(input: EasyBuildInput): EasyBuildResult {
         ? placed.find((o) => o.slot === medallion.slot && o.type === "text")
         : (headerRows.find((o) => !o.curve) ?? heroRows.find((o) => !o.curve));
       if (target) {
-        // The badge must CONTAIN its text — longer abbreviations grow the
-        // medallion instead of spilling past it (hexagon mid-band is
-        // narrower than its bounding box, hence the /0.62 headroom).
-        const textW =
-          target.type === "text" ? estimateTextWidthMm(target) : 0;
-        const d = MM(
-          Math.max(heightMm * medallion.sizeFactor, textW / 0.62, 4),
-        );
+        // Same formula the stack reserved space with — badge and band
+        // agree by construction.
+        const d =
+          target.type === "text"
+            ? medallionDiameterMm(target, medallion.sizeFactor, heightMm)
+            : MM(Math.max(heightMm * medallion.sizeFactor, 4));
         const shared = {
           id: newObjectId(),
           name: "",

@@ -14,6 +14,7 @@ import { RESEARCH_PEPTIDE_TEMPLATES } from "./research-peptide";
 import { DARK_LABORATORY_TEMPLATES } from "./dark-laboratory";
 import { BIOTECHNOLOGY_TEMPLATES } from "./biotechnology";
 import { HEX_BADGE_TEMPLATES } from "./hex-badge";
+import { NOIR_TEMPLATES } from "./noir";
 import type { EasyTemplateDef, TemplateCategory } from "./types";
 
 /**
@@ -39,6 +40,7 @@ const ALL: EasyTemplateDef[] = [
   ...DARK_LABORATORY_TEMPLATES,
   ...BIOTECHNOLOGY_TEMPLATES,
   ...HEX_BADGE_TEMPLATES,
+  ...NOIR_TEMPLATES,
 ];
 
 export const EASY_TEMPLATES: readonly EasyTemplateDef[] = ALL;

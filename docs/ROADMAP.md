@@ -240,3 +240,10 @@ Post-research-platform improvements, delivered as gated milestone commits:
 - **Batch verification pages.** Cloud-gated hosted records
   (`/verify/[token]`) showing owner-entered batch data verbatim with COA
   upload + SHA-256 fingerprint; Verify studio page + editor compose link.
+- **Noir family (user-supplied designs).** Four templates modeled on an
+  uploaded four-piece label system — Noir Core (black + silver split),
+  Noir Spectral (film-framed centered stack), Noir Cryo (light clinical
+  flip), Noir Grid (corner-bracketed data-first) — plus two curated
+  near-black palettes (noir-silver, noir-blue) and an engine fix: rows
+  targeted by a badge medallion now reserve the badge's real diameter in
+  the stack.
