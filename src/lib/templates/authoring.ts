@@ -4,6 +4,7 @@ import type {
   Background,
   BarcodeObject,
   EllipseObject,
+  ImageObject,
   LabelDocument,
   LabelObject,
   LineObject,
@@ -130,6 +131,38 @@ export function qr(
   };
 }
 
+/**
+ * Bundled artwork plate served from a same-origin URL (public/…) — the
+ * base layer of exact-reproduction templates. Defaults to fill (the
+ * plate is pre-sized to the label + bleed) and locked (the plate is the
+ * design; only the overlaid fields are meant to move).
+ */
+export function image(
+  input: Partial<ImageObject> & {
+    url: string;
+    xMm: number;
+    yMm: number;
+    widthMm: number;
+    heightMm: number;
+    naturalWidthPx: number;
+    naturalHeightPx: number;
+  },
+): ImageObject {
+  const { url, ...rest } = input;
+  return {
+    ...base,
+    id: newObjectId(),
+    type: "image",
+    source: { kind: "url", url },
+    fit: "fill",
+    locked: true,
+    flipX: false,
+    flipY: false,
+    filters: { brightness: 0, contrast: 0, saturation: 0, blurPx: 0, grayscale: false },
+    ...rest,
+  };
+}
+
 export function barcode(
   input: Partial<BarcodeObject> & {
     value: string;
@@ -155,6 +188,12 @@ export interface TemplateDocParts {
   background?: Background;
   substrateId?: string;
   objects: LabelObject[];
+  /**
+   * Fixed label geometry override — exact-reproduction templates carry
+   * artwork drawn for one physical size instead of the preset's
+   * calculated wrap. /editor/new honors this when creating the project.
+   */
+  label?: Partial<LabelDocument["label"]>;
 }
 
 /**
@@ -168,6 +207,7 @@ export function templateDoc(presetId: string, parts: TemplateDocParts): LabelDoc
   const doc = createDocument({ preset });
   return {
     ...doc,
+    label: parts.label ? { ...doc.label, ...parts.label } : doc.label,
     background: parts.background ?? { type: "solid", color: "#ffffff" },
     substrateId: parts.substrateId ?? "white-pp",
     objects: parts.objects,

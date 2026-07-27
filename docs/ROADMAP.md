@@ -18,9 +18,12 @@ rect/ellipse/line/polygon/star shapes, images (crop, filters), QR codes
 Matrix), nested groups, smart-guide snapping (`src/lib/editor/snapping.ts`),
 keyboard shortcuts with arrow-key nudge, and gesture-batched undo (zundo).
 
-**Template library.** 16 templates across 8 fictional demo brands and 10
-categories (`src/lib/templates/registry.ts`); applying one to a different
-label size rescales it proportionally.
+**Template library.** 20 classic templates (`src/lib/templates/registry.ts`):
+16 across 8 fictional demo brands and 10 categories, plus 4 pixel-exact
+NOIR PEPTIDES artwork reproductions (see below); applying one to a
+different label size rescales it proportionally, while `/editor/new`
+adopts a fixed-size template's own label geometry when no explicit size
+is requested.
 
 **Finishes and substrates.** 12 simulated special-material finishes
 (holographic, foil, metal, texture) and 6 substrate previews
@@ -247,3 +250,12 @@ Post-research-platform improvements, delivered as gated milestone commits:
   near-black palettes (noir-silver, noir-blue) and an engine fix: rows
   targeted by a badge medallion now reserve the badge's real diameter in
   the stack.
+- **Noir exact reproductions.** The same four masters again as classic
+  templates (`noir-exact-*`, fixed 60 × 30 mm), this time pixel-exact:
+  each ships its artwork as a locked full-bleed plate
+  (`public/templates/noir/`, variable regions healed out of the owner's
+  masters) with exactly nine editable objects at ink-measured positions
+  (product, strength, CAT code, LOT/MFG/EXP, composition, vertical
+  batch, real Code 128). Geometry was closed-loop calibrated: every
+  field's rendered ink was measured against the master's until position
+  and size converged (≤1 px at master resolution).

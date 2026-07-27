@@ -100,7 +100,9 @@ react-konva editor, optional Supabase/Stripe. Full design rationale:
   `/opt/pw-browsers/chromium` (wired in `playwright.config.ts` when `!CI`).
   If editor e2e fails with stale chunks, kill leftover servers:
   `pkill -f "next[-]server"` (bracket avoids self-match).
-- Fictional template brands only; finishes are labeled simulations.
+- Fictional template brands only — with one carve-out: the app owner's
+  own brand artwork, supplied by them (the `noir-exact-*` templates,
+  brand "NOIR PEPTIDES"). Finishes are labeled simulations.
 - Curved (arc) text stores its ARC CENTER in (xMm, yMm) and a
   selection-aid box — real ink bounds come ONLY from `curvedInkBox` /
   `objectAabb` in `src/lib/render/geometry.ts`, never `yMm ± heightMm/2`.

@@ -76,7 +76,11 @@ describe("template library", () => {
             `${obj.name || obj.type} bottom`,
           ).toBeLessThanOrEqual(bounds.y + bounds.height + epsilon);
           if (obj.type === "text") {
-            expect(obj.fontSizePt, `${obj.name} font size`).toBeGreaterThanOrEqual(3.5);
+            // noir-exact templates reproduce the owner's artwork verbatim,
+            // whose data microtext sits below the house floor at 60×30 mm;
+            // they keep a 2 pt hard floor instead.
+            const floor = template.id.startsWith("noir-exact-") ? 2 : 3.5;
+            expect(obj.fontSizePt, `${obj.name} font size`).toBeGreaterThanOrEqual(floor);
           }
         }
       });
@@ -110,6 +114,62 @@ describe("template library", () => {
       const box = objectAabb(obj);
       expect(box.x).toBeGreaterThanOrEqual(bounds.x - 0.75);
       expect(box.x + box.width).toBeLessThanOrEqual(bounds.x + bounds.width + 0.75);
+    }
+  });
+});
+
+describe("noir exact-reproduction templates", () => {
+  const noir = ALL_TEMPLATES.filter((t) => t.id.startsWith("noir-exact-"));
+
+  it("ships all four artwork skins at the fixed 60×30 label", () => {
+    expect(noir).toHaveLength(4);
+    for (const t of noir) {
+      expect(t.doc.label.widthMm, t.id).toBe(60);
+      expect(t.doc.label.heightMm, t.id).toBe(30);
+      expect(t.doc.label.bleedMm, t.id).toBe(2);
+      expect(t.brand).toBe("NOIR PEPTIDES");
+    }
+  });
+
+  it("locks the artwork plate and keeps exactly nine editable objects", () => {
+    for (const t of noir) {
+      const [plate, ...rest] = t.doc.objects;
+      expect(plate!.type, t.id).toBe("image");
+      expect(plate!.locked, t.id).toBe(true);
+      if (plate!.type === "image") {
+        expect(plate.source.kind).toBe("url");
+        // The plate spans trim + bleed exactly.
+        expect(plate.widthMm).toBe(64);
+        expect(plate.heightMm).toBe(34);
+      }
+      expect(rest, t.id).toHaveLength(9);
+      expect(rest.every((o) => !o.locked), t.id).toBe(true);
+      const names = rest.map((o) => o.name);
+      for (const expected of [
+        "Product name",
+        "Strength",
+        "Catalog code",
+        "LOT value",
+        "MFG value",
+        "EXP value",
+        "Composition",
+        "Batch (vertical)",
+        "Barcode",
+      ]) {
+        expect(names, t.id).toContain(expected);
+      }
+    }
+  });
+
+  it("renders a real, valid Code 128 barcode rotated into the artwork's strip", () => {
+    for (const t of noir) {
+      const bc = t.doc.objects.find((o) => o.type === "barcode")!;
+      if (bc.type !== "barcode") continue;
+      expect(bc.symbology).toBe("code128");
+      expect(bc.bgColor).toBeNull();
+      expect(bc.showText).toBe(false);
+      expect(Math.abs(bc.rotationDeg)).toBe(90);
+      expect(validateBarcodeValue(bc.symbology, bc.value).ok).toBe(true);
     }
   });
 });

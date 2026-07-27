@@ -53,6 +53,18 @@ function NewProjectWorker() {
           straightWallHeightMm: Number.isFinite(h) && h > 0 ? h : undefined,
         });
         if (template) {
+          // Fixed-size templates (exact artwork reproductions) carry their
+          // own label geometry; without explicit size params the project
+          // adopts it so applyTemplate runs at exactly scale 1. Templates
+          // whose doc matches the preset-derived label are unaffected.
+          const explicitSize =
+            searchParams.get("preset") !== null ||
+            (Number.isFinite(d) && d > 0) ||
+            (Number.isFinite(h) && h > 0) ||
+            (styleParam !== null && VALID_STYLES.includes(styleParam));
+          if (!explicitSize) {
+            doc = { ...doc, label: structuredClone(template.doc.label) };
+          }
           doc = applyTemplate(doc, template.doc);
         }
         const project = await getStorageAdapter().createProject({

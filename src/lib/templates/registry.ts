@@ -1,10 +1,12 @@
 import { EXEMPLAR_TEMPLATES } from "./data/exemplars";
 import { COLLECTION_TEMPLATES } from "./data/collection";
+import { NOIR_EXACT_TEMPLATES } from "./data/noir-exact";
 import type { TemplateCategoryId, TemplateDef } from "./types";
 
 export const ALL_TEMPLATES: TemplateDef[] = [
   ...EXEMPLAR_TEMPLATES,
   ...COLLECTION_TEMPLATES,
+  ...NOIR_EXACT_TEMPLATES,
 ];
 
 export function getTemplate(id: string): TemplateDef | undefined {

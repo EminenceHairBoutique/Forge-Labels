@@ -90,7 +90,9 @@ Both edit the same document; switching modes never loses work.
 - **Projects & brand kits** — autosave, version snapshots, thumbnails,
   tags, brand palettes/logos/fonts, logo upload in Easy mode
   (engine-placed and reflowed), and an Advanced-Editor template gallery of
-  16 fictional brand designs alongside the 157-template Easy library.
+  16 fictional brand designs alongside the 157-template Easy library —
+  plus four pixel-exact NOIR PEPTIDES reproductions of the owner's own
+  uploaded artwork (locked plate + nine editable fields in place).
 
 ## Quickstart (zero configuration)
 

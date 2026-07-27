@@ -186,6 +186,47 @@ test.describe("upgrade batch", () => {
     ).toBeVisible();
   });
 
+  test("noir exact templates open at the artwork's native 60×30 with nine editable fields", async ({
+    page,
+  }) => {
+    await page.goto("/editor/new?template=noir-exact-core");
+    await page.waitForURL(/\/editor\/[\w-]+$/, { timeout: 60_000 });
+    await page.locator('[data-testid="editor-canvas"] canvas').first().waitFor({ timeout: 30_000 });
+
+    // The locked artwork plate + the nine editable fields, by name.
+    await page.getByRole("tab", { name: /layers/i }).click();
+    const layerList = page.getByRole("list", { name: /layers/i });
+    for (const name of [
+      "Artwork plate (locked)",
+      "Product name",
+      "Strength",
+      "Catalog code",
+      "LOT value",
+      "MFG value",
+      "EXP value",
+      "Composition",
+      "Batch (vertical)",
+      "Barcode",
+    ]) {
+      await expect(layerList.getByText(name, { exact: true })).toBeVisible();
+    }
+
+    // The project adopted the template's fixed label geometry: a die-cut
+    // export is mm-exact for 60 × 30 at 300 DPI (no preset letterboxing).
+    await page.getByRole("button", { name: /^export$/i }).click();
+    await page.getByLabel(/format/i).click();
+    await page.getByRole("option", { name: /die-cut sticker/i }).click();
+    const downloadPromise = page.waitForEvent("download");
+    await page.getByRole("dialog").getByRole("button", { name: /^export$/i }).click();
+    const download = await downloadPromise;
+    const stream = await download.createReadStream();
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) chunks.push(chunk as Buffer);
+    const bytes = Buffer.concat(chunks);
+    expect(bytes.readUInt32BE(16)).toBe(Math.round((60 / 25.4) * 300)); // 709
+    expect(bytes.readUInt32BE(20)).toBe(Math.round((30 / 25.4) * 300)); // 354
+  });
+
   test("hex elixir arches the brand line as real curved text", async ({ page }) => {
     await startWizard(page, {
       vial: /^10 mL vial/,

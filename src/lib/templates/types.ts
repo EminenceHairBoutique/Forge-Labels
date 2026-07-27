@@ -21,7 +21,11 @@ export const TEMPLATE_CATEGORIES = [
 
 export type TemplateCategoryId = (typeof TEMPLATE_CATEGORIES)[number]["id"];
 
-/** Fictional demo brands (spec §33) — never real companies. */
+/**
+ * Fictional demo brands (spec §33) — never real companies. Exception:
+ * "NOIR PEPTIDES" is the app owner's own brand, carried by the
+ * exact-reproduction templates built from their uploaded artwork.
+ */
 export const DEMO_BRANDS = [
   "AURELIS LABS",
   "VANTA RESEARCH",
@@ -31,6 +35,7 @@ export const DEMO_BRANDS = [
   "LUMEN BIOSCIENCE",
   "NOIR FORMULA",
   "ARCADIA BOTANICALS",
+  "NOIR PEPTIDES",
 ] as const;
 
 export interface TemplateDef {
